@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-review-closure/1",
+  "title": "csm-review remediation-closure/disposition link",
+  "description": "Per-finding closure record required by the additive csm-review-findings/2 revision. A terminal disposition must be closed; deferred/unresolved are open and force INCOMPLETE/BLOCKED rather than a false VERIFIED.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "disposition", "status", "action", "evidence"],
+  "properties": {
+    "format": { "const": "csm-review-closure/1" },
+    "schemaRevision": { "const": 1 },
+    "disposition": {
+      "enum": [
+        "remediated",
+        "accepted-risk",
+        "false-positive",
+        "not-applicable",
+        "deferred",
+        "unresolved"
+      ]
+    },
+    "status": { "enum": ["closed", "open"] },
+    "action": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "string", "minLength": 1 },
+    "closedAt": { "type": "string", "format": "date-time" }
+  }
+}

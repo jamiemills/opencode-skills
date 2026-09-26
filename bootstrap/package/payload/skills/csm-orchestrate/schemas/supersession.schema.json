@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-supersession/1",
+  "title": "csm-orchestrate typed resumable supersession",
+  "description": "Typed resumable supersession pointer emitted by buildResumableSupersession() in csm-orchestrate/lib/recovery.mjs when a hard node failure stops a run closed with pending work that a later bounded remainder or resume can pick up.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "supersessionId",
+    "runId",
+    "phaseId",
+    "resumable",
+    "failClosed",
+    "remainderSpent",
+    "reason",
+    "pendingNodes",
+    "pendingPhases",
+    "supersededBy",
+    "supersededAt"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-supersession/1" },
+    "schemaRevision": { "const": 1 },
+    "supersessionId": { "type": "string", "pattern": "^supersession-[a-z0-9-]{1,128}$" },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "failedNodeId": { "type": ["string", "null"] },
+    "resumable": { "const": true },
+    "failClosed": { "const": true },
+    "remainderSpent": { "type": "boolean" },
+    "reason": { "type": "string", "minLength": 1 },
+    "failure": { "type": "object" },
+    "pendingNodes": { "type": "array", "items": { "type": "string" } },
+    "pendingPhases": { "type": "array", "items": { "type": "string" } },
+    "supersededBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "runId", "phaseId", "entry"],
+      "properties": {
+        "schema": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "phaseId": { "type": "string", "minLength": 1 },
+        "entry": { "type": "string", "minLength": 1 }
+      }
+    },
+    "supersededAt": { "type": "string", "format": "date-time" }
+  }
+}

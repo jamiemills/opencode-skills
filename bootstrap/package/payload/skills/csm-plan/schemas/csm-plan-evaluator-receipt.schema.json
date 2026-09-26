@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-plan-evaluator-receipt/1",
+  "title": "csm-plan per-cycle evaluator verdict receipt",
+  "description": "Content-bound continue|complete|blocked verdict emitted by createEvaluatorReceipt() in csm-plan/lib/loop-evaluator.mjs. The receipt digest binds the body; closePlan refuses a plan without a passing, verified receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "verdict",
+    "evidence",
+    "inputs",
+    "signalErrors",
+    "evaluator",
+    "createdAt",
+    "receiptDigest"
+  ],
+  "properties": {
+    "format": { "const": "csm-plan-evaluator-receipt/1" },
+    "schemaRevision": { "const": 1 },
+    "verdict": { "enum": ["continue", "complete", "blocked"] },
+    "evidence": { "type": "string", "minLength": 1 },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "artifactId",
+        "runId",
+        "controlDigest",
+        "goalDigest",
+        "acceptanceDigest"
+      ],
+      "properties": {
+        "schema": { "type": ["string", "null"] },
+        "artifactId": { "type": ["string", "null"] },
+        "runId": { "type": ["string", "null"] },
+        "controlDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "goalDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "acceptanceDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "signalErrors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 },
+          "taskId": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "evaluator": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "receiptDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

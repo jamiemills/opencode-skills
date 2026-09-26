@@ -37,7 +37,7 @@ function progressSection(content) {
 
 function assertContract(section, skill) {
   assert.match(section, /Progress tracking is ON by default/);
-  assert.match(section, /csm-progress\/1/);
+  assert.match(section, /csm-skill-progress\/1/);
   assert.match(section, /Declare 3[–-]6 milestones/);
   assert.match(section, /weights.*100%/s);
   assert.match(section, /completed_weight \+ active_weight × verified_fraction/);

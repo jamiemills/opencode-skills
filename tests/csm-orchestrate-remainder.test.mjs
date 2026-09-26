@@ -14,6 +14,7 @@ import test from "node:test";
 import { orchestrate } from "../csm-orchestrate/lib/index.mjs";
 import { validateCapabilities } from "../csm-orchestrate/lib/capabilities.mjs";
 import { RUN_EVALUATOR_CONTRACT, evaluateRunRemainder } from "../csm-orchestrate/lib/recovery.mjs";
+import { createTelemetryEmitter } from "../csm-orchestrate/lib/telemetry.mjs";
 import { createArtifactResolver } from "../lib/artifact-resolver/index.mjs";
 import { digest, loadSchemaRegistry } from "../lib/schema-runtime/index.mjs";
 
@@ -242,10 +243,11 @@ test("evaluator records a typed resumable supersession and bounds remainders to 
   assert.equal(denied.verdict, "blocked");
 });
 
-test("a hard node failure stops the run closed and records a resumable supersession", async () => {
+test("a hard first-node failure records a fail-closed evaluator verdict and a resumable supersession", async () => {
   const runId = "run-remainder-failclosed";
   const host = failingHost();
-  const result = await orchestrate(await orchestrateOptions(runId, host));
+  const telemetryEmitter = createTelemetryEmitter({ runId, now: NOW });
+  const result = await orchestrate(await orchestrateOptions(runId, host, { telemetryEmitter }));
 
   assert.equal(result.receipt.outcome.status, "FAILED");
   assert.equal(result.receipt.outcome.accepted, false);
@@ -258,6 +260,18 @@ test("a hard node failure stops the run closed and records a resumable supersess
   assert.equal(supersession.failClosed, true);
   assert.equal(supersession.failedNodeId, "node-p1-csm-ddd");
   assert.deepEqual([...supersession.pendingNodes], ["node-p1-csm-grill"]);
+
+  // The first-node failure must yield a RECORDED evaluator verdict (fail-closed),
+  // not an unrecorded whole-run termination: the run evaluator journals its
+  // `blocked` verdict together with the resumable supersession exactly once.
+  const verdictEvents = await telemetryEmitter.getEvents({ eventType: "reconciliation" });
+  const recorded = verdictEvents.filter(
+    (event) => event.payload?.status === "resumable-supersession",
+  );
+  assert.equal(recorded.length, 1, "the evaluator verdict is recorded exactly once");
+  assert.equal(recorded[0].payload.verdict, "blocked");
+  assert.equal(recorded[0].payload.resumableSupersession.failClosed, true);
+  assert.equal(recorded[0].payload.resumableSupersession.resumable, true);
 
   const remainderPhases = result.receipt.extensions.phaseSummaries.filter(
     (item) => item.parentPhaseId,

@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged regen precommit audit trace check check-anthropic-mapping test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
+.PHONY: help install lint fmt fmt-check fmt-staged regen precommit audit trace check check-anthropic-mapping test-corpus test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -50,6 +50,10 @@ trace: ## append one action/decision trace; pass ARGS="action --actor ... --acti
 check: ## repo conformance gate (includes an advisory, warn-only upstream id-mapping freshness report)
 	node scripts/check-suite.mjs
 	node scripts/check-anthropic-mapping.mjs
+	$(MAKE) test-corpus
+
+test-corpus: ## validate the canonical JSON plan/build-state corpus (declared-revision)
+	node scripts/validate-corpus-v2.mjs
 
 check-anthropic-mapping: ## strict upstream Anthropic id-mapping freshness gate (fails on stale age/version-gate drift)
 	node scripts/check-anthropic-mapping.mjs --strict
@@ -101,29 +105,36 @@ test-contracts: ## previously-orphaned artifact/JSON contract, config-adapter, r
 	  tests/config-security.test.mjs \
 	  tests/consumer-edge-adapter.test.mjs \
 	  tests/consumer-edge-inventory.test.mjs \
+	  tests/consumer-replay-matrix.test.mjs \
 	  tests/ddd-*.test.mjs \
+	  tests/digest-taxonomy.test.mjs \
 	  tests/durable-json-safety.test.mjs \
 	  tests/environment-preflight.test.mjs \
 	  tests/evidence-status.test.mjs \
 	  tests/evals/orchestration/*.test.mjs \
 	  tests/final-receipt.test.mjs \
 	  tests/grill-json-contract.test.mjs \
+	  tests/grill-plan-replay.test.mjs \
 	  tests/host-assurance/*.test.mjs \
 	  tests/json-migration-characterization.test.mjs \
+	  tests/json-only-cutover.test.mjs \
 	  tests/legacy-artifact-compatibility.test.mjs \
+	  tests/lifecycle-contract.test.mjs \
 	  tests/make-tests-*.test.mjs \
 	  tests/norms-json-contract.test.mjs \
 	  tests/plan-*.test.mjs \
 	  tests/progress-projection.test.mjs \
 	  tests/progress-rollup.test.mjs \
 	  tests/progress-schema.test.mjs \
+	  tests/progress-tracker-contract.test.mjs \
 	  tests/projection-discovery-negative.test.mjs \
 	  tests/publication-protocol.test.mjs \
 	  tests/render-*.test.mjs \
 	  tests/research-json-contract.test.mjs \
 	  tests/review-json-contract.test.mjs \
 	  tests/rollout/*.test.mjs \
-	  tests/schema-*.test.mjs
+	  tests/schema-*.test.mjs \
+	  tests/standalone-progress.test.mjs
 
 test-enforcement: ## in-loop completion-enforcement suites (evaluators, guards, closure, acceptance)
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 \

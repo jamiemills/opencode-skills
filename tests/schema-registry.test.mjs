@@ -162,6 +162,30 @@ test("registered schema identities resolve exactly and schema digests are canoni
   }
 });
 
+// The seven in-loop completion-enforcement record ids were authored without a
+// registry schema. Assert each resolves by its canonical (name, revision) pair
+// and that its $id/identity/digest are internally consistent.
+const ENFORCEMENT_RECORD_IDS = Object.freeze([
+  "csm-plan-evaluator-receipt/1",
+  "csm-plan-loop-guard/1",
+  "csm-evaluator-receipt/1",
+  "csm-review-closure/1",
+  "csm-orchestrate-supersession/1",
+  "csm-orchestrate-remainder/1",
+  "csm-orchestrate-run-evaluation/1",
+]);
+
+test("all 7 in-loop enforcement record ids resolve in the registry", () => {
+  assert.equal(ENFORCEMENT_RECORD_IDS.length, 7);
+  for (const id of ENFORCEMENT_RECORD_IDS) {
+    const [name, revision] = id.split("/");
+    const entry = runtime.resolve(name, Number(revision));
+    assert.equal(entry.id, id);
+    assert.equal(entry.schema.$id, id);
+    assert.equal(entry.schemaContentDigest, digest(entry.schema));
+  }
+});
+
 test("duplicated shared definitions remain byte-for-byte structurally aligned", () => {
   const byId = new Map(runtime.entries.map((entry) => [entry.id, entry.schema]));
   const envelope = byId.get("csm-envelope/1");

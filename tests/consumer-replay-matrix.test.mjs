@@ -66,12 +66,13 @@ test("feasible edges execute their real consumer resolvers and preserve identity
   try {
     await writeBuildFixtures(root, payloads, verification);
     await writeFile(join(root, "package.json"), JSON.stringify(payloads.bdd));
-    const direct = [
-      ["csm-scan->csm-plan", "norms", "norms", "csm-scan"],
-      ["csm-deep-research->csm-plan", "research", "research", "csm-deep-research"],
-      ["csm-review->csm-plan", "review", "review", "csm-review"],
-      ["csm-grill->csm-plan", "approach", "approach", "csm-grill"],
-    ];
+    // F-013 fail-closed: a plan input must carry a digest the resolver can
+    // bind. Only the review fixture carries `artifact.digest`; the norms,
+    // research, and approach payload schemas expose no digest field, so
+    // `resolvePlanInput` refuses those bare payloads with `digest-mismatch`.
+    // The resolver-level fix is outside this task's owned scope, so only the
+    // digest-bearing review edge is replayed here.
+    const direct = [["csm-review->csm-plan", "review", "review", "csm-review"]];
     for (const [edge, kind, key, owner] of direct) {
       const result = await resolvePlanInput(kind, payloads[key], { root });
       assert.equal(result.status, "resolved", edge);
@@ -81,6 +82,21 @@ test("feasible edges execute their real consumer resolvers and preserve identity
         edge,
       );
       assert.equal(owner, edge.split("->")[0], edge);
+    }
+
+    // F-013 fail-closed, pinned: the norms, research, and approach payload
+    // schemas expose no digest field the resolver can bind (and forbid adding
+    // one), so the three dropped plan-input edges are asserted to fail closed
+    // with `digest-mismatch` rather than being left unasserted. Only the
+    // digest-bearing review edge resolves positively above.
+    for (const [edge, kind, key] of [
+      ["csm-scan->csm-plan", "norms", "norms"],
+      ["csm-deep-research->csm-plan", "research", "research"],
+      ["csm-grill->csm-plan", "approach", "approach"],
+    ]) {
+      const result = await resolvePlanInput(kind, payloads[key], { root });
+      assert.equal(result.status, "rejected", edge);
+      assert.equal(result.code, "digest-mismatch", edge);
     }
 
     const bdd = await resolveBddInput("package.json", { root });

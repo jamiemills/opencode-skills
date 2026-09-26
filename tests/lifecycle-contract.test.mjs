@@ -79,7 +79,7 @@ test("deep research persists a cursor and constrains every research role by sour
 test("instruction-led durable artifacts use run identity and refuse terminal collisions", async () => {
   const contracts = [
     ["csm-deep-research", "research", "research.json", true],
-    ["csm-make-tests", "tests", "tests-ledger.md", true],
+    ["csm-make-tests", "tests", "tests-ledger.jsonl", true],
     ["csm-plan", "plans", "csm.json", false],
     ["csm-review", "reviews", "review.json", true],
     ["csm-review-python", "doctrine", "python-doctrine-review.json", true],

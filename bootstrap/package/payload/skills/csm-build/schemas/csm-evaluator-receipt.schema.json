@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-evaluator-receipt/1",
+  "title": "CSM shared evaluator verdict receipt",
+  "description": "Shared evaluator verdict receipt emitted by both csm-build (csm-build/lib/loop-guard.mjs, native `schema` field plus inputDigests/receiptDigest) and csm-review (csm-review/lib/loop-closure.mjs, native `schema` field plus producer/contract/binding). Both producers emit the `schema` identity field; the common verdict/evidence/runId/cycle/evaluatorId fields are required.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "verdict", "evidence"],
+  "properties": {
+    "schema": { "const": "csm-evaluator-receipt/1" },
+    "schemaRevision": { "const": 1 },
+    "runId": { "type": ["string", "null"] },
+    "cycle": { "type": "integer", "minimum": 0 },
+    "evaluatorId": { "type": "string", "minLength": 1 },
+    "verdict": { "enum": ["continue", "complete", "blocked"] },
+    "evidence": { "type": "string", "minLength": 1 },
+    "inputDigests": { "type": "array", "items": { "type": "string" } },
+    "receiptDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "producer": { "type": "string", "minLength": 1 },
+    "contract": { "type": "string", "minLength": 1 },
+    "inputs": { "type": "array", "items": { "type": "string" } },
+    "unresolvedFindings": { "type": "array", "items": { "type": "string" } },
+    "unresolvedChecks": { "type": "array", "items": { "type": "string" } },
+    "openTasks": { "type": "array", "items": { "type": "string" } },
+    "activeTasks": { "type": "integer", "minimum": 0 },
+    "state": { "type": "string" },
+    "binding": { "type": "string", "minLength": 1 },
+    "emittedAt": { "type": "string", "format": "date-time" }
+  }
+}

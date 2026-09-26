@@ -511,6 +511,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-build/schemas/csm-evaluator-receipt.schema.json",
+        "sha256": "ad635ecf0f3fd263ce709c06741254f30bac2dccb31e21a96eab60a909ac6cb5",
+        "bytes": 1782,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-build/schemas/output.schema.json",
         "sha256": "2d6e4c1f9d2115220f9ec8d596bb4098a30b96a37f0fb57188ee8e046b8411a5",
         "bytes": 2784,
@@ -1315,6 +1321,12 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/remainder.schema.json",
+        "sha256": "ba38a56e3d558d6d623efe1d468733077beb1bc2b386f78d4618ee1c8e1070d3",
+        "bytes": 1323,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/replay.schema.json",
         "sha256": "89b09c96aca52d49c4f00c4c631c2880db2ea10e9cdd83fb7ca9b6064a0d0770",
         "bytes": 821,
@@ -1339,9 +1351,21 @@
         "mode": "0644"
       },
       {
+        "path": "payload/skills/csm-orchestrate/schemas/run-evaluation.schema.json",
+        "sha256": "bce1b8dec46d294993e03fee38e403c427c4d1552a949e7cd0f4aa1f88d04e21",
+        "bytes": 4154,
+        "mode": "0644"
+      },
+      {
         "path": "payload/skills/csm-orchestrate/schemas/skill-executor.v1.schema.json",
         "sha256": "6000c9f2cef58ab88bf3bed6fb2e7f436618d7a88289f9b04fab3ddf9dd36d6b",
         "bytes": 1590,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/schemas/supersession.schema.json",
+        "sha256": "a21ddbaccea86f70d08536b976785a60b243da3c3b3c6ccf3dce7cd99e0b99a8",
+        "bytes": 1949,
         "mode": "0644"
       },
       {
@@ -1402,6 +1426,18 @@
         "path": "payload/skills/csm-plan/schemas/config.schema.json",
         "sha256": "60c9fb73f1fd3bf7348c5049375b580b0bec95a9e021cf8d7be7edf7f5858e2d",
         "bytes": 944,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-plan/schemas/csm-plan-evaluator-receipt.schema.json",
+        "sha256": "f1f52d04a74c4e978455a4d2fcac2b976450e04870b986511e571a19512540e8",
+        "bytes": 2099,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-plan/schemas/csm-plan-loop-guard.schema.json",
+        "sha256": "b8662a47232e21011ed3b38d532ecfab3fdb61c48933f901041ccc2142d1d022",
+        "bytes": 1234,
         "mode": "0644"
       },
       {
@@ -1510,6 +1546,12 @@
         "path": "payload/skills/csm-review/schemas/config.schema.json",
         "sha256": "bfc0e146dd72df383d79997f9e485762a9bb81a73d4dcb1ccf6a3f62c84d0b63",
         "bytes": 756,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-review/schemas/csm-review-closure.schema.json",
+        "sha256": "4cbcd4eedc732e9d1e35a973719cc13b9d3df952051320604a965a074a3dcaec",
+        "bytes": 1032,
         "mode": "0644"
       },
       {
@@ -2309,8 +2351,8 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "105f07135e1711167cb881f3a7ce90cd8a736c5f4afe5511865b0b2307fe576b",
-        "bytes": 6210,
+        "sha256": "24c8823aa7cfdd010d5d6d3620e777966f0ba16fd969b71f3553b2d6e6ccc600",
+        "bytes": 7378,
         "mode": "0644"
       },
       {
@@ -2405,8 +2447,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "40befbe59a8b036c27197b67c0fb8e738b41cd8ff53dc141a7f3355af9941fef",
-        "bytes": 32294,
+        "sha256": "d468e092663dfc2e31345804af2ba24b750a33ba1f6090515f4217a7b85b9a0b",
+        "bytes": 34648,
         "mode": "0644"
       },
       {

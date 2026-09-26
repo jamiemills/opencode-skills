@@ -261,6 +261,30 @@ jobs:
           path: ${{ runner.temp }}/adapter-diagnostics
           if-no-files-found: error
 
+  required:
+    name: Required checks
+    # Single terminal check that transitively depends on the live Docker/browser
+    # adapter-integrations job. Branch protection (a GitHub repository setting,
+    # not an in-repo file) should require "Required checks" so a green summary
+    # cannot pass while the live proofs failed. This job fails closed if any
+    # dependency is skipped, cancelled, or unsuccessful.
+    needs: [frozen-install, dependency-audit, gates, adapter-integrations]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Assert every required job succeeded
+        env:
+          FROZEN_INSTALL_RESULT: ${{ needs.frozen-install.result }}
+          DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
+          GATES_RESULT: ${{ needs.gates.result }}
+          ADAPTER_INTEGRATIONS_RESULT: ${{ needs.adapter-integrations.result }}
+        run: |
+          set -eu
+          test "$FROZEN_INSTALL_RESULT" = success
+          test "$DEPENDENCY_AUDIT_RESULT" = success
+          test "$GATES_RESULT" = success
+          test "$ADAPTER_INTEGRATIONS_RESULT" = success
+
   node24-canary:
     runs-on: ubuntu-24.04
     continue-on-error: true

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-run-evaluation/1",
+  "title": "csm-orchestrate node/run-boundary evaluator verdict",
+  "description": "Binding run-boundary verdict emitted by evaluateRunRemainder() in csm-orchestrate/lib/recovery.mjs. A `remainder` verdict carries one bounded remainder phase; a `blocked` verdict carries a null remainder and a reason. A hard node failure is always fail-closed and records a typed resumable supersession.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "runId",
+    "phaseId",
+    "verdict",
+    "failClosed",
+    "failureClass",
+    "supersession",
+    "remainder"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-run-evaluation/1" },
+    "schemaRevision": { "const": 1 },
+    "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "verdict": { "enum": ["continue", "complete", "blocked", "remainder"] },
+    "failClosed": { "const": true },
+    "failureClass": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "supersession": { "$ref": "#/$defs/supersession" },
+    "remainder": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/remainder" }] }
+  },
+  "$defs": {
+    "supersession": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "supersessionId",
+        "runId",
+        "phaseId",
+        "resumable",
+        "failClosed",
+        "remainderSpent",
+        "reason",
+        "pendingNodes",
+        "pendingPhases",
+        "supersededBy",
+        "supersededAt"
+      ],
+      "properties": {
+        "schema": { "const": "csm-orchestrate-supersession/1" },
+        "schemaRevision": { "const": 1 },
+        "supersessionId": { "type": "string", "pattern": "^supersession-[a-z0-9-]{1,128}$" },
+        "runId": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{1,127}$" },
+        "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+        "failedNodeId": { "type": ["string", "null"] },
+        "resumable": { "const": true },
+        "failClosed": { "const": true },
+        "remainderSpent": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "failure": { "type": "object" },
+        "pendingNodes": { "type": "array", "items": { "type": "string" } },
+        "pendingPhases": { "type": "array", "items": { "type": "string" } },
+        "supersededBy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema", "runId", "phaseId", "entry"],
+          "properties": {
+            "schema": { "type": "string", "minLength": 1 },
+            "runId": { "type": "string", "minLength": 1 },
+            "phaseId": { "type": "string", "minLength": 1 },
+            "entry": { "type": "string", "minLength": 1 }
+          }
+        },
+        "supersededAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "remainder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "bounded",
+        "budget",
+        "maxRemainders",
+        "remaindersUsed",
+        "phaseId",
+        "failedNodeId",
+        "failureClass",
+        "pendingNodes",
+        "pendingPhases"
+      ],
+      "properties": {
+        "schema": { "const": "csm-orchestrate-remainder/1" },
+        "schemaRevision": { "const": 1 },
+        "bounded": { "const": true },
+        "budget": { "type": "integer", "minimum": 0 },
+        "maxRemainders": { "type": "integer", "minimum": 0 },
+        "remaindersUsed": { "type": "integer", "minimum": 0 },
+        "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+        "failedNodeId": { "type": ["string", "null"] },
+        "failureClass": { "type": "string", "minLength": 1 },
+        "pendingNodes": { "type": "array", "items": { "type": "string" } },
+        "pendingPhases": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

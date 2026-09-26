@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-plan-loop-guard/1",
+  "title": "csm-plan deterministic loop-guard verdict",
+  "description": "Status-only verdict emitted by outstandingWork()/loopGuard() in csm-plan/lib/loop-evaluator.mjs. The lifecycle fields are present on the full loopGuard() result and absent on the pre-closure outstandingWork() subset.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "done", "openTasks", "activeTasks", "blockedOnly", "evidence"],
+  "properties": {
+    "format": { "const": "csm-plan-loop-guard/1" },
+    "schemaRevision": { "const": 1 },
+    "done": { "type": "boolean" },
+    "openTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["taskId", "status"],
+        "properties": {
+          "taskId": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "activeTasks": { "type": "array", "items": { "type": "string" } },
+    "blockedOnly": { "type": "boolean" },
+    "evidence": { "type": "string", "minLength": 1 },
+    "lifecycleStatus": { "type": "string" },
+    "lifecycleOpen": { "type": "boolean" }
+  }
+}

@@ -1059,50 +1059,7 @@ function checkDeferredCitations(planFile, content, ledgerIds) {
 const ALLOWLIST_ENTRY_FIELDS = Object.freeze(["path", "owner", "reason", "expires"]);
 const ALLOWLIST_ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ALLOWLIST_TEST_PATH_RE = /^tests\/.*\.test\.mjs$/;
-const KNOWN_UNWIRED_TESTS = Object.freeze([
-  {
-    path: "tests/consumer-replay-matrix.test.mjs",
-    owner: "core",
-    reason: "csm-scan->csm-plan resolver returns 'rejected' (expected 'resolved')",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/digest-taxonomy.test.mjs",
-    owner: "core",
-    reason: "resolver returns 'schema-invalid'/'rejected' instead of digest-taxonomy errors",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/grill-plan-replay.test.mjs",
-    owner: "core",
-    reason: "plan replay returns 'rejected' (expected 'resolved')",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/json-only-cutover.test.mjs",
-    owner: "core",
-    reason: "resolver returns 'schema-invalid' instead of 'payload-digest-mismatch'",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/lifecycle-contract.test.mjs",
-    owner: "core",
-    reason: "csm-make-tests SKILL.md lacks the run-id tests-ledger path pattern",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/progress-tracker-contract.test.mjs",
-    owner: "core",
-    reason: "SKILL.md declares 'csm-skill-progress/1'; test expects 'csm-progress/1'",
-    expires: "2026-10-21",
-  },
-  {
-    path: "tests/standalone-progress.test.mjs",
-    owner: "core",
-    reason: "standalone boundary contract drift",
-    expires: "2026-10-21",
-  },
-]);
+const KNOWN_UNWIRED_TESTS = Object.freeze([]);
 
 // Gate-time "today": `CSM_ALLOWLIST_TODAY` (ISO date) pins it for reproducible
 // runs; otherwise the current UTC calendar date is used. The pure policy below

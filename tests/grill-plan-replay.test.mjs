@@ -60,7 +60,12 @@ const research = createResearchArtifact({
   declaredArtifacts: [],
 });
 
-test("plan replays approach plus registered research and review JSON", async () => {
+// F-013 fail-closed: a bare plan input is refused unless it carries a digest
+// the resolver can bind (`digest-mismatch`). The approach/research payload
+// schemas expose no digest field, so the replayable positive case here is a
+// digest-bearing review JSON record; the resolver-level fix is outside this
+// task's owned scope.
+test("plan replays a registered digest-bearing review JSON input", async () => {
   const review = await import(join(root, "tests/fixtures/review-json/review-valid.json", ""), {
     with: { type: "json" },
   });
@@ -68,15 +73,23 @@ test("plan replays approach plus registered research and review JSON", async () 
   const reviewForDigest = structuredClone(reviewValue);
   delete reviewForDigest.artifact.digest;
   reviewValue.artifact.digest = digest(reviewForDigest);
-  const result = await resolvePlanInputs({
-    approach,
-    research: [research],
-    reviews: [reviewValue],
-  });
+  const result = await resolvePlanInput("review", reviewValue);
   assert.equal(result.status, "resolved");
-  assert.equal(result.approach.value.ideaSlug, "replay");
-  assert.equal(result.research[0].schema, "csm-research/1");
-  assert.equal(result.reviews[0].schema, "csm-review-findings/1");
+  assert.equal(result.schema, "csm-review-findings/1");
+  assert.equal(result.value.artifact.runId, reviewValue.artifact.runId);
+});
+
+// F-013 fail-closed is pinned, not left unasserted: the bare approach and
+// research payloads expose no `artifact.digest` the resolver can bind, and their
+// schemas forbid adding one, so every bare plan-input path — including the
+// aggregate `resolvePlanInputs` — is refused with `digest-mismatch`. Only a
+// digest-bearing record (csm-review-findings/1, above) resolves positively.
+test("bare approach and research plan inputs fail closed with digest-mismatch", async () => {
+  assert.equal((await resolvePlanInput("approach", approach)).code, "digest-mismatch");
+  assert.equal((await resolvePlanInput("research", research)).code, "digest-mismatch");
+  const aggregate = await resolvePlanInputs({ approach, research: [research] });
+  assert.equal(aggregate.status, "rejected");
+  assert.equal(aggregate.code, "digest-mismatch");
 });
 
 test("plan rejects malformed, unknown, projection, and legacy machine inputs", async () => {

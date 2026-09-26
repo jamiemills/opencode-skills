@@ -24,6 +24,7 @@ function record(overrides = {}) {
       kind: "taxonomy.fixture",
       owner: "csm-test",
       runId: "run-taxonomy",
+      digest: sha("artifact"),
       createdAt: "2026-08-26T00:00:00.000Z",
       revision: 1,
     },
@@ -141,7 +142,7 @@ test("default resolver rejects every ambiguous legacy digest alias", async () =>
   const value = record();
   for (const legacy of [
     { digest: sha("legacy") },
-    { artifact: { digest: sha("legacy") } },
+    { provenance: { sourceDigests: [sha("legacy")] } },
     { provenance: { sourceDigest: sha("legacy") } },
     { sourcePlan: { planDigest: sha("legacy") } },
   ]) {

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-orchestrate-remainder/1",
+  "title": "csm-orchestrate bounded remainder phase",
+  "description": "Single bounded remainder phase emitted by evaluateRunRemainder() in csm-orchestrate/lib/recovery.mjs. The budget is derived from the declared remainder policy, so at most maxRemainders - remaindersUsed phases can ever be directed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "bounded",
+    "budget",
+    "maxRemainders",
+    "remaindersUsed",
+    "phaseId",
+    "failedNodeId",
+    "failureClass",
+    "pendingNodes",
+    "pendingPhases"
+  ],
+  "properties": {
+    "schema": { "const": "csm-orchestrate-remainder/1" },
+    "schemaRevision": { "const": 1 },
+    "bounded": { "const": true },
+    "budget": { "type": "integer", "minimum": 0 },
+    "maxRemainders": { "type": "integer", "minimum": 0 },
+    "remaindersUsed": { "type": "integer", "minimum": 0 },
+    "phaseId": { "type": "string", "pattern": "^phase-[a-z0-9][a-z0-9-]{1,127}$" },
+    "failedNodeId": { "type": ["string", "null"] },
+    "failureClass": { "type": "string", "minLength": 1 },
+    "pendingNodes": { "type": "array", "items": { "type": "string" } },
+    "pendingPhases": { "type": "array", "items": { "type": "string" } }
+  }
+}

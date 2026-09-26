@@ -49,6 +49,19 @@ test("global discovery resolves registered JSON by default and requires source p
         "missing-digest.json",
       )
     ).code,
+    "schema-invalid",
+  );
+
+  await writeFile(
+    join(root, "tampered-payload.json"),
+    JSON.stringify({ ...artifact, artifact: { ...artifact.artifact, kind: "cutover.tampered" } }),
+  );
+  assert.equal(
+    (
+      await createArtifactResolver({ root, schemaRegistry: registry }).resolve(
+        "tampered-payload.json",
+      )
+    ).code,
     "payload-digest-mismatch",
   );
 });

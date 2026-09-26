@@ -212,3 +212,45 @@ The deterministic boundary guard (`.../boundary-guard.mjs`) fails closed if an
 advisory/decision payload appears in a protected input (digest, receipt, gate,
 closure, acceptance). The `csm-orchestrate` `reviewAcceptance` gate is
 byte-identical with or without advisory context and is never influenced by Jev.
+
+## 9. Jev accuracy (advisory-only): accepted residual
+
+Decision (T005): **ACCEPT-RESIDUAL — Jev stays advisory-only and its per-role
+accuracy is unmeasured.** No gate anywhere in the suite depends on a Jev verdict
+or on a Jev accuracy number, so the absence of measured agreement is a bounded,
+accepted residual rather than a blocker. This is consistent with the never-Jev
+boundary in section 6 and the observational posture in section 1: Jev may advise
+or pre-flag, but acceptance, security, and completion authority stay
+deterministic.
+
+The alternative — building a small human-labelled held-out set and measuring
+per-role agreement (review-assignment / judge / critique-severity) — was
+declined for now. The only calibration evidence is a synthetic 195-item run
+(with confidently-wrong adjacent-category errors) and two single-sample live
+probes from the quality-checks finding; neither is a human-labelled held-out
+corpus, so no measured precision/recall can be claimed.
+
+Affected decision points (per-role judgment surfaces):
+
+- **Review assignment** — `review-assignment` (`csm-review`): which reviewers
+  the review set adds.
+- **Judge** — `deep-research-judge-factual-accuracy`,
+  `deep-research-judge-citation-accuracy`, `deep-research-judge-completeness`,
+  `deep-research-judge-clarity` (`csm-deep-research`),
+  `python-review-judge-severity` (`csm-review-python`), and
+  `autoresearch-judge-ranking` (`csm-autoresearch`).
+- **Critique / severity** — `critique-severity`, `task-risk` (`csm-plan`),
+  `severity-bucketing`, `evidence-class-bucketing`, `semantic-dedup`,
+  `review-challenger-verdict` (`csm-review`),
+  `deep-research-challenger-verdict` (`csm-deep-research`),
+  `build-review-verdict` (`csm-build`), `bdd-tdd-validation-verdict`
+  (`csm-bdd-tdd`), and `orchestrate-reviewer-finding`, `trace-emission-verdict`
+  (`csm-orchestrate-review`), as the wider advisory/authority set.
+
+Every one of these is consumed only through the advisory consult seam
+(section 8); none is wired into a gate, and this decision does not authorize
+one. The residual is revisited only if a human-labelled held-out corpus for
+these roles is built and shows measured agreement strong enough to justify a
+separate, explicit gate decision. Source:
+`.agents/research/2026-09-19-jev-quality-checks-*.json` (claim
+`claim-accuracy-unmeasured`; unverified claim U1).

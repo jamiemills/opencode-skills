@@ -48,7 +48,7 @@ test("orchestrator contract identifies the executable progress authority", async
     "utf8",
   );
   const boundary =
-    "Standalone skills have no shared progress host/context callback in this repository; their csm-progress/1 contract is instruction-led only. The executable csm-progress/1 authority is the orchestrator-hosted progress runtime reached through `orchestrate()` and its injected host adapter. Standalone skills must not invent a caller, mutate the parent aggregate, or emit receipt, cursor, telemetry, browse, upload, credential, session, or publication data through progress.";
+    "Standalone skills have no shared progress host/context callback in this repository; their csm-progress/1 contract is instruction-led only. The executable csm-progress/1 authority is the orchestrator-hosted progress runtime reached through `orchestrate()` and its injected executor. Standalone skills must not invent a caller, mutate the parent aggregate, or emit receipt, cursor, telemetry, browse, upload, credential, session, or publication data through progress.";
   assert.ok(
     rootContract.replace(/\s+/g, " ").includes(boundary),
     "standalone boundary contract drift",
