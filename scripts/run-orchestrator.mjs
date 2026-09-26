@@ -34,8 +34,7 @@
 //            The host IS your workload: implement your real skill dispatch there.
 "use strict";
 
-import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, open, lstat, readFile, rm, writeFile, copyFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile, copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path, { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -63,6 +62,7 @@ import { intakeArtifact } from "../csm-orchestrate/lib/intake.mjs";
 import { persistAdapterDecisions } from "../csm-orchestrate/lib/decision-adapter/artifact.mjs";
 import { createTraceLifecycleHooks } from "../csm-orchestrate/lib/trace-hooks.mjs";
 import { appendTrace, recordDecision } from "./lib/trace-log.mjs";
+import { acquireRunLease } from "./lib/run-lease.mjs";
 import { resolveTracePolicy, evaluateTraceGate } from "./lib/trace-enforcement.mjs";
 import { resolveVerificationPath, verifyTraces } from "./verify-traces.mjs";
 import { createConsultSeam } from "../csm-orchestrate/lib/decision-adapter/consult.mjs";
@@ -255,80 +255,6 @@ async function resolveDecisionAdapter(artifact, kind, runId = null) {
     );
     return null;
   }
-}
-
-const RUN_LOCK = ".run-lock";
-const RUN_LOCK_FORMAT = "csm-run-lock/1";
-
-function isPidAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === "EPERM";
-  }
-}
-
-// S1/A3: fail-fast run lease at <evidenceDir>/.run-lock (ledger-style EEXIST
-// claim, inode-guarded release — never durable-json acquireLock and never
-// auto-takeover of a LIVE owner). --resume performs a guarded takeover of a
-// STALE lease only (owner pid dead via kill(pid, 0)); any live-owner conflict
-// is a hard error naming the holder. Two concurrent fresh starts on one runId
-// race here after the honest-failure guard: the lease is the atomic claim.
-async function acquireRunLease({ evidenceDir, runId, resume = false }) {
-  const lockPath = join(evidenceDir, RUN_LOCK);
-  const claim = {
-    format: RUN_LOCK_FORMAT,
-    kind: "run",
-    token: createHash("sha256")
-      .update(`${process.pid}-${Date.now()}-${Math.random()}`)
-      .digest("hex")
-      .slice(0, 16),
-    pid: process.pid,
-    runId,
-    createdAt: new Date().toISOString(),
-  };
-  let handle;
-  try {
-    handle = await open(lockPath, "wx", 0o644);
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    let owner = null;
-    try {
-      owner = JSON.parse(await readFile(lockPath, "utf8"));
-    } catch {
-      owner = null;
-    }
-    const ownerPid = owner && typeof owner.pid === "number" ? owner.pid : "unknown";
-    const ownerAlive = typeof ownerPid === "number" && isPidAlive(ownerPid);
-    if (resume && !ownerAlive && typeof ownerPid === "number") {
-      await rm(lockPath, { force: true });
-      handle = await open(lockPath, "wx", 0o644);
-      console.error(
-        `run ${runId}: removed stale run lease (held by dead pid ${ownerPid}) under --resume`,
-      );
-    } else {
-      const where = ownerAlive ? "is already active" : "has a stale lease";
-      throw new Error(
-        `run ${runId} ${where} (lease ${lockPath} held by pid ${ownerPid}); wait for it to finish, or pass --resume only when that process is dead`,
-        { cause: error },
-      );
-    }
-  }
-  const { ino } = await handle.stat();
-  await handle.writeFile(`${JSON.stringify(claim, null, 2)}\n`);
-  return {
-    lockPath,
-    claim,
-    async release() {
-      try {
-        const current = await lstat(lockPath).catch(() => null);
-        if (current !== null && current.ino === ino) await rm(lockPath, { force: true });
-      } finally {
-        await handle.close();
-      }
-    },
-  };
 }
 
 async function fixtureMode() {
