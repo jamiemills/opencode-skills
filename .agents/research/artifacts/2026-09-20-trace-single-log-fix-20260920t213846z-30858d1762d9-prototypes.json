@@ -1,0 +1,47 @@
+{
+  "schema": "csm-trace-fix-prototype/1",
+  "runId": "run-20260920t213846z-30858d1762d9",
+  "retrievedAt": "2026-09-20",
+  "note": "Prototype in /tmp/opencode (synthetic; no repo writes). E1 = a scripts/trace.mjs-style wrapper over appendTrace/recordDecision; E2 = a built-in lifecycle trace hook. The API_KEY value in the sample was synthetic and is redacted in the written line.",
+  "results": {
+    "E1": {
+      "wrote": true,
+      "kindsRedacted": {
+        "lines": 2,
+        "kinds": [
+          "action",
+          "decision"
+        ],
+        "utc": true,
+        "secretRedacted": true
+      }
+    },
+    "E2": {
+      "invocations": [
+        {
+          "name": "task-create",
+          "ran": 1,
+          "errors": 0
+        },
+        {
+          "name": "task-complete",
+          "ran": 1,
+          "errors": 0
+        },
+        {
+          "name": "checkpoint",
+          "ran": 1,
+          "errors": 0
+        }
+      ],
+      "linesNow": 5
+    }
+  },
+  "sampleLines": [
+    "{\"runId\":\"run-proto\",\"actor\":\"csm-orchestrate\",\"action\":\"task-complete\",\"target\":\"phase-1\",\"justification\":\"shipped; token API_KEY=[REDACTED]\",\"outcome\":\"continue\",\"ts\":\"2026-09-20T21:39:18.368Z\",\"kind\":\"action\"}",
+    "{\"runId\":\"run-proto\",\"actor\":\"csm-orchestrate\",\"action\":\"route\",\"target\":\"phase-1\",\"justification\":\"deterministic match\",\"outcome\":\"csm-build\",\"ts\":\"2026-09-20T21:39:18.370Z\",\"kind\":\"decision\"}",
+    "{\"runId\":\"run-proto\",\"actor\":\"csm-build\",\"action\":\"task-create\",\"target\":\"T001\",\"justification\":\"lifecycle hook\",\"outcome\":\"ok\",\"ts\":\"2026-09-20T21:39:18.372Z\",\"kind\":\"action\"}",
+    "{\"runId\":\"run-proto\",\"actor\":\"csm-build\",\"action\":\"task-complete\",\"target\":\"T001\",\"justification\":\"lifecycle hook\",\"outcome\":\"complete\",\"ts\":\"2026-09-20T21:39:18.372Z\",\"kind\":\"action\"}",
+    "{\"runId\":\"run-proto\",\"actor\":\"csm-orchestrate\",\"action\":\"checkpoint\",\"target\":\"T001\",\"justification\":\"lifecycle hook\",\"outcome\":\"ok\",\"ts\":\"2026-09-20T21:39:18.372Z\",\"kind\":\"action\"}"
+  ]
+}

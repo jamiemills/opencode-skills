@@ -1,0 +1,30 @@
+{
+  "schema": "csm-jev-rubric-judge/1",
+  "runId": "run-20260920t205916z-425adf8d73a9",
+  "retrievedAt": "2026-09-20",
+  "method": "Shipped consult seam (createConsultSeam) over the registered deep-research-judge-* advisory points; live OpenRouter Jev; advisory only.",
+  "draft": "Finding: the 'one shared trace log' change is only partially implemented.\nFactual: the default path IS single and worktree-independent (<main>/.agents/logs/trace.jsonl), experiment-verified.\nFactual: there is no automatic tracing hook; recordDecision has zero production callers; only wt-session.mjs calls appendTrace; the shared log has 4 records while many actions are untraced.\nCitation: file:line anchors are repo-local (repo-state.mjs:65-98, wt-session.mjs:52-58,83,96-99, trace-config.mjs:86,90) plus a sandbox experiment and a live Jev call.\nCompleteness: covers implementation state, on-disk log inventory, caller audit, two secondary defects, root cause, and a recommendation.\nClarity: uses a run-on argument in places.",
+  "normalized": {
+    "deep-research-judge-factual-accuracy": {
+      "raw": 2.88,
+      "normalized": 0.72,
+      "confidence": 0.58
+    },
+    "deep-research-judge-citation-accuracy": {
+      "raw": 2.6,
+      "normalized": 0.65,
+      "confidence": 0.41
+    },
+    "deep-research-judge-completeness": {
+      "raw": 3.89,
+      "normalized": 0.973,
+      "confidence": 0.91
+    },
+    "deep-research-judge-clarity": {
+      "raw": 2.68,
+      "normalized": 0.67,
+      "confidence": 0.6
+    }
+  },
+  "note": "Rubric applied to the draft abstract; advisory only, never a gate. Citation accuracy and clarity scored below 0.7, prompting citation-precision and clarity remediation in the final finding."
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-trace-single-log-fix-20260920t213846z-30858d1762d9",
+  "runId": "run-20260920t213846z-30858d1762d9",
+  "skill": "csm-deep-research",
+  "goal": "Devise how to fix the partially-implemented single shared trace log: automatic recording, path/config hardening, old-log disposition, and dead-code removal.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Question",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Prototype",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Challenge",
+      "weightPercent": 15,
+      "status": "complete"
+    },
+    {
+      "id": "M5",
+      "title": "Finding",
+      "weightPercent": 15,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-20T21:38:46Z",
+  "updatedAt": "2026-09-20T21:44:36.135Z"
+}

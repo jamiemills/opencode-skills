@@ -1,0 +1,472 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-trace-single-log-check-20260920t205916z-425adf8d73a9",
+  "runId": "run-20260920t205916z-425adf8d73a9",
+  "title": "Was the Single Shared Trace Log Successfully Implemented? Root-Cause Review",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Partially implemented. The single-log *location* is correctly shipped and worktree-independent: from any linked worktree the default is `<main-repo-root>/.agents/logs/trace.jsonl` (experiment-verified).\n\nBut traces are not actually pushed to it automatically: nothing calls the recorder for ordinary actions (`recordDecision` has zero production callers; only `wt-session` calls `appendTrace`), so the shared log holds just 4 records while activity is untraced — and the old `.git/csm/logs/trace.jsonl` and a legacy per-run file still exist, so history is split rather than single.\n\nRoot cause: the shipped work implemented the log's location/override/concurrency/durability, not an automatic action/decision recording hook; `AGENTS.md` instructs agents to record traces, but no mechanism triggers or enforces it."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: was the change to route action/decision traces to ONE shared per-repo log successfully implemented, and if not, why?\n\n```text\n\nintent (AGENTS.md): record every action + decision via scripts/lib/trace-log.mjs\n\n  shipped:      location override + concurrency + durability + wt-session writers\n\n  not shipped:  an automatic recording hook for ordinary agent/build actions\n\n  result:       one DEFAULT path exists, but it stays nearly empty; old logs remain\n\n```\n\nHeadline evidence: (a) the default path resolves to the main root's `.agents/logs/trace.jsonl` from a linked worktree [ref-repo-state][ref-experiments]; (b) the only production writer is `wt-session` and `recordDecision` is unused [ref-wt-session][ref-trace-log]; (c) three trace files exist on disk and the old `<git-common-dir>` log was explicitly never migrated [ref-experiments][ref-plan-location]; and (d) both plans are marked complete because their scope was the location/registry, not a recorder [ref-plan-shared][ref-plan-location].\n\nHeadline caveats: Jev is advisory only and corroborates, never proves [ref-jev-diagnosis][ref-jev-judge]; the relative-path escape is a real but secondary defect [ref-repo-state]; and no plan ever promised an automatic hook, so this is a gap between `AGENTS.md`'s stated intent and the wired implementation [ref-agents-md][ref-plan-location]."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported - The default single-log path is implemented and worktree-independent: `<main-repo-root>/.agents/logs/trace.jsonl`. [ref-repo-state][ref-experiments][ref-tests-trace-log]\n\nK2. supported - Tracing is not automatic: `recordDecision` has zero production callers; only `scripts/wt-session.mjs` calls `appendTrace` (create/merge/nuke/cleanup); no harness hook exists. [ref-wt-session][ref-trace-log][ref-agents-md]\n\nK3. supported - The shared log is nearly empty relative to activity: 4 records (2 manual csm-build, 2 wt-session cleanup). [ref-experiments]\n\nK4. supported - Three trace files exist on disk; the old `.git/csm/logs/trace.jsonl` was deliberately never migrated. [ref-experiments][ref-plan-location]\n\nK5. supported - The legacy per-run fallback in `wt-session.mjs` is unreachable dead code. [ref-wt-session]\n\nK6. partially-supported - A relative configured `traceLogPath` can escape the repo root, contrary to the docs (root-depth-dependent example; the escape itself is the defect). [ref-repo-state][ref-experiments][ref-docs-traces]\n\nK7. partially-supported - An invalid config layer yields the default path; a refusing-to-write nuance, not the layer-fallthrough contradiction first suspected. [ref-trace-config][ref-tests-trace-config]\n\nK8. supported - Root cause: the shipped work delivered path/override/concurrency/durability, not automatic recording; `AGENTS.md` intends recording but nothing triggers it; the un-migrated old log is a minor by-design contributor. [ref-agents-md][ref-wt-session]\n\nK9. partially-supported - Jev advisory: `default_path_only` + `no_automatic_hook` (confidence 1.0), draft rubric factual 0.72 / citation 0.65 / completeness 0.97 / clarity 0.67; corroborating, never a gate. [ref-jev-diagnosis][ref-jev-judge]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "## D1. What actually shipped\n\n`repo-state.mjs:93-98` resolves the default to `<mainRepoRoot>/.agents/logs/trace.jsonl` and honours an absolute `configured` override; `trace-log.mjs` appends one redacted, UTC, bounded line per record with a single `O_APPEND` write; `trace-config.mjs` resolves `CSM_TRACE_LOG` > project `.csm-skills.json` > user `$XDG_CONFIG_HOME/csm/skills.json` > default [ref-repo-state][ref-trace-log][ref-trace-config]. Tests cover the default, linked-worktree persistence, and precedence [ref-tests-trace-log][ref-tests-trace-config].\n\n```text\n\nlinked worktree cwd -> repoMainRoot() = main checkout\n\n                   -> repoLogPath()  = <main>/.agents/logs/trace.jsonl   (experiment E1)\n\n```\n\n## D2. Why it looks unimplemented\n\nThe only production caller of the recorder is `scripts/wt-session.mjs:99` inside `appendSessionTrace`, invoked for worktree create/merge/nuke/cleanup events [ref-wt-session]. `recordDecision` has no production caller [ref-trace-log]. There is no hook in `.lefthook.yml`, the pre-commit script, or the orchestrator that records ordinary actions or decisions. The on-disk log confirms it: 4 records total [ref-experiments], while a whole session's actions produced none.\n\n```mermaid\n\nflowchart LR\n\n  act[agent action / decision] -.->|no hook| nothing[no trace]\n\n  wts[wt-session create/merge/nuke/cleanup] --> trace[appendTrace -> shared log]\n\n```\n\n## D3. Split history (multiple logs)\n\nThree files exist: the current `.agents/logs/trace.jsonl`; the legacy per-run `.agents/logs/2026-09-20-wt-session-trace.jsonl`; and the old-design `.git/csm/logs/trace.jsonl` [ref-experiments]. The trace-location plan recorded as an unresolved risk that the old `<git-common-dir>` log is not auto-migrated [ref-plan-location], so go-forward is a single default path but history is not unified.\n\n## D4. Secondary defects\n\nA relative configured path escapes the repo (`join` normalizes `..`), contradicting the operator doc [ref-repo-state][ref-docs-traces][ref-experiments]. The `wt-session` per-run fallback is unreachable dead code [ref-wt-session]. An invalid config layer yields the default path rather than refusing to write [ref-trace-config][ref-tests-trace-config].\n\n## D5. Root cause\n\nThe three shipped plans scoped themselves to the log's location, override precedence, concurrency, and durability, and the registry migration [ref-plan-shared][ref-plan-location]. None included an automatic action/decision recording hook. `AGENTS.md` states the intent to record actions and decisions via the trace log [ref-agents-md], but that intent is an instruction to the model with no trigger, guard, or enforcement, so in practice traces are not pushed to the single log. The old-log split is a minor by-design contributor, not the primary cause."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Treat the change as partially shipped: the single-log *path/config/durability* is done and verified; the *recording* is not. To make traces actually land in the one log:\n\n1. Add an automatic recording seam (a small `trace` CLI or harness hook) that emits an action trace at each skill lifecycle transition and a decision trace where a decision is justified, using the existing `appendTrace`/`recordDecision` APIs; keep it best-effort and fail-open like the current writer.\n\n2. Make `AGENTS.md`'s recording instruction enforceable: name the exact command/entry point, or wire it into the lifecycle, so ordinary sessions produce traces rather than relying on the model to remember.\n\n3. Migrate or explicitly retire the old `<git-common-dir>/csm/logs/trace.jsonl` and the legacy per-run file so there is genuinely one log; the plan already documents a concatenate command — run it or mark the old file archived.\n\n4. Fix the relative-path escape by resolving a relative `configured` path against the main root with containment (reject `..` or verify the result stays under the repo), and make the invalid-config case refuse rather than silently default.\n\n5. Remove the dead per-run fallback in `wt-session.mjs` (or convert it into a record of the failure) so the single-log invariant cannot regress.\n\nConfidence: HIGH on the partial-implementation diagnosis and the root cause (multiple independent evidence sources: code, on-disk state, history, sandbox experiment, and an advisory Jev call). Cost of being wrong is low: the fixes are additive and the current path/durability guarantees are unchanged."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. unverifiable - Exactly how many actions/decisions the user expected to see traced, and whether an automatic hook was an intended deliverable. The three plans do not list it, so intent is inferred from AGENTS.md.\n\nU2. partially-supported - Whether the old `.git/csm/logs/trace.jsonl` should be migrated or archived is an operator decision; the finding records that it exists and is not written, not which disposition is correct.\n\nU3. partially-supported - Jev's `multiple_live_logs` answer (0.71) and its root-cause choice are advisory single-sample classifications over a summarized state, corroborated but not proven by the code evidence.\n\nU4. unverifiable - Whether any external harness (outside this repo) consumes the trace log and would break if recording became automatic."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-repo-state] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/repo-state.mjs (retrieved 2026-09-20)\n[ref-trace-log] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-log.mjs (retrieved 2026-09-20)\n[ref-trace-config] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-config.mjs (retrieved 2026-09-20)\n[ref-wt-session] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/wt-session.mjs (retrieved 2026-09-20)\n[ref-docs-traces] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/docs/action-traces-and-cleanup.md (retrieved 2026-09-20)\n[ref-agents-md] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/AGENTS.md (retrieved 2026-09-20)\n[ref-tests-trace-log] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/tests/trace-log.test.mjs (retrieved 2026-09-20)\n[ref-tests-trace-config] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/tests/trace-config.test.mjs (retrieved 2026-09-20)\n[ref-plan-shared] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.agents/plans/2026-09-19-shared-trace-log-csm.json (retrieved 2026-09-20)\n[ref-plan-location] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.agents/plans/2026-09-19-trace-location-config-csm.json (retrieved 2026-09-20)\n[ref-typesafe-primitives] TypeSafe AI documentation - https://docs.typesafe.ai/primitives (retrieved 2026-09-20)\n[ref-openrouter-decisions] OpenRouter (alpha decisions endpoint) - https://openrouter.ai/api/alpha/decisions (retrieved 2026-09-20)\n[ref-jev-diagnosis] Workspace repo — local declared artifact - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)\n[ref-experiments] Workspace repo — local declared artifact - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)\n[ref-jev-judge] Workspace repo — local declared artifact - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)"
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: DEEP x hybrid. Tracks: T1 implementation audit (repo-state/trace-log/trace-config/wt-session/config loader); T2 history audit (commits 79fee38, 134ce38, 7e3c327; both plans; migration); T3 runtime/log + caller audit; primary ran a sandbox experiment and a Jev advisory pass.\n\nCommit narrative: 79fee38 wrote per-run `<date>-<runId>-trace.jsonl`; 134ce38 moved the shared log to `<git-common-dir>/csm/logs/trace.jsonl`; 7e3c327 moved it to `<mainRepoRoot>/.agents/logs/trace.jsonl` and added the config override. Both plans are status=complete with all tasks completed and no waived items; the old-log migration was explicitly excluded.\n\nIndependent challenger (anti-anchored): C1-C5 uphold; C6 downgrade (the escape is real but the example is root-depth-dependent — corrected); C7 downgrade (invalid-config yields the default, a nuance, not a documented-layer contradiction); C8 uphold with a scope caveat that no plan promised an automatic hook, so the gap is AGENTS.md intent vs implementation and the old log is a minor by-design contributor.\n\nJev advisory (not a gate): a bounded diagnostic call returned `implementation_state=default_path_only` (P=1.0), `multiple_live_logs` noul=0.71, `root_cause=no_automatic_hook` (P=1.0) [ref-jev-diagnosis]; the shipped consult seam over the registered deep-research-judge-* points scored the draft factual 0.72 / citation 0.65 / completeness 0.97 / clarity 0.67 [ref-jev-judge]. The sub-0.7 citation/clarity advisory prompted added file:line precision and this remediation note.\n\nVERIFY (primary-personal, never delegated): claims are anchored to file:line or a declared artifact; the sandbox experiment ran in /tmp/opencode (no repo writes); the JeV calls are declared artifacts and contain no key; the protected-state baseline shows only this run's finding, artifacts, and progress record added. Not committed."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-k1-default-path",
+      "section": "keyFindings",
+      "statement": "The single shared trace-log DEFAULT path is implemented and worktree-independent: repoLogPath resolves to <main-repo-root>/.agents/logs/trace.jsonl from any linked worktree.",
+      "claimType": "capability",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-repo-state"
+        },
+        {
+          "referenceId": "ref-experiments",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-tests-trace-log"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k2-no-auto-hook",
+      "section": "keyFindings",
+      "statement": "Action/decision tracing is not automatic: recordDecision has zero production callers and the only production caller of appendTrace is scripts/wt-session.mjs (worktree create/merge/nuke/cleanup); no harness hook records ordinary agent actions.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-wt-session"
+        },
+        {
+          "referenceId": "ref-trace-log"
+        },
+        {
+          "referenceId": "ref-agents-md"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k3-empty-log",
+      "section": "keyFindings",
+      "statement": "As a consequence the shared log is nearly empty relative to activity: .agents/logs/trace.jsonl holds four records (two manual csm-build task-complete lines and two wt-session cleanup lines) while many session actions are untraced.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-experiments",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-trace-log"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k4-multiple-logs",
+      "section": "keyFindings",
+      "statement": "More than one trace file exists on disk and the old log was deliberately never migrated: .git/csm/logs/trace.jsonl (old <git-common-dir> design, two records), .agents/logs/2026-09-20-wt-session-trace.jsonl (legacy per-run), and .agents/logs/trace.jsonl (current).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-experiments",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-plan-location"
+        },
+        {
+          "referenceId": "ref-plan-shared"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k5-dead-fallback",
+      "section": "keyFindings",
+      "statement": "scripts/wt-session.mjs retains the legacy per-run fallback path, but it is unreachable: appendTrace and repoLogPath are acquired in the same try, and appendSessionTrace early-returns when appendTrace is null, so the ternary always takes the shared-log branch.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-wt-session"
+        },
+        {
+          "referenceId": "ref-trace-log"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k6-relative-escape",
+      "section": "keyFindings",
+      "statement": "A relative configured traceLogPath can escape the repository root because repoLogPath uses path.join(mainRoot, configured) and join normalizes '..', contrary to docs/action-traces-and-cleanup.md which says a relative value stays under the repo root; the number of '..' segments needed depends on root depth, but the escape itself is the defect.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-repo-state"
+        },
+        {
+          "referenceId": "ref-experiments",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-docs-traces"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k7-invalid-config-fallthrough",
+      "section": "keyFindings",
+      "statement": "An invalid (malformed/non-CSM) config layer yields null and the writer then uses the default path rather than a less-specific layer; this is a nuance about refusing-to-write, not the documented layer-fallthrough contradiction first suspected.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-trace-config"
+        },
+        {
+          "referenceId": "ref-tests-trace-config"
+        },
+        {
+          "referenceId": "ref-repo-state"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k8-root-cause",
+      "section": "keyFindings",
+      "statement": "Root cause of the perceived failure: the shipped work implemented the log's location, override precedence, concurrency, and durability, but not automatic action/decision recording; AGENTS.md instructs agents to record traces but nothing triggers or enforces it, so traces are not pushed to the single log in ordinary sessions, and the deliberately un-migrated old log adds a minor by-design split.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-agents-md"
+        },
+        {
+          "referenceId": "ref-wt-session"
+        },
+        {
+          "referenceId": "ref-plan-location"
+        },
+        {
+          "referenceId": "ref-plan-shared"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k9-jev-advisory",
+      "section": "keyFindings",
+      "statement": "Jev (advisory, via the shipped consult seam over the registered deep-research-judge-* points) classifies the state as 'default_path_only' and the root cause as 'no_automatic_hook' with confidence 1.0, and scores the draft factual 0.72 / citation 0.65 / completeness 0.97 / clarity 0.67 on a 0-1 normalization; this corroborates but does not prove the finding and is never a gate.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-jev-diagnosis",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-diagnosis.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-jev-judge",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-judge.json",
+          "quote": "workspace-local run evidence"
+        },
+        {
+          "referenceId": "ref-openrouter-decisions"
+        },
+        {
+          "referenceId": "ref-typesafe-primitives"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-repo-state",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/repo-state.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "repoMainRoot/repoLogPath"
+    },
+    {
+      "referenceId": "ref-trace-log",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-log.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "appendTrace/recordDecision"
+    },
+    {
+      "referenceId": "ref-trace-config",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-config.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "override precedence"
+    },
+    {
+      "referenceId": "ref-wt-session",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/wt-session.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "appendSessionTrace"
+    },
+    {
+      "referenceId": "ref-docs-traces",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/docs/action-traces-and-cleanup.md",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "operator doc"
+    },
+    {
+      "referenceId": "ref-agents-md",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/AGENTS.md",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "trace instruction"
+    },
+    {
+      "referenceId": "ref-tests-trace-log",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/tests/trace-log.test.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "default/worktree tests"
+    },
+    {
+      "referenceId": "ref-tests-trace-config",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/tests/trace-config.test.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "precedence tests"
+    },
+    {
+      "referenceId": "ref-plan-shared",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.agents/plans/2026-09-19-shared-trace-log-csm.json",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "complete plan (old location)"
+    },
+    {
+      "referenceId": "ref-plan-location",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.agents/plans/2026-09-19-trace-location-config-csm.json",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "complete plan (new location)"
+    },
+    {
+      "referenceId": "ref-typesafe-primitives",
+      "url": "https://docs.typesafe.ai/primitives",
+      "publisher": "TypeSafe AI documentation",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-openrouter-decisions",
+      "url": "https://openrouter.ai/api/alpha/decisions",
+      "publisher": "OpenRouter (alpha decisions endpoint)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jev-diagnosis",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo — local declared artifact",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-diagnosis.json"
+    },
+    {
+      "referenceId": "ref-experiments",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo — local declared artifact",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json"
+    },
+    {
+      "referenceId": "ref-jev-judge",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo — local declared artifact",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-judge.json"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "run started; question, slug, run-id recorded; protected-state baseline captured",
+      "occurredAt": "2026-09-20T20:59:16Z",
+      "cycle": 1,
+      "trigger": "state transition"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP x hybrid; three tracks (implementation, history, runtime/callers) plus sandbox experiment and Jev pass",
+      "occurredAt": "2026-09-20T21:00:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "two parallel read-only audits returned; primary ran the sandbox experiment (single-path + relative escape) and inventoried on-disk logs and callers",
+      "occurredAt": "2026-09-20T21:05:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "nine-part draft synthesized; 9 claims drafted; artifacts for experiment and Jev diagnosis declared",
+      "occurredAt": "2026-09-20T21:10:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "independent anti-anchored challenger: C1-C5 uphold, C6/C7 downgrade, C8 uphold with scope caveat",
+      "occurredAt": "2026-09-20T21:14:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "Jev advisory rubric via the shipped consult seam: factual 0.72, citation 0.65, completeness 0.97, clarity 0.67",
+      "occurredAt": "2026-09-20T21:16:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "C6 example corrected (root-depth), C7 softened, citation precision added; recommendation expanded with the recording-hook fix",
+      "occurredAt": "2026-09-20T21:18:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "schema validated; citations resolve; redaction checked; declared artifact digests matched; protected-state diff limited to this run",
+      "occurredAt": "2026-09-20T21:19:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "finding written; not committed (untracked draft)",
+      "occurredAt": "2026-09-20T21:20:00Z",
+      "cycle": 1,
+      "trigger": "verify passed"
+    }
+  ],
+  "declaredArtifacts": [
+    {
+      "artifactId": "art-trace-jev-diagnosis-20260920t205916z-425adf8d73a9",
+      "path": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-diagnosis.json",
+      "schema": {
+        "id": "csm-jev-trace-diagnosis/1",
+        "revision": 1
+      },
+      "digest": "sha256:fb68522f9448f732a98996e47efd46541503d6bc2fcda54b565d8c2d0796463d",
+      "relation": "supports"
+    },
+    {
+      "artifactId": "art-trace-experiments-20260920t205916z-425adf8d73a9",
+      "path": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json",
+      "schema": {
+        "id": "csm-trace-log-experiment/1",
+        "revision": 1
+      },
+      "digest": "sha256:4298cfcd0de832ecf1b257d2bc66dbef0ac6c64e13fb67edd04e7d7d27a0d833",
+      "relation": "supports"
+    },
+    {
+      "artifactId": "art-trace-jev-judge-20260920t205916z-425adf8d73a9",
+      "path": ".agents/research/artifacts/2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-judge.json",
+      "schema": {
+        "id": "csm-jev-rubric-judge/1",
+        "revision": 1
+      },
+      "digest": "sha256:defe4fcf33fc9c2b4aa81f1f590fc9f767e9a0aa340c8e94e4a000b01612a812",
+      "relation": "supports"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-20T21:18:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

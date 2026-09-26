@@ -125,6 +125,8 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-13-skills-sh-publish-csm.json` — 2026-09-13 — plan to publish the skills to skills.sh — status: reference
 
 - `2026-09-20-session-lifecycle-enforcement-csm.json` — 2026-09-20 — plan (complete; csm-plan/1): implemented the CSM session-retrospective fixes in-loop — 11 tasks: a precommit+regen gate (T001/T002), plan-lineage validation scoped to active goals (T003), csm-plan closure fields (T004), progress validation (T005), loop-CLI trace emission adopting the existing trace-log-fix plan (T006), flaky allowlist policy (T007), session-end cleanup with a read-only leftover check (T008), no-mock-only rule (T009), clean-main merge/owned-path commits (T010), final verification (T011) — status: complete
+- `2026-09-20-trace-log-fix-csm.json` — 2026-09-20 — plan (ready; csm-plan/1): fix the partially-implemented single shared trace log — automatic recording hooks, path containment, trace CLI, and hygiene — status: reference
+- `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (ready; csm-plan/1): enforce and verify that action/decision traces are actually emitted, with an optional Jev verifier — status: reference
 
 ## decisions/
 
@@ -235,6 +237,13 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-probe-responses.json` — 2026-09-19 — raw live Jev probe responses for the quality-checks research — status: reference
 
 - `2026-09-20-csm-session-retro-20260920t220000z-32f5897cca20-research.json` — 2026-09-20 — DEEP hybrid retrospective over ~10 days of csm-plan/csm-build/csm-deep-research sessions (4 tracks + independent challenge + judge, PASS): repeating issues — commit-then-fix CI churn (9/33 runs failed, ~10-11 fixups), regen coupling (pack/payload, orphan-test, registry digest, capabilities, fmt/lint), weak plan lineage (21 plans/1 goal, 113 orphaned tasks, 22/31 plans fail readPlanArtifact on digest-mismatch), write-only repair/obligation fields (repairAttempts 0/330; 254 required vs 8 satisfied), near-empty traces (9 lines, 0 decisions, no auto-hook), batch progress records (8/37 unfinished, 8 impossible timestamps, boilerplate milestones), flaky tests (7 allowlisted suites), leftover merged worktrees/branches, and a "mock passes, live path broken" class — with a prioritized fix list (in-loop precommit gate, plan-lineage gate, mandatory repair/obligation/trace emission, regen entrypoint, session-end cleanup) — status: reference
+- `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-research.json` — 2026-09-20 — was the single shared trace log successfully implemented? root-cause review — status: reference
+- `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-research.json` — 2026-09-20 — how to fix the single shared trace log: automatic recording, hardening, and hygiene — status: reference
+- `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-experiments.json` (under research/artifacts/) — 2026-09-20 — csm-trace-log-experiment/1 declared run artifact — status: reference
+- `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-diagnosis.json` (under research/artifacts/) — 2026-09-20 — csm-jev-trace-diagnosis/1 declared run artifact — status: reference
+- `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-judge.json` (under research/artifacts/) — 2026-09-20 — csm-jev-rubric-judge/1 declared run artifact — status: reference
+- `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-jev-review.json` (under research/artifacts/) — 2026-09-20 — csm-jev-fix-review/1 declared run artifact — status: reference
+- `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json` (under research/artifacts/) — 2026-09-20 — csm-trace-fix-prototype/1 declared run artifact — status: reference
 
 ## Retention
 
@@ -330,6 +339,9 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-20-jev-review-judge-substitution-20260920t180000z-jevplan0001-progress.json` — 2026-09-20 — csm-plan progress record for the Jev review/judge substitution plan — status: complete
 - `2026-09-20-jev-review-judge-substitution-20260920t210000z-jevbuild0001-progress.json` — 2026-09-20 — csm-build progress record for the Jev review/judge substitution build — status: complete
 - `2026-09-12-evals-skill-development-20260912t215843z-4b50ae4baacb-progress.json` — 2026-09-12 — csm-deep-research progress record for the evals skill-development research — status: complete
+- `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-progress.json` — 2026-09-20 — progress (complete 100%): determine whether the single shared trace-log change is fully implemented — status: reference
+- `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-progress.json` — 2026-09-20 — progress (complete 100%): fix the partially-implemented single shared trace log — status: reference
+- `2026-09-26-enforce-trace-emission-20260926t092053z-8bcfa8f7bcdf-progress.json` — 2026-09-26 — progress (complete 100%): plan enforcement + verification that traces are emitted (with a Jev verifier) — status: reference
 
 ## ddd/
 

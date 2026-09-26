@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-trace-single-log-check-20260920t205916z-425adf8d73a9",
+  "runId": "run-20260920t205916z-425adf8d73a9",
+  "skill": "csm-deep-research",
+  "goal": "Determine whether the change to route action/decision traces to one shared per-repo log was successfully implemented; identify the root cause if not.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Question",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Challenge",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Finding",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-20T20:59:16Z",
+  "updatedAt": "2026-09-20T21:02:30.009Z"
+}

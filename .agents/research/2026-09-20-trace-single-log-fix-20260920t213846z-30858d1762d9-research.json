@@ -1,0 +1,485 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-trace-single-log-fix-20260920t213846z-30858d1762d9",
+  "runId": "run-20260920t213846z-30858d1762d9",
+  "title": "How to Fix the Single Shared Trace Log: Automatic Recording, Hardening, and Hygiene",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Fix automatic recording by emitting traces from code seams that already run, not by asking the model to remember: supply a built-in trace lifecycle hook to the orchestrator (its 8 `hooks?.run(...)` sites fire every run but are inert because production never passes `lifecycleHooks`), emit a loop-checkpoint trace from the csm-build/csm-plan/csm-review loop CLIs, keep wt-session, and add a `scripts/trace.mjs` CLI + `make trace` for explicit/instruction-led use that `AGENTS.md` names exactly.\n\nHarden the path: contain a relative configured `traceLogPath` under the repo root (an escape currently writes outside the repo).\n\nDelete the unreachable per-run fallback; document/archive the old logs (gitignored, no auto-migration).\n\nResidual: agent-composed steps that invoke no CLI are only covered by an optional host opencode plugin (`tool.execute.after`/`event`/`permission.ask`); Jev advisory agrees the in-repo seams are the right mechanism but rates sufficiency 0.40 with that exact gap at 0.94."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: how should the partially-implemented single shared trace log be fixed so actions and decisions actually land in one log?\n\n```text\n\ngap: only wt-session writes; recordDecision unused; no hook\n\nfix A (in-repo, deterministic): orchestrator lifecycle-hook trace + loop-CLI checkpoints + wt-session + trace CLI + git pre-commit\n\nfix B (hardening): contain relative configured path; docs for invalid-layer default\n\nfix C (hygiene): delete dead fallback; archive old logs (no auto-migrate)\n\nfix D (optional, host): opencode plugin tool.execute.after/event covers agent-only steps\n\n```\n\nThe strongest seam is the orchestrator lifecycle hook runner: `csm-orchestrate/lib/index.mjs` already calls `hooks?.run(...)` at eight points per run [ref-index], so registering a built-in trace hook makes recording deterministic for orchestrated runs with no new call sites [ref-lifecycle-hooks]. The three loop CLIs add per-cycle coverage [ref-loop-guard][ref-loop-evaluator][ref-loop-closure]. Prototypes confirm both append redacted UTC JSONL [ref-prototypes].\n\nThe honest residual is agent-composed work that invokes no CLI; only a host plugin closes it [ref-plugin-api]. Jev advisory agrees the in-repo seams are correct (0.98) and names that residual (0.94) [ref-jev-review]."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported - The recording gap is real: only `wt-session` calls `appendTrace`; `recordDecision` is unused. [ref-wt-session][ref-trace-log][ref-agents]\n\nK2. supported - Minimal automatic seam: wire a built-in trace hook into the orchestrator's existing 8 `hooks?.run(...)` sites; production never supplies `lifecycleHooks`, so the handlers are inert today. [ref-lifecycle-hooks][ref-index][ref-run-orchestrator]\n\nK3. supported - The csm-build/csm-plan/csm-review loop CLIs are per-cycle deterministic emission points (runId + outcome already present). [ref-loop-guard][ref-loop-evaluator][ref-loop-closure]\n\nK4. supported - Hooks are sync; the writer returns a promise; use fire-and-forget + pending-set + flush, and best-effort dynamic import for the payload mirror. [ref-lifecycle-hooks][ref-trace-log][ref-wt-session]\n\nK5. supported - Add `scripts/trace.mjs` + `make trace` and name the exact command in `AGENTS.md`. [ref-trace-log][ref-agents][ref-prototypes]\n\nK6. partially-supported - Many 'instruction-only' skills do have code seams; the true residual is agent-composed/no-CLI steps, coverable only by a host opencode plugin. [ref-plugin-api][ref-loop-closure]\n\nK7. supported - Contain relative configured paths under the repo root (escape reproduced); invalid-layer-to-in-repo-default already exists and needs only a docs correction. [ref-repo-state][ref-trace-config][ref-docs-traces][ref-prototypes]\n\nK8. supported - Leave/archive the old logs; no auto-migration (gitignored; concatenation is non-idempotent). [ref-gitignore][ref-docs-traces]\n\nK9. supported - Delete the unreachable per-run fallback in `wt-session.mjs`. [ref-wt-session]\n\nK10. partially-supported - Prototypes + Jev advisory corroborate the design (advisory only, never a gate). [ref-prototypes][ref-jev-review]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "## D1. Automatic recording via the orchestrator lifecycle hooks\n\n`createLifecycleHookRunner` validates hook names (worker-start/stop, task-create/complete, tool-exec, checkpoint, cancel) and runs handlers synchronously in a try/catch, so a throwing hook is skipped, never fatal [ref-lifecycle-hooks]. `index.mjs` already calls `hooks?.run(...)` at :266, :295, :1011, :1041, :1042, :1048, :1490, :1497 [ref-index]. Production passes no hooks (`run-orchestrator.mjs:898-942` omits `lifecycleHooks`), so the handlers are inert [ref-run-orchestrator]. Fix: add `csm-orchestrate/lib/trace-hooks.mjs` exporting `createTraceLifecycleHooks` that maps each hook name to a handler calling `appendTrace`/`recordDecision` (fire-and-forget with a pending-set + `flush()`), and pass it from the driver.\n\n```mermaid\n\nflowchart LR\n\n  orch[orchestrate run] --> hooks{lifecycle hooks}\n\n  hooks -->|task-create/complete, checkpoint, tool-exec| trace[appendTrace -> shared log]\n\n  hooks -->|verdict/route| dec[recordDecision -> shared log]\n\n```\n\n## D2. Deterministic sink CLI for explicit/instruction-led use\n\nAdd `scripts/trace.mjs` (`action|decision|--stdin`) that validates and writes through `trace-log.mjs` (required fields, UTC ts, redaction, bounded single write) and a `make trace` target; name the exact command in `AGENTS.md`. Prototype: the wrapper wrote 2 lines (kinds action+decision), UTC, and redacted a synthetic `API_KEY=` value [ref-prototypes][ref-trace-log].\n\n## D3. Path and config hardening\n\n`repoLogPath` uses `path.join(mainRoot, configured)` and `join` normalizes `..`, so a relative configured value escapes the repo (prototype reproduced `/tmp/...`) [ref-repo-state][ref-prototypes]. Contain relative values under the main root and fall an escape back to the in-repo default; correct `docs/action-traces-and-cleanup.md` (which currently says a relative value stays under the repo root) [ref-docs-traces]. The invalid-layer-to-in-repo-default path already exists; document it [ref-trace-config].\n\n## D4. Old-log disposition\n\n`.agents/logs/*` is gitignored, so migrating is an operator action, and re-concatenation duplicates lines [ref-gitignore][ref-docs-traces]. Document both the old `<git-common-dir>/csm/logs/trace.jsonl` and the legacy per-run file, with exact list/concatenate commands; optionally add a read-only legacy lister that never mutates.\n\n## D5. Dead code\n\n`appendTrace` and `repoLogPath` load in the same `try` and the `appendTrace === null` guard returns first, so the per-run fallback branch is unreachable [ref-wt-session]; delete it and fix the stale run-id comment.\n\n## D6. Host plugin (optional, outside the repo)\n\nopencode's plugin API exposes `tool.execute.after`/`tool.execute.before`, `event`, and `permission.ask` [ref-plugin-api]; the host has `@opencode-ai/plugin` installed but no plugin configured. A plugin that appends an action trace per tool call and a decision trace per permission would cover agent-composed steps the in-repo seams cannot. This is host configuration, not a repo deliverable; document it and keep it opt-in.\n\n## D7. Phased fix\n\n```text\n\nP1 (in-repo, high value): orchestrator trace hook + loop-CLI checkpoints + trace CLI/make + AGENTS naming + delete dead fallback\n\nP2 (hardening): relative-path containment + docs + tests\n\nP3 (hygiene): document/archive old logs; optional legacy lister\n\nP4 (optional, host): opencode plugin for agent-only steps\n\n```"
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Make recording automatic where code already runs, and make the remaining manual path one exact command. Concretely:\n\nP1 - (a) add `csm-orchestrate/lib/trace-hooks.mjs` (`createTraceLifecycleHooks`) and pass it from `scripts/run-orchestrator.mjs`; (b) emit a `loop-checkpoint` action trace from the csm-build/csm-plan/csm-review loop CLIs; (c) keep `wt-session`; (d) add `scripts/trace.mjs` + `make trace` and name that command in `AGENTS.md`; (e) delete the unreachable fallback in `wt-session.mjs`.\n\nP2 - contain a relative configured `traceLogPath` under the repo root (escape falls back to the in-repo default) and correct the docs; add tests for the escape and for the invalid-layer default.\n\nP3 - document/archive the old `<git-common-dir>` log and the legacy per-run file; do not auto-migrate; optional read-only lister.\n\nP4 - optionally provide a host opencode plugin (`tool.execute.after`/`event`/`permission.ask`) to cover agent-composed steps; keep it opt-in and out of the repo.\n\nConfidence: HIGH on P1-P3 (code seams, prototypes, and the challenger all converge). MEDIUM on how much of the residual the host plugin actually closes, since agent-composed steps are inherently outside the repo's control. What would change the answer: evidence that the orchestrator is rarely the execution path (then the loop CLIs and git hook carry more weight), or a decision to require a host plugin as the primary mechanism."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "U1. partially-supported - How completely a host opencode plugin would cover agent-composed steps; the plugin API exists but was not exercised (installing a plugin changes host config, out of scope).\n\nU2. unverified - Whether the orchestrator is the dominant execution path in practice; if most work is instruction-led, the loop CLIs/git hook matter more than the lifecycle hooks.\n\nU3. partially-supported - Jev's sufficiency 0.40 and residual 0.94 are single-sample advisory classifications over a summarized proposal; corroborating, not proof.\n\nU4. unverified - Symlink-based escape of the log directory is not closed by lexical containment; whether to resolve realpath is a follow-up decision."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-lifecycle-hooks] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-orchestrate/lib/lifecycle-hooks.mjs (retrieved 2026-09-20)\n[ref-index] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-orchestrate/lib/index.mjs (retrieved 2026-09-20)\n[ref-run-orchestrator] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/run-orchestrator.mjs (retrieved 2026-09-20)\n[ref-wt-session] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/wt-session.mjs (retrieved 2026-09-20)\n[ref-trace-log] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-log.mjs (retrieved 2026-09-20)\n[ref-repo-state] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/repo-state.mjs (retrieved 2026-09-20)\n[ref-trace-config] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-config.mjs (retrieved 2026-09-20)\n[ref-docs-traces] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/docs/action-traces-and-cleanup.md (retrieved 2026-09-20)\n[ref-agents] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/AGENTS.md (retrieved 2026-09-20)\n[ref-gitignore] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.gitignore (retrieved 2026-09-20)\n[ref-loop-guard] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-build/lib/loop-guard.mjs (retrieved 2026-09-20)\n[ref-loop-evaluator] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-plan/lib/loop-evaluator.mjs (retrieved 2026-09-20)\n[ref-loop-closure] Workspace repo - https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-review/lib/loop-closure.mjs (retrieved 2026-09-20)\n[ref-plugin-api] Host — opencode @opencode-ai/plugin 1.15.12 dist/index.d.ts (Hooks interface) - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)\n[ref-openrouter-decisions] OpenRouter (alpha decisions endpoint) - https://openrouter.ai/api/alpha/decisions (retrieved 2026-09-20)\n[ref-typesafe-primitives] TypeSafe AI documentation - https://docs.typesafe.ai/primitives (retrieved 2026-09-20)\n[ref-jev-review] Workspace repo — local declared artifact - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)\n[ref-prototypes] Workspace repo — local declared artifact - https://github.com/jamiemills/opencode-skills (retrieved 2026-09-20)"
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: DEEP x hybrid. Tracks: T1 deterministic-seam design (lifecycle hooks, loop CLIs, wt-session, trace contract); T2 path/config/migration/dead-code design; host plugin API inspected directly; primary ran prototypes.\n\nPrototypes (sandboxed /tmp/opencode, no repo writes): a `scripts/trace.mjs`-style wrapper over appendTrace/recordDecision wrote 2 redacted UTC lines (action + decision); a lifecycle trace hook fired task-create/task-complete/checkpoint and appended 3 lines [ref-prototypes].\n\nIndependent challenger (anti-anchored): F1-F3, F5-F8 upheld with corrections; F4 DOWNGRADED - several 'instruction-only' skills do have code seams (scan/ddd/upload CLIs; bdd-tdd/make-tests libs imported by csm-build; review loop-closure), so the residual is agent-composed/no-CLI steps, not most skills. Citation fixes applied (plan key is risksAndRecovery; appendTrace is sync-returning-a-promise; F5 was already implemented).\n\nJev advisory (not a gate): a bounded batched call returned fix_who=in_repo_seams (P=0.98), sufficient noul=0.40, residual_gap=instruction_led_skills (P=0.94), and rubric factual 0.64 / completeness 0.99 / clarity 0.83 [ref-jev-review]; the sub-0.7 factual advisory reflects the summarized state and prompted the corrected claims.\n\nVERIFY (primary-personal, never delegated): claims anchored to file:line or declared artifacts; prototypes ran outside the repo; Jev artifact contains no key; protected-state diff limited to this run's finding, artifacts, and progress record. Not committed."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-k1-gap",
+      "section": "keyFindings",
+      "statement": "The recording gap is real: only scripts/wt-session.mjs calls appendTrace; recordDecision has no production caller; no hook records ordinary actions.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-wt-session"
+        },
+        {
+          "referenceId": "ref-trace-log"
+        },
+        {
+          "referenceId": "ref-agents"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k2-hook-seam",
+      "section": "keyFindings",
+      "statement": "The minimal automatic seam is the orchestrator lifecycle hook runner: index.mjs already calls hooks?.run(...) at eight fixed points every run, but the handlers are inert because production never supplies lifecycleHooks (run-orchestrator calls orchestrate without it); supplying a built-in trace hook is the smallest deterministic wiring.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-lifecycle-hooks"
+        },
+        {
+          "referenceId": "ref-index"
+        },
+        {
+          "referenceId": "ref-run-orchestrator"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k3-loop-seams",
+      "section": "keyFindings",
+      "statement": "The three loop CLIs (csm-build loop-guard, csm-plan loop-evaluator, csm-review loop-closure) are additional deterministic emission points when invoked: each already computes a runId and an outcome and is a documented per-cycle command.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-loop-guard"
+        },
+        {
+          "referenceId": "ref-loop-evaluator"
+        },
+        {
+          "referenceId": "ref-loop-closure"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k4-async-hook",
+      "section": "keyFindings",
+      "statement": "Lifecycle hooks are synchronous while the trace writer returns a promise, so a trace hook must fire-and-forget with a pending-set plus a flush before exit, and use a best-effort dynamic import because the payload mirror has no scripts/ directory.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-lifecycle-hooks"
+        },
+        {
+          "referenceId": "ref-trace-log"
+        },
+        {
+          "referenceId": "ref-wt-session"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k5-trace-cli",
+      "section": "keyFindings",
+      "statement": "A new scripts/trace.mjs CLI plus a make trace target is the deterministic sink for explicit and instruction-led use; AGENTS.md should name that exact command instead of a general instruction.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-trace-log"
+        },
+        {
+          "referenceId": "ref-agents"
+        },
+        {
+          "referenceId": "ref-prototypes",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json",
+          "quote": "workspace-local evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k6-residual",
+      "section": "keyFindings",
+      "statement": "Several skills that look instruction-only do have code seams (csm-scan/csm-ddd/csm-upload CLIs; csm-bdd-tdd and csm-make-tests libs imported by csm-build; csm-review's loop-closure), so the true residual is agent-composed prose/narrative steps and any step that invokes no CLI; a host opencode plugin using tool.execute.after/event/permission.ask is the only seam that covers those universally.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-plugin-api"
+        },
+        {
+          "referenceId": "ref-loop-closure"
+        },
+        {
+          "referenceId": "ref-run-orchestrator"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k7-path-fix",
+      "section": "keyFindings",
+      "statement": "Path hardening: a relative configured traceLogPath can escape the repo root because repoLogPath uses path.join(mainRoot, configured) and join normalizes '..'; contain relative paths under the main root (an escape falls back to the in-repo default). The invalid-layer-to-in-repo-default behavior already exists and only needs correcting in the docs.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-repo-state"
+        },
+        {
+          "referenceId": "ref-trace-config"
+        },
+        {
+          "referenceId": "ref-docs-traces"
+        },
+        {
+          "referenceId": "ref-prototypes",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json",
+          "quote": "workspace-local evidence"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k8-migration",
+      "section": "keyFindings",
+      "statement": "Old logs should be left/archived, not auto-migrated: .agents/logs/* is gitignored (operator action) and re-concatenation duplicates lines; document both the old <git-common-dir> log and the legacy per-run file.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-gitignore"
+        },
+        {
+          "referenceId": "ref-docs-traces"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k9-dead-code",
+      "section": "keyFindings",
+      "statement": "The per-run fallback in scripts/wt-session.mjs is unreachable dead code (appendTrace and repoLogPath load in the same try; the null guard returns before the ternary) and should be deleted.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-wt-session"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-k10-evidence",
+      "section": "keyFindings",
+      "statement": "Prototypes verified that a trace CLI wrapper and a lifecycle trace hook both append redacted UTC JSONL; Jev advisory (via a bounded batched call) rates the in-repo seam approach correct (0.98), sufficiency 0.40, and the residual gap as instruction-led skills (0.94) - corroborating, never a gate.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-prototypes",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json",
+          "quote": "workspace-local evidence"
+        },
+        {
+          "referenceId": "ref-jev-review",
+          "locator": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-jev-review.json",
+          "quote": "workspace-local evidence"
+        },
+        {
+          "referenceId": "ref-openrouter-decisions"
+        },
+        {
+          "referenceId": "ref-typesafe-primitives"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-lifecycle-hooks",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-orchestrate/lib/lifecycle-hooks.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-orchestrate/lib/index.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-run-orchestrator",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/run-orchestrator.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-wt-session",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/wt-session.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-trace-log",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-log.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-repo-state",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/repo-state.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-trace-config",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/scripts/lib/trace-config.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-docs-traces",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/docs/action-traces-and-cleanup.md",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-agents",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/AGENTS.md",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-gitignore",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/.gitignore",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loop-guard",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-build/lib/loop-guard.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loop-evaluator",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-plan/lib/loop-evaluator.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loop-closure",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/fd679aee1222d13070bb2fb1096f2f54e1058715/csm-review/lib/loop-closure.mjs",
+      "publisher": "Workspace repo",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plugin-api",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Host — opencode @opencode-ai/plugin 1.15.12 dist/index.d.ts (Hooks interface)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": "~/.config/opencode/node_modules/@opencode-ai/plugin/dist/index.d.ts"
+    },
+    {
+      "referenceId": "ref-openrouter-decisions",
+      "url": "https://openrouter.ai/api/alpha/decisions",
+      "publisher": "OpenRouter (alpha decisions endpoint)",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-typesafe-primitives",
+      "url": "https://docs.typesafe.ai/primitives",
+      "publisher": "TypeSafe AI documentation",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-jev-review",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo — local declared artifact",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-jev-review.json"
+    },
+    {
+      "referenceId": "ref-prototypes",
+      "url": "https://github.com/jamiemills/opencode-skills",
+      "publisher": "Workspace repo — local declared artifact",
+      "retrievedAt": "2026-09-20",
+      "sourcePosture": "empirical-measurement",
+      "publishedOrUpdated": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "run started; fix question, slug, run-id recorded",
+      "occurredAt": "2026-09-20T21:38:46Z",
+      "cycle": 1,
+      "trigger": "state transition"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP x hybrid; tracks for recording seam, path/config/migration; host plugin API inspected",
+      "occurredAt": "2026-09-20T21:39:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "two parallel read-only design audits returned; host opencode plugin Hooks interface read; sandbox prototypes of the trace CLI wrapper and lifecycle trace hook both appended redacted UTC JSONL",
+      "occurredAt": "2026-09-20T21:43:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "draft synthesized; 10 claims; prototype + Jev artifacts declared",
+      "occurredAt": "2026-09-20T21:47:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "independent challenger: F4 downgraded, others upheld with corrections",
+      "occurredAt": "2026-09-20T21:52:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 5,
+      "state": "JUDGE",
+      "event": "Jev advisory: in_repo_seams 0.98, sufficiency 0.40, residual instruction_led_skills 0.94",
+      "occurredAt": "2026-09-20T21:53:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 6,
+      "state": "REMEDIATE",
+      "event": "applied challenger corrections (F4 residual reframed; citations fixed) and Jev clarity/factual guidance",
+      "occurredAt": "2026-09-20T21:54:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 7,
+      "state": "VERIFY",
+      "event": "schema validated; citations resolve; redaction checked; artifact digests matched",
+      "occurredAt": "2026-09-20T21:55:00Z",
+      "cycle": 1,
+      "trigger": "prior state complete"
+    },
+    {
+      "sequence": 8,
+      "state": "SAVED",
+      "event": "finding written; not committed (untracked draft)",
+      "occurredAt": "2026-09-20T21:56:00Z",
+      "cycle": 1,
+      "trigger": "verify passed"
+    }
+  ],
+  "declaredArtifacts": [
+    {
+      "artifactId": "art-trace-fix-jev-review-20260920t213846z-30858d1762d9",
+      "path": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-jev-review.json",
+      "schema": {
+        "id": "csm-jev-fix-review/1",
+        "revision": 1
+      },
+      "digest": "sha256:75176bc50b48555915dbf93e591918406a8af8ea586b8d8dd75a16ac854cf74c",
+      "relation": "supports"
+    },
+    {
+      "artifactId": "art-trace-fix-prototypes-20260920t213846z-30858d1762d9",
+      "path": ".agents/research/artifacts/2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json",
+      "schema": {
+        "id": "csm-trace-fix-prototype/1",
+        "revision": 1
+      },
+      "digest": "sha256:06e44acb28985528f772656991ea4de1d230c67cbab7de2623995cff76f1640e",
+      "relation": "supports"
+    }
+  ],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "csm-deep-research/1",
+    "producedAt": "2026-09-20T21:54:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

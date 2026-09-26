@@ -1,0 +1,48 @@
+{
+  "schema": "csm-trace-log-experiment/1",
+  "runId": "run-20260920t205916z-425adf8d73a9",
+  "retrievedAt": "2026-09-20",
+  "note": "Read-only sandbox experiment in /tmp/opencode (synthetic git repo + linked worktree). No repository writes.",
+  "experiments": [
+    {
+      "id": "E1-single-path",
+      "input": "repoMainRoot/repoLogPath called with a linked worktree cwd",
+      "observed": {
+        "repoMainRoot": "/tmp/opencode/trace-exp",
+        "repoLogPath": "/tmp/opencode/trace-exp/.agents/logs/trace.jsonl",
+        "sameAsMainRoot": true
+      },
+      "conclusion": "The default path IS single and worktree-independent."
+    },
+    {
+      "id": "E2-relative-escape",
+      "input": "repoLogPath(mainRoot,{configured:\"../../../../tmp/opencode/evil/trace.jsonl\"})",
+      "observed": "/tmp/opencode/evil/trace.jsonl (outside the repo)",
+      "conclusion": "A relative configured traceLogPath escapes the repo root, contrary to docs/action-traces-and-cleanup.md:42. The number of .. segments needed is root-depth dependent; the escape itself is the defect."
+    }
+  ],
+  "onDiskLogs": [
+    {
+      "path": ".agents/logs/trace.jsonl",
+      "role": "current default",
+      "records": 4
+    },
+    {
+      "path": ".agents/logs/2026-09-20-wt-session-trace.jsonl",
+      "role": "legacy per-run file",
+      "records": 2
+    },
+    {
+      "path": ".git/csm/logs/trace.jsonl",
+      "role": "old <git-common-dir> design (never migrated)",
+      "records": 2
+    }
+  ],
+  "callerAudit": {
+    "appendTraceProductionCallers": [
+      "scripts/wt-session.mjs:99 (create/merge/nuke/cleanup only)"
+    ],
+    "recordDecisionProductionCallers": [],
+    "automaticHook": false
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-enforce-trace-emission-20260926t092053z-8bcfa8f7bcdf",
+  "runId": "run-20260926t092053z-8bcfa8f7bcdf",
+  "skill": "csm-plan",
+  "goal": "Plan enforcement + verification that action/decision traces are actually emitted, with Jev as an optional advisory verifier.",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Frame",
+      "weightPercent": 20,
+      "status": "complete"
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 25,
+      "status": "complete"
+    },
+    {
+      "id": "M3",
+      "title": "Draft+Critique",
+      "weightPercent": 35,
+      "status": "complete"
+    },
+    {
+      "id": "M4",
+      "title": "Verify+Save",
+      "weightPercent": 20,
+      "status": "complete"
+    }
+  ],
+  "startedAt": "2026-09-26T09:20:53Z",
+  "updatedAt": "2026-09-26T09:27:22.077Z"
+}
