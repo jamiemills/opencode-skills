@@ -1,0 +1,1166 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-system-audit-validated-20260926",
+  "runId": "run-final-20260926t142000z-7c1d9e4b2a6f",
+  "title": "CSM Skills Suite — Adversarially Validated Findings: Execution, Intent-vs-Function Gaps, and Improvement Priorities",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Adversarial validation of the first review changed the picture: 3 of 8 original findings were materially overstated (plan-closure was grandfathered by design; producer drift was mostly misattributed; the trace count was understated), 5 held, and independent challengers plus a completeness sweep found ~27 additional verified defects, several more severe than the originals. The single most serious new defect is a broken security control: the tier-2 sandbox's required credentialsNone attestation always reads true because parseInspect reads Docker's non-existent HostConfig.Env (verified on real Docker). Next: an allowlist bypass via double URL-encoding (proven), a bootstrap-payload drift gate that ignores metadata-mapped runtime modules (reproduced, and neither pre-commit nor CI runs the check that would catch it), ungated corpus JSON (including a tracked 256-error .agents/builds record), and a cluster of SKILL-vs-code contract contradictions (csm-scan paths, csm-review corroboration/E1 fields, csm-review-python severity, csm-upload receipt, csm-bdd-tdd package, csm-deep-research states/marker) that make documented behavior fail validation or produce nothing. The Jev finding is upheld and strengthened: the provider violates two live schema requirements (missing state and missing instructions), so advice is null on every default path and one bad question poisons a whole batch."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Method (DEEP, hybrid): a first synthesis was attacked by two independent challenger agents (explicit instruction to falsify), then re-verified by two independent verifier agents and one exhaustive completeness sweep; the highest-severity new claims were reproduced by hand (real docker inspect, live Jev probes, egress evaluateEgress, ajv over the corpus, csm-ddd CLI runs). Roles stayed separated: challengers did not author findings, verifiers re-derived counts and re-ran code.\n\nShape:\n  first review -> adversarial challenge x2 -> independent verify x2 + completeness sweep -> hand repro of top claims -> validated set\n\nOutcome: original findings 5 upheld (2 strengthened), 3 downgraded/retracted; ~27 new validated defects, led by one broken security control (docker credentialsNone), one allowlist bypass (egress double-encoding), one packaging gate blind spot (payload metadata), one ungated corpus with real invalid records, and a long tail of SKILL-vs-code contradictions and doc drift.\n\nCaveats: still a small number of independent agents (2 challengers, 2 verifiers, 1 sweeper); Docker egress controls were reviewed statically plus one live inspect, not a full live egress exploit; Jev rankings are advisory and non-authoritative."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "Severity: CRITICAL/HIGH first.\nK1. supported — Docker sandbox credentialsNone is always true (reads HostConfig.Env; Config.Env holds the env). Required control dead; test enshrines the bug. [ref-docker][ref-autodocker]\nK2. supported — egress pathPrefix allowlist bypass via double URL-encoding (%252e%252e). Proven. [ref-egress]\nK3. supported — payload-drift gate ignores mapping.metadata; runtime modules under payload/lib/** can drift unchecked by check-suite/CI. Reproduced. [ref-checksuite][ref-pack][ref-regen]\nK4. supported — corpus gating covers only plans + csm-build-state; .agents/builds holds a tracked 256-error record, research has 5 invalid + 14 unregistered-id records, reviews 2 invalid; only legacy .md is gated. [ref-corpus][ref-builds]\nK5. supported — Jev live path violates two required fields; 12/25 points lack instructions AND state:null is rejected, so even valid points fail by default, and one bad question 400s the whole batch. [ref-openrouter][ref-points][ref-endpoint]\nK6. supported — egress audit row dropped on allowed-forward error and relay swallows it -> worker hangs unaudited. [ref-egress]\nK7. supported — unbounded relay/wrapper buffers; maxBytes not enforced on responses; relay binds 0.0.0.0 unauthenticated. [ref-egress][ref-sandbox]\nK8. supported — bypass route skips the run lease and reuses dirty worktrees. [ref-driver][ref-executor]\nK9. supported — csm-review binding receipt unwired -> VERIFIED with zero receipt; docs claim three-layer gate. [ref-loopclosure][ref-enfmodel]\nK10. supported — SKILL-vs-code contradictions: csm-scan norms path, csm-upload receipt, csm-bdd-tdd package, csm-review-python severity, csm-review corroboration bump/E1 redacted, csm-deep-research states/marker, csm-plan review /1-only. [ref-scanskill][ref-reviewskill][ref-reviewvalid][ref-pyskill][ref-bddskill][ref-uploadskill][ref-planresolver][ref-drskill]\nK11. supported — evaluator receipts are deterministic self-attestation (forgeable at receipt layer) but the guard recomputes work, so no closure bypass; csm-build requires the receipt only for /2. [ref-loopeval][ref-buildstate]\nK12. supported — 9 source schemas unregistered (6 used in production/ad-hoc), compatibility matrix missing pairs (negotiate throws, latent), config-inventory and enforcement-evaluator-spike docs stale, bootstrap trust root is the test fixture, node24 canary non-blocking. [ref-registry][ref-matrix][ref-configinv][ref-enfspike][ref-bootstrap][ref-ci]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1 Security (K1,K2,K6,K7): the docker-worker-provider credentialsNone control is the most serious new finding — a required attestation that can never fail (reproduced on real Docker). The egress broker's pathPrefix check is bypassable by double-encoding (reproduced); its audit ledger drops allowed-but-thrown forwards and the relay swallows the error (worker hangs unaudited); its buffers and the wrapped Docker/HTTP outputs are unbounded and post-forward maxBytes is unenforced; the relay binds 0.0.0.0 without auth. Recommend treating these as the first remediation tranche.\nD2 Evidence substrate (K4,K5,K12): the corpus gate is narrower than the corpus — .agents/builds (256-error tracked record), research (5 invalid, 14 unregistered ids incl. 5 using the nonexistent csm-deep-research/1), reviews (2 invalid), approaches/decisions are ungated; docs/config-inventory falsely states builds is validated. Jev is doubly broken live (state + instructions), the failure is silent by design, and no gate or telemetry surfaces it.\nD3 Contracts and drift (K3,K10,K11): SKILL bodies contradict the shipped code in at least seven skills, so following the SKILL yields schema-invalid records or nothing at all (csm-scan path, csm-review redacted/adjudicate, csm-review-python severity, csm-upload receipt, csm-bdd-tdd package, csm-deep-research states/marker, csm-plan /2 review). The payload-drift gate and the producer/registry surfaces leave these invisible.\nD4 Enforcement honesty (K11): the 'independent evaluator' is deterministic self-attestation; csm-review's receipt is unwired; csm-build's receipt is /2-only while the default is /1; make precommit is not a CI mirror. The docs disclose some of this; the net is that the deterministic loop guard, not the evaluator, is the only real enforcement — worth stating plainly in the docs.\nD5 Long tail: csm-ddd relative --repo and --help broken plus an undocumented cross-skill import contradicting its isolation claim; csm-grill writer has no mkdir and no caller; csm-autoresearch live-mode guard unreachable; bootstrap trust root is the test-fixture keyring presented as signature-verified; docs/config-inventory and enforcement-evaluator-spike stale; Makefile .PHONY omissions; csm-browse port unit tests non-hermetic."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Decision-ready priority order. Pilot readiness: none of these authorize production use of tier-2 isolation until K1/K2/K6/K7 are fixed.\n\n1. Fix the credentialsNone control (K1): read entry.Config.Env; correct the fixture; add a test that feeds a real container with -e SECRET and asserts credentialsNone=false. Highest severity, small change.\n2. Harden egress (K2,K6,K7): reject residual %2e/%5c after a fixed-point decode; write a ledger row on every decision including errors; respond and audit on malformed/malformed-forward; cap relay/wrapper/response buffers and enforce post-forward maxBytes; default the relay to loopback unless a policy opens it.\n3. Close the payload-drift blind spot (K3): include mapping.metadata in buildPayloadSrcMap or run regen verifyFresh in the hook and CI. Verify: mutate a lib/render-html file and confirm the gate fails.\n4. Gate the whole corpus (K4): add .agents/builds, research, reviews, approaches, decisions to validate-corpus-v2 (or a new validator); repair the 256-error builds record; register or explicitly mark-local the 14 unregistered research ids; fix docs/config-inventory.\n5. Fix the Jev provider contract (K5): always send a non-empty instructions per question and a non-null state; reject at construction any point without instructions; add an opt-in live parity test (key-gated) plus a schema-shape assertion.\n6. Reconcile SKILLs with code (K10): csm-scan norms path, csm-review redacted/E1 and corroboration bump, csm-review-python severity enum (or map C/R/W/E/F/Nit to the enum), csm-upload receipt (implement or downgrade the claim), csm-bdd-tdd package (wire createBddPackage into the pipeline or drop the product claim), csm-deep-research states/marker, csm-plan review /2.\n7. State enforcement honestly (K11): document that the deterministic guard, not the evaluator, carries enforcement; either wire csm-review's receipt or remove the claim; decide whether /1 builds need the receipt.\n8. Bypass safety (K8) and registry/docs hygiene (K12): acquire the lease on the bypass path and reset/reject dirty worktrees; register the 6 production schemas; add the missing compatibility pairs; replace the test-fixture trust root in the packaged bin or hard-fail non-production_use; fix doc counts and the named script.\n\nWhat would change the recommendation: if tier-2 isolation is never exercised on untrusted code, K1's real-world impact is reduced (but the control is still wrong); if egress is never exposed beyond loopback, K2/K7 lower. Cost of being wrong on K1/K2 is a security control that cannot detect leakage; on K4/K5 it is silent loss of advice and unverified durable evidence."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "- K2 (egress double-encoding) is proven at the policy-evaluation layer; end-to-end exploitability depends on the upstream decoding the forwarded path a second time. Verification: run a broker against a controlled double-decoding upstream.\n- K7's memory-DoS requires a compromised or malicious worker/upstream; not demonstrated end-to-end, only by code inspection of the unbounded paths.\n- The credentialsNone impact is bounded because the provider create path passes no -e flags today; exposure requires an image-embedded secret or a future env-injection change. Verification: inspect the created container with a deliberately insecure image.\n- Whether some unregistered schema ids (.agents/docs, .agents/evidence, bootstrap) are intentionally local is undisclosed; verification: read the relevant plans/registries.\n- Jev rankings and this review's severity assignment are single-analyst opinions with independent-agent confirmation; they carry no gate authority."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-trace] .agents/logs/trace.jsonl (workspace-local; retrieved 2026-09-26)\n[ref-retro] .agents/research/2026-09-20-csm-session-retro-20260920t220000z-32f5897cca20-research.json (workspace-local; retrieved 2026-09-26)\n[ref-jevrj] .agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json (workspace-local; retrieved 2026-09-26)\n[ref-points] csm-orchestrate/lib/decision-adapter/points.mjs (workspace-local; retrieved 2026-09-26)\n[ref-questions] csm-orchestrate/lib/decision-adapter/question-protocol.mjs (workspace-local; retrieved 2026-09-26)\n[ref-openrouter] csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs (workspace-local; retrieved 2026-09-26)\n[ref-adapter] csm-orchestrate/lib/decision-adapter/index.mjs (workspace-local; retrieved 2026-09-26)\n[ref-jev] .env (workspace-local; retrieved 2026-09-26)\n[ref-endpoint] https://openrouter.ai/api/alpha/decisions (workspace-local; retrieved 2026-09-26)\n[ref-transport] csm-orchestrate/lib/decision-adapter/transport.mjs (workspace-local; retrieved 2026-09-26)\n[ref-docker] csm-orchestrate/lib/docker-worker-provider.mjs (workspace-local; retrieved 2026-09-26)\n[ref-autodocker] csm-autoresearch/lib/providers/docker.mjs (workspace-local; retrieved 2026-09-26)\n[ref-loopeval] csm-plan/lib/loop-evaluator.mjs (workspace-local; retrieved 2026-09-26)\n[ref-loopclosure] csm-review/lib/loop-closure.mjs (workspace-local; retrieved 2026-09-26)\n[ref-buildstate] csm-build/lib/state.mjs (workspace-local; retrieved 2026-09-26)\n[ref-driver] scripts/run-orchestrator.mjs (workspace-local; retrieved 2026-09-26)\n[ref-executor] scripts/lib/agent-session-executor.mjs (workspace-local; retrieved 2026-09-26)\n[ref-egress] csm-orchestrate/lib/egress-broker.mjs (workspace-local; retrieved 2026-09-26)\n[ref-sandbox] csm-orchestrate/lib/verified-sandbox-runtime.mjs (workspace-local; retrieved 2026-09-26)\n[ref-checksuite] scripts/check-suite.mjs (workspace-local; retrieved 2026-09-26)\n[ref-pack] scripts/pack-bootstrap.mjs (workspace-local; retrieved 2026-09-26)\n[ref-regen] scripts/regen.mjs (workspace-local; retrieved 2026-09-26)\n[ref-registry] schemas/registry.json (workspace-local; retrieved 2026-09-26)\n[ref-matrix] schemas/compatibility-matrix.json (workspace-local; retrieved 2026-09-26)\n[ref-corpus] scripts/validate-corpus-v2.mjs (workspace-local; retrieved 2026-09-26)\n[ref-builds] .agents/builds/2026-08-28-all-skills-config-production-assurance-build.json (workspace-local; retrieved 2026-09-26)\n[ref-reviewproducer] csm-review/producer.json (workspace-local; retrieved 2026-09-26)\n[ref-planresolver] csm-plan/lib/input-resolver.mjs (workspace-local; retrieved 2026-09-26)\n[ref-reviewskill] csm-review/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-reviewvalid] csm-review/lib/findings-validator.mjs (workspace-local; retrieved 2026-09-26)\n[ref-scanskill] csm-scan/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-scancode] csm-scan/scripts/scan.mjs (workspace-local; retrieved 2026-09-26)\n[ref-scanproducer] csm-scan/norms-producer.json (workspace-local; retrieved 2026-09-26)\n[ref-uploadskill] csm-upload/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-uploadcode] csm-upload/scripts/upload.mjs (workspace-local; retrieved 2026-09-26)\n[ref-bddskill] csm-bdd-tdd/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-bddlib] csm-bdd-tdd/lib/package.mjs (workspace-local; retrieved 2026-09-26)\n[ref-pyskill] csm-review-python/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-pyschema] csm-review-python/schemas/csm-doctrine-findings.schema.json (workspace-local; retrieved 2026-09-26)\n[ref-drskill] csm-deep-research/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-dddskill] csm-ddd/SKILL.md (workspace-local; retrieved 2026-09-26)\n[ref-dddcode] csm-ddd/lib/ddd/redact.mjs (workspace-local; retrieved 2026-09-26)\n[ref-dddcli] csm-ddd/scripts/ddd.mjs (workspace-local; retrieved 2026-09-26)\n[ref-grilllib] csm-grill/lib/approach.mjs (workspace-local; retrieved 2026-09-26)\n[ref-arllm] csm-autoresearch/lib/llm/index.mjs (workspace-local; retrieved 2026-09-26)\n[ref-enfmodel] docs/enforcement-model.md (workspace-local; retrieved 2026-09-26)\n[ref-enfspike] docs/enforcement-evaluator-spike.md (workspace-local; retrieved 2026-09-26)\n[ref-configinv] docs/config-inventory.md (workspace-local; retrieved 2026-09-26)\n[ref-uploadmem] csm-upload/lib/publication.mjs (workspace-local; retrieved 2026-09-26)\n[ref-makefile] Makefile (workspace-local; retrieved 2026-09-26)\n[ref-ci] .github/workflows/ci.yml (workspace-local; retrieved 2026-09-26)\n[ref-bootstrap] bootstrap/package/bin/csm-skills-bootstrap.js (workspace-local; retrieved 2026-09-26)\n[ref-browseport] csm-browse/tests/unit/ports.test.mjs (workspace-local; retrieved 2026-09-26)\n[ref-planlineage] scripts/validate-plan-lineage.mjs (workspace-local; retrieved 2026-09-26)\n[ref-endpoint] https://openrouter.ai/api/alpha/decisions (retrieved 2026-09-26).\nWorkspace-local sources are cited via the repository origin at main (the schema URL pattern does not admit file:// locators)."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier DEEP, mode hybrid. Tracks: (1) trace/execution, (2) plans/corpus, (3) prior findings vs HEAD, (4) skill-vs-tool/packaging, (5) runtime/security, (6) gates/tests, (7) schemas/registry.\nAdversarial round 1 (challengers, anti-anchored, instructed to falsify): 2 agents attacked the 8 original findings; 3 were downgraded/retracted, 5 upheld (2 strengthened). Round 2 (independent verifiers): 2 agents re-derived counts and re-ran code on the new findings; a third agent swept for anything missed. Hand repros by the primary: real docker inspect (credentialsNone), live Jev probes (state/instructions/batch), evaluateEgress double-encoding, ajv on .agents/builds (256 errors), csm-ddd CLI (--help exit 2).\nGates run: check-suite OK (14 skills, 1169 checks); payload drift 374 compared/0 issues (does not cover metadata); validate-corpus-v2 94 records/0 failures (does not cover builds/research/reviews); regen verifyFresh ok at HEAD (fails on metadata mutation).\nJev advisory (live 2026-09-26, typesafe/jev-1.13, advisory only): ranked the candidate defects; no confidence returned for noul.\nControl journal: INTAKE; TRIAGE DEEP/hybrid; RESEARCH 7 tracks; SYNTHESIZE; CHALLENGE round 1; VERIFY round 2 + hand repro; SAVED.\nLimitations: 2 challengers + 2 verifiers + 1 sweeper; live egress exploit not run end-to-end; Jev and severity assignments are non-authoritative."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-o1-jev-inert",
+      "section": "keyFindings",
+      "statement": "UPHELD, STRENGTHENED (was '12/25 inert'). Live: the provider omits BOTH required fields. Every question needs a non-empty instructions; every request needs a non-null state. The adapter sends state: input.state ?? null (openrouter.mjs), and decideBatch/consultPoints default state=null, so even the 13 instruction-bearing points return null unless a caller supplies state. Additionally one instruction-less question poisons an entire batch (mixed good+bad -> HTTP 400, all null). Verified live 2026-09-26: state omitted -> 400; state null -> 400; state string + instructions -> 200; mixed batch -> 400. The shipped offline tests assert the request shape against a mock, so none of this is caught.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-openrouter",
+          "locator": "state: input.state ?? null"
+        },
+        {
+          "referenceId": "ref-points",
+          "locator": "12/25 lack question.instructions"
+        },
+        {
+          "referenceId": "ref-endpoint",
+          "locator": "live 400/200 probes"
+        },
+        {
+          "referenceId": "ref-jev",
+          "locator": "live key present"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o2-no-parity",
+      "section": "keyFindings",
+      "statement": "UPHELD. No gate validates live provider behavior: all decision tests inject fetchImpl mocks; the required adapter suite (scripts/adapter-required-tests.mjs) lists browse/autoresearch/outcome-parity, not Jev. Fail-open is absolute (transport.send never throws) AND silent (adapter .stats() has no consumer; persistAdapterDecisions writes nothing unless a decision was applied; the advisory verdict is guarded by if(verdict) so null emits no trace). A live 400 ships green and invisible.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-transport",
+          "locator": "send never throws"
+        },
+        {
+          "referenceId": "ref-driver",
+          "locator": "if(verdict) guard; no stats consumer"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o3-plan-closure",
+      "section": "keyFindings",
+      "statement": "RETRACTED AS A DEFECT / corrected. The 9 complete plans with 30 open tasks are all pre-2026-09-14 and explicitly grandfathered by scripts/validate-plan-lineage.mjs (PLAN_LINEAGE_CUTOFF), which fails any post-cutoff complete plan retaining non-terminal tasks or blockers; running it yields 0 findings. The '37/72 complete plans lack completionReview' figure conflated populations: only 7 of 42 complete plans have a null completionReview, and completionReview is required-but-nullable, so null is schema-valid. Post-cutoff closure is gate-enforced. (Related real issue: the ~40 ungated/invalid corpus JSON records in claim-n-corpus.)",
+      "claimType": "observed-outcome",
+      "verdict": "not-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-planlineage",
+          "locator": "PLAN_LINEAGE_CUTOFF 2026-09-14; 0 findings"
+        },
+        {
+          "referenceId": "ref-corpus",
+          "locator": "94 records, 0 failures"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o4-trace-window",
+      "section": "keyFindings",
+      "statement": "UPHELD in conclusion, corrected count. trace.jsonl spans 3 active days (2026-09-20..26, 4-day silence) and tracing was introduced 2026-09-20, so it cannot evidence a 3-week history; the durable 3-week+ record is .agents/plans (back to 2026-08-03) and git. Correction: fixture dominance is ~531/559 (the prior '401/559' was the whole 2026-09-26 day total, of which 378 were fixtures), i.e. the problem is worse than stated. The parallel .agents/evidence/orchestrator/*.jsonl (2312 files, 2026-09-05..26) is also harness fixture output, not production history.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-trace",
+          "locator": "per-day counts; first/last ts"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o5-browse-payload",
+      "section": "keyFindings",
+      "statement": "UPHELD. bootstrap/package/payload/skills/csm-browse ships lib/, schemas/, SKILL.md only; the mirrored SKILL.md is byte-identical to source and references scripts/browse.mjs (17 refs); pack-bootstrap maps csm-browse lib+schemas; payload-index records the runtime closure as excluded. The exclusion is a recorded decision, but the shipped guidance ('One-time setup: pnpm install; node scripts/check-skill.mjs') is impossible from the payload.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-pack",
+          "locator": "csm-browse lib+schemas only"
+        },
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "SKILL.md byte-identical"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o6-producer-drift",
+      "section": "keyFindings",
+      "statement": "DOWNGRADED. Real: csm-review/producer.json pins csm-review-findings/1 while SKILL.md:320 calls /2 'the current revision' (the /2 path is rejected by csm-plan — see claim-n-review-input). Non-defects: schemas/registry.json having no 'producers' key is by design (it is a schema registry; all producer schemas are registered); the scan canonicalPath 'NORMS.json' is CORRECT and SKILL-enforced-by-test, so the outlier is csm-scan/SKILL.md (claim-n-scan-path); missing 'format' headers on research/norms producers are cosmetic (no schema/test asserts the header).",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-reviewproducer",
+          "locator": "pins /1"
+        },
+        {
+          "referenceId": "ref-scanproducer",
+          "locator": "canonicalPath NORMS.json"
+        },
+        {
+          "referenceId": "ref-reviewskill",
+          "locator": "/2 current"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-o7-paths",
+      "section": "keyFindings",
+      "statement": "UPHELD (counts) / DOWNGRADED (framing). 23 hardcoded $HOME/.config/opencode/skills paths remain in csm-browse (16), csm-upload (6), csm-deep-research (1); packaged copies identical. They are correct for the canonical opencode install but non-portable (bootstrap/protocol.md makes the destination agent-chosen), and for packaged csm-browse they point at unshipped scripts. The earlier 'csm-orchestrate SKILL omits a runtime AGENTS.md mandates' is overstated: SKILL.md:41 names the orchestrate() entrypoint; the driver/worker seam is only 0 refs, a low doc-consistency gap.",
+      "claimType": "observed-outcome",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-orchestrate-skill",
+          "locator": "0 refs to driver/worker"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-docker-credentials",
+      "section": "keyFindings",
+      "statement": "UHOLLD (verified on real Docker). parseInspect reads entry.HostConfig.Env, which Docker never sets; container env lives at entry.Config.Env. So inspect.env is always [] and the REQUIRED attestation control credentialsNone (docker-worker-policy.json) is always true. Reproduced: a container started with -e CSM_SECRET_MARKER=leaked parsed to env=[] while Config.Env contained the secret. The sibling csm-autoresearch provider reads Config.Env correctly. The test fixture enshrines the bug (tests/orchestrate-docker-worker-provider.test.mjs:298-303 puts Env inside HostConfig) and decision-gate injects a synthetic top-level env, so no test catches it.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-docker",
+          "locator": "host.Env from HostConfig"
+        },
+        {
+          "referenceId": "ref-autodocker",
+          "locator": "Config.Env"
+        },
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "fixture shape"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-egress-encoding",
+      "section": "keyFindings",
+      "statement": "UPHELD (proven). egress-broker pathPrefix matching decodes once then posix.normalize; /allowed/%252e%252e/admin decodes to /allowed/%2e%2e/admin, survives normalize, and passes an /allowed prefix. Reproduced: /allowed/ok allowed, /allowed/%2e%2e/admin denied, /allowed/%252e%252e/admin ALLOWED. Against an upstream that decodes again this escapes the path allowlist. High for allowlist fidelity.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-egress",
+          "locator": "decode once + normalize"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-egress-audit",
+      "section": "keyFindings",
+      "statement": "UPHELD. On an allowed upstream forward that throws (non-timeout), the catch rethrows before activeBroker.record(), so no egress.decision row is written; the relay path swallows via .catch(()=>undefined), so the worker gets no response and hangs until its timeout. Violates 'one authoritative ledger row per decision'.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-egress",
+          "locator": "throw before record; swallow in relay"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-egress-bounds",
+      "section": "keyFindings",
+      "statement": "UPHELD. The relay buffer (buffer += chunk) is unbounded (newline-delimited only), connections[] is unbounded, Docker stdout/stderr capture and HTTP forward bodies are unbounded, and the matched rule maxBytes is enforced pre-forward only, never on the response. A compromised worker or malicious upstream can OOM the host. The relay also binds 0.0.0.0 with no auth.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-egress",
+          "locator": "unbounded buffer; 0.0.0.0"
+        },
+        {
+          "referenceId": "ref-sandbox",
+          "locator": "full-body concat; no post maxBytes"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-drop-capture",
+      "section": "keyFindings",
+      "statement": "UPHELD. Provision-time drop-capture degradation fails closed when required, but mid-run collectDrops only returns a degraded flag that verified-sandbox-runtime discards; requireDropCapture is not re-checked, contradicting docs/dynamic-worker-runtime.md ('fails closed only when the policy requires it'). Silent loss of a mandatory audit signal.",
+      "claimType": "causal",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-sandbox",
+          "locator": "degraded discarded"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-bypass-lease",
+      "section": "keyFindings",
+      "statement": "UPHELD. realModeBypass (--plan/--request) never acquires the run lease (only realMode does, and it returns before), writes a shared .agents/evidence/orchestrator/<runId>/bypass-result.json (last writer wins), and agent-session-executor reuses any existing worktree without a cleanliness/run binding, so concurrent or repeated bypass runs can collide or build on stale uncommitted state.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-driver",
+          "locator": "no acquireRunLease in bypass"
+        },
+        {
+          "referenceId": "ref-executor",
+          "locator": "ensureWorktree returns any existing"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-evaluator-selfattest",
+      "section": "keyFindings",
+      "statement": "DOWNGRADED. Receipts are deterministic self-attestation: createEvaluatorReceipt derives the verdict from the same record and self-signs receiptDigest=digest(body); verifyEvaluatorReceipt only checks self-consistency, so a forged receipt verifies at the receipt layer, and closePlan accepts receipt ?? latestEvaluatorReceipt without comparing input digests. HOWEVER closePlan/loop-guard independently recompute outstandingWork and re-lint acceptance signals, so a fabricated receipt cannot close a record with real work remaining. Real finding: the receipts are not independent authorities and docs/enforcement-model.md's 'independent evaluator' is a harness/prose claim; not a closure bypass.",
+      "claimType": "condition",
+      "verdict": "partially-supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-loopeval",
+          "locator": "self-signed receipt; guard recomputes"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-review-receipt",
+      "section": "keyFindings",
+      "statement": "UPHELD. csm-review's binding-receipt layer is prose-only: assertCanSaveVerified/createEvaluatorReceipt in loop-closure.mjs have no production caller, the findings schema has no receipt field, and the production guard never requires one. docs/enforcement-model.md claims a VERIFIED save requires a complete receipt + guard + canSaveVerified; only two exist, so a VERIFIED record with zero receipt passes.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-loopclosure",
+          "locator": "no production caller"
+        },
+        {
+          "referenceId": "ref-enfmodel",
+          "locator": "doc claims three layers"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-build-eval-off",
+      "section": "keyFindings",
+      "statement": "UPHELD (disclosed). csm-build requires the evaluator receipt only for csm-build-state/2; the production writer defaults to /1, so default-path builds reach COMPLETE with only the deterministic guard. Disclosed in docs/enforcement-model.md and scoped in state.mjs; lower severity, but the default path lacks the advertised receipt.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-buildstate",
+          "locator": "requireEvaluator only for /2"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-precommit",
+      "section": "keyFindings",
+      "statement": "UPHELD (partially disclosed). make precommit runs fmt+regen+check-suite+lint+11 test files; make test fans out to 22 targets and CI additionally runs make check/test-corpus/test-package-index/etc. docs/enforcement-model.md's 'a cycle that lands green locally lands green in CI' is an overclaim (the subset nature is disclosed). No CI job runs regen, so metadata payload drift is invisible (claim-n-payload-metadata).",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-makefile",
+          "locator": "precommit vs test"
+        },
+        {
+          "referenceId": "ref-ci",
+          "locator": "CI does not run regen"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-payload-metadata",
+      "section": "keyFindings",
+      "statement": "UPHELD (reproduced). check-suite buildPayloadSrcMap iterates only manifest.skills and mapping.supportingFiles, never mapping.metadata, and the drift walk is scoped to payload/skills; pack-bootstrap maps real runtime trees (payload/lib/**, payload/schemas/**) as metadata. Reproduced: appending to lib/render-html/index.mjs left check-suite green, while regen verifyFresh reported payload/lib/render-html/index.mjs mismatch. Neither the pre-commit hook nor CI runs regen/precommit, so a runtime-module drift can ship in the bootstrap package. The gap is disclosed in a code comment but unguarded.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "skills+supportingFiles only"
+        },
+        {
+          "referenceId": "ref-pack",
+          "locator": "metadata mapping"
+        },
+        {
+          "referenceId": "ref-regen",
+          "locator": "verifyFresh catches it"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-registry-gaps",
+      "section": "detailSections",
+      "statement": "UPHELD. 9 source schemas declare csm-*/N $ids but are absent from schemas/registry.json; 6 are exercised by production/ad-hoc validators (child-attempt, skill-executor, autoresearch-docker-attestation/policy, final-receipt) and 3 are deliberately unregistered per tests (trace, skill-manifest, verification-status). csm-orchestrate/lib/contracts.mjs hand-loads 29 schema files bypassing the registry, so these get no immutable-revision/digest/compat guarantees.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-registry",
+          "locator": "104 entries"
+        },
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "hand-loaded schema list"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-compat-matrix",
+      "section": "detailSections",
+      "statement": "UPHELD. schemas/compatibility-matrix.json has no entries for csm-orchestrate-adversarial-review 1->2 or final-review 1->2 (and lacks same-revision pairs for many multi-revision bases such as cursor 2->2, capabilities 1->3/3->3); the compatibility runtime throws 'unregistered compatibility pair'. Production asserts /2 directly, so no live path fires today, and no test enumerates registry vs matrix.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-matrix",
+          "locator": "no entries"
+        },
+        {
+          "referenceId": "ref-checksuite",
+          "locator": "negotiate throws"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-corpus-gaps",
+      "section": "keyFindings",
+      "statement": "UHOLLD. Only .agents/plans and .agents/csm-build-state JSON are corpus-gated (validate-corpus-v2); .agents/builds, approaches, research, reviews and decisions canonical JSON are not, and only the legacy .md is checked. Concretely: .agents/builds/2026-08-28-all-skills-config-production-assurance-build.json is tracked and validates with 256 ajv errors (missing artifact schema/artifactId/runId/digest/...); .agents/research has 5 invalid + 14 unregistered-id records (one 164-error run-state file mislabeled csm-research/1); 5 declare the nonexistent csm-deep-research/1; .agents/reviews has 2 invalid. docs/config-inventory.md:208 falsely claims .agents/builds is validated.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-corpus",
+          "locator": "plans+build-state only"
+        },
+        {
+          "referenceId": "ref-builds",
+          "locator": "256 errors"
+        },
+        {
+          "referenceId": "ref-configinv",
+          "locator": "false validation claim"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-review-input",
+      "section": "detailSections",
+      "statement": "UHELD. csm-plan/lib/input-resolver.mjs accepts only csm-review-findings/1 (and lib/consumer-adapters pins /1) while csm-review/SKILL.md:320 calls /2 the current revision. csm-review's default descriptor/render is /1, so the default path works, but the skill's declared current revision is unconsumable by its downstream.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-planresolver",
+          "locator": "review /1 only"
+        },
+        {
+          "referenceId": "ref-reviewskill",
+          "locator": "/2 current"
+        },
+        {
+          "referenceId": "ref-reviewproducer",
+          "locator": "pins /1"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-scan-path",
+      "section": "detailSections",
+      "statement": "UPHELD (SKILL is wrong). csm-scan/SKILL.md declares canonical output at .agents/norms/<date>-<repo-slug>-<run-id>-norms.json in 4 places, but scan.mjs defaults to NORMS.json in CWD, norms-producer.json says canonicalPath NORMS.json, a test enforces that, and .agents/norms does not exist. scripts/lib/contracts.mjs:319 repeats the wrong path. Consumers following the SKILL look in a directory that is never written.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-scanskill",
+          "locator": "wrong path"
+        },
+        {
+          "referenceId": "ref-scancode",
+          "locator": "default NORMS.json"
+        },
+        {
+          "referenceId": "ref-scanproducer",
+          "locator": "canonicalPath NORMS.json"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-upload-receipt",
+      "section": "detailSections",
+      "statement": "UPHELD. csm-upload/SKILL.md (and README, contracts.mjs) claim an authoritative receipt at .agents/upload/<date>-<run-id>-publication.json, but upload.mjs never calls writePublicationDescriptor and no code writes that path; the route-coverage artifact already marks it not-registered/incomplete.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-uploadskill",
+          "locator": "receipt claim"
+        },
+        {
+          "referenceId": "ref-uploadcode",
+          "locator": "no writer"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-bdd-package",
+      "section": "detailSections",
+      "statement": "UPHELD. csm-bdd-tdd/SKILL.md states the product is specs/<goal-slug>/package.json validated by package.schema.json, but the documented pipeline never writes/validates it; createBddPackage exists in lib and is referenced only by tests.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-bddskill",
+          "locator": "package.json product"
+        },
+        {
+          "referenceId": "ref-bddlib",
+          "locator": "createBddPackage unused by SKILL"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-py-severity",
+      "section": "detailSections",
+      "statement": "UPHELD. csm-review-python/SKILL.md mandates severity C/R/W/E/F/Nit, but csm-doctrine-findings.schema.json enum is critical/high/medium/low/info; a documented-shape record fails validation (verified via the schema enum).",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-pyskill",
+          "locator": "C/R/W/E/F/Nit"
+        },
+        {
+          "referenceId": "ref-pyschema",
+          "locator": "critical..info"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-review-contract",
+      "section": "detailSections",
+      "statement": "UPHELD (both). (a) csm-review/SKILL.md documents the ADJUDICATE corroboration bump (E3->high, E4->medium) as the sole confidence-raise path, but findings-validator.mjs rejects any confidence exceeding the evidence class with no exception (verified: E3/high and E4/medium both invalid). (b) SKILL's E1 field list omits verification.redacted, which the schema and validator require. A finding built per the SKILL fails validation.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-reviewskill",
+          "locator": "bump + E1 fields"
+        },
+        {
+          "referenceId": "ref-reviewvalid",
+          "locator": "no exception; redacted required"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-dr-states",
+      "section": "detailSections",
+      "statement": "UHELD. csm-deep-research/SKILL.md's Core Rules assert BLOCKED->RECOVER->VALIDATE and REVIEW->CHECKPOINT, but its state machine has no such states and lib/research.mjs defines none; and the finding marker format: csm-deep-research/1 differs from the registered schema id csm-research/1.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-drskill",
+          "locator": "states + marker"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-ddd",
+      "section": "detailSections",
+      "statement": "UHELD (verified). csm-ddd/scripts/ddd.mjs --help exits 2 (README documents --help); relative --repo is mishandled (defaultArtifactPaths gets the raw string while analysis resolves it, and documented CLI usage with a relative repo fails); and csm-ddd/lib/ddd/redact.mjs imports ../../../csm-scan/lib/scan/shared/token-families.mjs, contradicting its SKILL's 'isolated from every other skill's internals'.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-dddcli",
+          "locator": "--help exit 2; relative repo"
+        },
+        {
+          "referenceId": "ref-dddcode",
+          "locator": "imports csm-scan internal"
+        },
+        {
+          "referenceId": "ref-dddskill",
+          "locator": "isolation claim"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-grill-writer",
+      "section": "detailSections",
+      "statement": "UPHELD. csm-grill/lib/approach.mjs writeApproachArtifact uses flag:'wx' with no mkdir, so it ENOENTs on a fresh dir; it also has no production/test caller (dead API).",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-grilllib",
+          "locator": "no mkdir; uncalled"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-ar-llm",
+      "section": "detailSections",
+      "statement": "UPHELD. csm-autoresearch/lib/llm/index.mjs has an unreachable branch: the live-mode guarded throw is followed by an unconditional throw, so the documented 'expl-resolved + egress approved + credentials' requirement is nominal. Fail-closed overall, so low.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-arllm",
+          "locator": "unreachable guard then throw"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-docs-drift",
+      "section": "detailSections",
+      "statement": "UPHELD. docs/config-inventory.md says registry.json has 57 entries (actual 104) and 'Confirmed: no .csm-skills.json / $XDG_CONFIG_HOME/csm/skills.json consumer exists' although scripts/lib/trace-config.mjs consumes both; docs/enforcement-evaluator-spike.md names scripts/loop-guard.mjs which does not exist. Makefile .PHONY omits test-osv-audit/test-progress-tracker.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-configinv",
+          "locator": "57 vs 104; false confirmed"
+        },
+        {
+          "referenceId": "ref-enfspike",
+          "locator": "nonexistent script"
+        },
+        {
+          "referenceId": "ref-makefile",
+          "locator": "missing .PHONY"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-bootstrap-trust",
+      "section": "detailSections",
+      "statement": "UPHELD (disclosed). bootstrap bin embeds the test-fixture keyring (environment test-fixture-only, production_use false); validateEnvelope never consults production_use, so a fixture-signed envelope returns signed:true/trustLevel:'signature-verified'. The env field is surfaced and production keys are documented as deferred, so it is operator-discipline rather than a false crypto claim.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-bootstrap",
+          "locator": "test-fixture keyring as trust root"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-n-ci-canary",
+      "section": "detailSections",
+      "statement": "UPHELD (minor). node24-canary is continue-on-error and installs unpinned pnpm@10; it is the only Node-24 coverage, so a Node-24 regression is invisible; its action SHAs differ from the rest of ci.yml.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "low",
+      "citations": [
+        {
+          "referenceId": "ref-ci",
+          "locator": "canary + no regen"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-trace",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/logs/trace.jsonl",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "559 records 2026-09-20..26",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-retro",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-csm-session-retro-20260920t220000z-32f5897cca20-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "prior retro",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevrj",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "K2 transport",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-points",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/points.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "25 points",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-questions",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/question-protocol.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "instructions optional",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-openrouter",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "state:null sent",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-adapter",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/index.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "decideBatch",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jev",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.env",
+      "publisher": "OpenRouter/TypeSafe Jev",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "live key present (not recorded)",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-endpoint",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/https://openrouter.ai/api/alpha/decisions",
+      "publisher": "OpenRouter/TypeSafe Jev",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "live endpoint",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-transport",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/transport.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "fail-open",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-docker",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/docker-worker-provider.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HostConfig.Env bug",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-autodocker",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-autoresearch/lib/providers/docker.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Config.Env correct",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loopeval",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-plan/lib/loop-evaluator.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "self-attested receipt",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-loopclosure",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/lib/loop-closure.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "receipt unused",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-buildstate",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-build/lib/state.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "/1 evaluator off",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-driver",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/run-orchestrator.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "bypass no lease",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-executor",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/lib/agent-session-executor.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "dirty worktree reuse",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-egress",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/egress-broker.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "double-encode/audit/buffer",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-sandbox",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "maxBytes/drop",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-checksuite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/check-suite.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "phrase checks, metadata gap",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-pack",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/pack-bootstrap.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "metadata mapping",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-regen",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/regen.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "verifyFresh catches metadata",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/registry.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "104 entries, no producers key",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-matrix",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/compatibility-matrix.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "missing pairs",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-corpus",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/validate-corpus-v2.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "plans+build-state only",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-builds",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/builds/2026-08-28-all-skills-config-production-assurance-build.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "256 errors",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-reviewproducer",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/producer.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "pins /1",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-planresolver",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-plan/lib/input-resolver.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "review /1 only",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-reviewskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "/2 current, redacted, adjudicate bump",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-reviewvalid",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/lib/findings-validator.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "no bump, requires redacted",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-scanskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-scan/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "norms path",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-scancode",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-scan/scripts/scan.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "default NORMS.json",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-scanproducer",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-scan/norms-producer.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "canonicalPath NORMS.json",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-uploadskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-upload/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "receipt claim",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-uploadcode",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-upload/scripts/upload.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "no .agents/upload writer",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-bddskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-bdd-tdd/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "package.json product",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-bddlib",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-bdd-tdd/lib/package.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "createBddPackage",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-pyskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review-python/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "C/R/W/E/F/Nit",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-pyschema",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review-python/schemas/csm-doctrine-findings.schema.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "critical..info",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-drskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-deep-research/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "BLOCKED states/marker",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-dddskill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-ddd/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "isolation/NORMS.md",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-dddcode",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-ddd/lib/ddd/redact.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "imports csm-scan internal",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-dddcli",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-ddd/scripts/ddd.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "relative repo/help",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-grilllib",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-grill/lib/approach.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "writer no mkdir",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-arllm",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-autoresearch/lib/llm/index.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "unreachable branch",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enfmodel",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/enforcement-model.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "claims vs code",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enfspike",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/enforcement-evaluator-spike.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "names nonexistent script",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-configinv",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/config-inventory.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "stale 57 vs 104",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-uploadmem",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-upload/lib/publication.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "read before cap",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-makefile",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/Makefile",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "precommit/phony",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-ci",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.github/workflows/ci.yml",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "no regen; canary",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-bootstrap",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/bootstrap/package/bin/csm-skills-bootstrap.js",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "test-fixture keyring",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-browseport",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-browse/tests/unit/ports.test.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "non-hermetic",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-planlineage",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/validate-plan-lineage.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "grandfather cutoff",
+      "sourcePosture": "empirical-measurement"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Scaffold validated finding superseding run-review-20260926t132000z-8f3a2b1c",
+      "occurredAt": "2026-09-26T14:20:00Z"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP x hybrid; 7 tracks",
+      "occurredAt": "2026-09-26T14:21:00Z",
+      "cycle": 0,
+      "trigger": "adversarial validation request"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "Re-ran gates and live probes; collected challenger/verifier evidence",
+      "occurredAt": "2026-09-26T14:35:00Z",
+      "cycle": 0,
+      "trigger": "independent verification"
+    },
+    {
+      "sequence": 3,
+      "state": "CHALLENGE",
+      "event": "Round 1: 2 falsification agents; 3 original findings downgraded/retracted",
+      "occurredAt": "2026-09-26T14:45:00Z",
+      "cycle": 1,
+      "trigger": "anti-anchoring"
+    },
+    {
+      "sequence": 4,
+      "state": "VERIFY",
+      "event": "Round 2: 2 verifier agents + completeness sweep + hand reproduction of top claims",
+      "occurredAt": "2026-09-26T14:55:00Z",
+      "cycle": 1,
+      "trigger": "validate every finding"
+    },
+    {
+      "sequence": 5,
+      "state": "SYNTHESIZE",
+      "event": "Assembled final validated set with verdicts and corrected wording",
+      "occurredAt": "2026-09-26T15:00:00Z",
+      "cycle": 1,
+      "trigger": "adversarial rounds closed"
+    },
+    {
+      "sequence": 6,
+      "state": "VERIFY",
+      "event": "Schema-validate finding; protected-state re-run (only this file added)",
+      "occurredAt": "2026-09-26T15:02:00Z",
+      "cycle": 1,
+      "trigger": "write discipline"
+    },
+    {
+      "sequence": 7,
+      "state": "SAVED",
+      "event": "Wrote validated finding; not committed (no commit requested)",
+      "occurredAt": "2026-09-26T15:03:00Z",
+      "cycle": 1,
+      "trigger": "complete"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1.0.0",
+    "producedAt": "2026-09-26T15:03:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

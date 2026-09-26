@@ -658,84 +658,99 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
     );
   const evidenceDir = join(".agents", "evidence", "orchestrator", runId);
   await mkdir(evidenceDir, { recursive: true });
-  const executor = createCsmBuildAgentSessionExecutor(agentSessionExecutorOptions());
-  const handoff = createCsmBuildHandoff({ skill: "csm-build", execute: executor.execute });
-  const result = await handoff.execute({
-    invocationId,
-    parentRunId: runId,
-    childRunId,
-    phaseId,
-    edgeId,
-    skill: "csm-build",
-    retry: { attempt: 0 },
-    input: { artifactPath, plan: artifact },
-    ...(decisionAdapter ? { decisionAdapter } : {}),
-  });
-  // F2: persist the run's applied decisions. Fail-open: an absent/off adapter,
-  // no real runId, or no applied record writes nothing.
-  if (decisionAdapter) await persistAdapterDecisions({ adapter: decisionAdapter, runId });
-  await writeFile(join(evidenceDir, "bypass-result.json"), `${JSON.stringify(result, null, 2)}\n`);
-  // T003: the bypass path schedules one deterministic run trace and is gated on
-  // it, so a run that fails to emit still fails closed.
-  const traceFile = await resolveVerificationPath({ root: process.cwd(), env: process.env });
-  try {
-    await appendTrace(
-      {
-        runId,
-        actor: "csm-build",
-        action: "bypass-run",
-        target: kind,
-        justification: "deterministic bypass handoff",
-        outcome: String(result.status),
-      },
-      { file: traceFile },
+  if (!args.includes("--resume") && existsSync(join(evidenceDir, "bypass-result.json")))
+    throw new Error(
+      `run ${runId} already has durable bypass state; pass --resume to continue or use a fresh artifact runId`,
     );
-  } catch {
-    /* best-effort */
-  }
-  const traceGate = await enforceTraceGate({
-    traceFile,
-    runId,
-    scheduled: 1,
-    actor: "csm-build",
-    jevActive: decisionAdapter !== null,
-  });
-  // T006: optional Jev advisory verifier on the bypass path too, AFTER the
-  // deterministic gate so it can never change the outcome. Advisory only.
-  if (decisionAdapter) {
+  // T005: the bypass path must also hold the run lease so two concurrent
+  // --plan/--request runs on one artifact cannot share the evidence dir or the
+  // derived worktree. Acquired before dispatch, released on every path.
+  const lease = await acquireRunLease({ evidenceDir, runId, resume: args.includes("--resume") });
+  try {
+    const executor = createCsmBuildAgentSessionExecutor(agentSessionExecutorOptions());
+    const handoff = createCsmBuildHandoff({ skill: "csm-build", execute: executor.execute });
+    const result = await handoff.execute({
+      invocationId,
+      parentRunId: runId,
+      childRunId,
+      phaseId,
+      edgeId,
+      skill: "csm-build",
+      retry: { attempt: 0 },
+      input: { artifactPath, plan: artifact },
+      ...(decisionAdapter ? { decisionAdapter } : {}),
+    });
+    // F2: persist the run's applied decisions. Fail-open: an absent/off adapter,
+    // no real runId, or no applied record writes nothing.
+    if (decisionAdapter) await persistAdapterDecisions({ adapter: decisionAdapter, runId });
+    await writeFile(
+      join(evidenceDir, "bypass-result.json"),
+      `${JSON.stringify(result, null, 2)}\n`,
+    );
+    // T003: the bypass path schedules one deterministic run trace and is gated on
+    // it, so a run that fails to emit still fails closed.
+    const traceFile = await resolveVerificationPath({ root: process.cwd(), env: process.env });
     try {
-      const seam = createConsultSeam({ adapter: decisionAdapter });
-      const advice = await seam.consultPoints(["trace-emission-verdict"], {
-        runId,
-        traceLogPath: traceFile,
-        scheduled: 1,
-        matched: verifyTraces({ file: traceFile, runId }).matched,
-        gate: traceGate.reason,
-      });
-      const verdict = advice["trace-emission-verdict"];
-      if (verdict)
-        await recordDecision(
-          {
-            runId,
-            actor: "csm-build",
-            action: "trace-emission-advisory",
-            target: traceFile,
-            justification: "jev advisory trace-emission verdict",
-            outcome: String(verdict.answer ?? "n/a"),
-          },
-          { file: traceFile },
-        );
+      await appendTrace(
+        {
+          runId,
+          actor: "csm-build",
+          action: "bypass-run",
+          target: kind,
+          justification: "deterministic bypass handoff",
+          outcome: String(result.status),
+        },
+        { file: traceFile },
+      );
     } catch {
-      /* advisory best-effort */
+      /* best-effort */
     }
+    const traceGate = await enforceTraceGate({
+      traceFile,
+      runId,
+      scheduled: 1,
+      actor: "csm-build",
+      jevActive: decisionAdapter !== null,
+    });
+    // T006: optional Jev advisory verifier on the bypass path too, AFTER the
+    // deterministic gate so it can never change the outcome. Advisory only.
+    if (decisionAdapter) {
+      try {
+        const seam = createConsultSeam({ adapter: decisionAdapter });
+        const advice = await seam.consultPoints(["trace-emission-verdict"], {
+          runId,
+          traceLogPath: traceFile,
+          scheduled: 1,
+          matched: verifyTraces({ file: traceFile, runId }).matched,
+          gate: traceGate.reason,
+        });
+        const verdict = advice["trace-emission-verdict"];
+        if (verdict)
+          await recordDecision(
+            {
+              runId,
+              actor: "csm-build",
+              action: "trace-emission-advisory",
+              target: traceFile,
+              justification: "jev advisory trace-emission verdict",
+              outcome: String(verdict.answer ?? "n/a"),
+            },
+            { file: traceFile },
+          );
+      } catch {
+        /* advisory best-effort */
+      }
+    }
+    console.log("status:", result.status);
+    console.log("evidence:", evidenceDir);
+    if (!traceGate.ok) {
+      console.error(`trace enforcement failed: ${traceGate.reason}`);
+      return 1;
+    }
+    return result.status === "completed" ? 0 : 1;
+  } finally {
+    await lease.release();
   }
-  console.log("status:", result.status);
-  console.log("evidence:", evidenceDir);
-  if (!traceGate.ok) {
-    console.error(`trace enforcement failed: ${traceGate.reason}`);
-    return 1;
-  }
-  return result.status === "completed" ? 0 : 1;
 }
 
 async function realMode() {

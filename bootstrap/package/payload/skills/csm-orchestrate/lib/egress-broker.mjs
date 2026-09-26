@@ -115,6 +115,52 @@ export function validateEgressPolicy(policy) {
   return policy;
 }
 
+// Decode while the string still contains a valid percent-escape, so multi-layer
+// encoding is fully resolved, but a literal `%` (not followed by two hex digits)
+// is preserved rather than re-decoded. Returns null on a malformed escape.
+function decodeFully(raw) {
+  let current = String(raw);
+  for (let pass = 0; pass < 6; pass += 1) {
+    if (!/%[0-9a-fA-F]{2}/.test(current)) return current;
+    let next;
+    try {
+      next = decodeURIComponent(current);
+    } catch {
+      return null;
+    }
+    if (next === current) return current;
+    current = next;
+  }
+  return null;
+}
+
+// Normalize a request path for a policy prefix compare. Fully decodes nested
+// encoding, then rejects anything that could resolve outside the prefix after a
+// further decode or under a non-POSIX server: control chars/NUL, backslash,
+// semicolon path params, and dot-only segments (including NFKC fullwidth dots).
+// Returns null when the path is unclassifiable, treated as "no allowlist match".
+function normalizeComparePath(raw) {
+  const value = String(raw);
+  if (/[\u0000-\u001f\u007f\\;]/.test(value)) return null;
+  const decoded = decodeFully(value);
+  if (decoded === null) return null;
+  if (/[\u0000-\u001f\u007f\\;]/.test(decoded)) return null;
+  const normalized = decoded.normalize("NFKC");
+  const segments = normalized.split("/");
+  const trimmed = [];
+  for (const segment of segments) {
+    const stripped = segment.replace(/[. ]+$/, "");
+    if (stripped === "" && segment !== "") {
+      // A segment made only of dots and/or spaces (e.g. ".", "..", "...", ".. ")
+      // can be a traversal or a Windows-normalized empty segment: refuse.
+      return null;
+    }
+    trimmed.push(stripped);
+  }
+  if (trimmed.some((segment) => segment === "..")) return null;
+  return posix.normalize(trimmed.join("/"));
+}
+
 export function evaluateEgress(policy, target = {}) {
   validateEgressPolicy(policy);
   const host = String(target.host ?? "").toLowerCase();
@@ -137,13 +183,8 @@ export function evaluateEgress(policy, target = {}) {
     }
     if (typeof entry.pathPrefix === "string" && entry.pathPrefix) {
       if (requestPath === null) continue;
-      let decodedPath = requestPath;
-      try {
-        decodedPath = decodeURIComponent(requestPath);
-      } catch {
-        decodedPath = requestPath;
-      }
-      const normalizedPath = posix.normalize(decodedPath);
+      const normalizedPath = normalizeComparePath(requestPath);
+      if (normalizedPath === null) continue;
       const normalizedPrefix = posix.normalize(entry.pathPrefix);
       const boundary = normalizedPrefix.endsWith("/") ? normalizedPrefix : `${normalizedPrefix}/`;
       if (normalizedPath !== normalizedPrefix && !normalizedPath.startsWith(boundary)) continue;
@@ -172,6 +213,21 @@ export const EGRESS_LIMIT_REASONS = Object.freeze({
   maxBytes: "max-bytes-exceeded",
   timeoutMs: "timeout-exceeded",
 });
+
+// Non-limit failure reason codes. Every egress decision — including a transport
+// failure on an allowed request and a malformed relay frame — must produce one
+// audit row and one response, never a silent hang.
+export const EGRESS_ERROR_REASONS = Object.freeze({
+  forwardError: "forward-error",
+  malformedRequest: "malformed-request",
+  tooManyConnections: "too-many-connections",
+  bufferOverflow: "buffer-overflow",
+  queueOverflow: "queue-overflow",
+});
+
+const MAX_RELAY_BUFFER_BYTES = 1_048_576;
+const MAX_RELAY_CONNECTIONS = 256;
+const MAX_RELAY_QUEUE = 1024;
 
 function finiteNonNegative(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
@@ -801,10 +857,22 @@ export function createEgressBrokerListener({
           body: request.body ?? null,
           signal: controller.signal,
         });
-      } catch (error) {
+      } catch {
         if (!timedOut) {
-          if (timer) clearTimeout(timer);
-          throw error;
+          const failed = {
+            decision: "denied",
+            reasonCode: EGRESS_ERROR_REASONS.forwardError,
+            limits: decided.limits ?? null,
+            injection: null,
+            credentialRef: decided.credentialRef ?? null,
+          };
+          return {
+            ...withoutSecret(failed),
+            upstream: null,
+            record: activeBroker.record(failed, target, meta),
+            elapsedMs: Math.max(0, now() - startedAt),
+            error: EGRESS_ERROR_REASONS.forwardError,
+          };
         }
       } finally {
         if (timer) clearTimeout(timer);
@@ -849,35 +917,73 @@ export function createEgressBrokerListener({
 // broker container rather than the worker.
 export function createEgressBrokerRelayServer({
   listener,
-  host = "0.0.0.0",
+  host = "127.0.0.1",
   port = 0,
   meta = {},
 } = {}) {
   if (!listener || typeof listener.handle !== "function")
     throw new EgressPolicyError("egress relay server requires a listener with handle");
-  const connections = [];
+  const connections = new Set();
+  const peers = [];
   const server = net.createServer((socket) => {
-    if (typeof socket.remoteAddress === "string") connections.push(socket.remoteAddress);
+    if (connections.size >= MAX_RELAY_CONNECTIONS) {
+      if (!socket.destroyed)
+        socket.end(
+          `${JSON.stringify({
+            id: null,
+            decision: "denied",
+            reasonCode: EGRESS_ERROR_REASONS.tooManyConnections,
+            upstream: null,
+          })}\n`,
+        );
+      return;
+    }
+    connections.add(socket);
+    socket.once("close", () => connections.delete(socket));
+    if (typeof socket.remoteAddress === "string" && peers.length < MAX_RELAY_CONNECTIONS)
+      peers.push(socket.remoteAddress);
     let buffer = "";
     let chain = Promise.resolve();
+    let pending = 0;
+    const sendError = (reasonCode, id = null) => {
+      if (!socket.destroyed)
+        socket.write(`${JSON.stringify({ id, decision: "denied", reasonCode, upstream: null })}\n`);
+    };
     const respond = async (line) => {
       if (!line.trim()) return;
       let request;
       try {
         request = JSON.parse(line);
       } catch {
+        sendError(EGRESS_ERROR_REASONS.malformedRequest);
         return;
       }
-      const handled = await listener.handle(
-        {
-          target: request?.target,
-          headers: request?.headers ?? {},
-          body: request?.body ?? null,
-        },
-        meta,
-      );
+      if (
+        request === null ||
+        typeof request !== "object" ||
+        request.target === null ||
+        typeof request.target !== "object" ||
+        typeof request.target.host !== "string"
+      ) {
+        sendError(EGRESS_ERROR_REASONS.malformedRequest, request?.id ?? null);
+        return;
+      }
+      let handled;
+      try {
+        handled = await listener.handle(
+          {
+            target: request.target,
+            headers: request.headers ?? {},
+            body: request.body ?? null,
+          },
+          meta,
+        );
+      } catch {
+        sendError(EGRESS_ERROR_REASONS.forwardError, request.id ?? null);
+        return;
+      }
       const response = {
-        id: request?.id ?? null,
+        id: request.id ?? null,
         decision: handled.decision,
         reasonCode: handled.reasonCode ?? null,
         upstream: handled.upstream ?? null,
@@ -886,11 +992,29 @@ export function createEgressBrokerRelayServer({
     };
     socket.on("data", (chunk) => {
       buffer += chunk.toString("utf8");
+      if (Buffer.byteLength(buffer, "utf8") > MAX_RELAY_BUFFER_BYTES) {
+        sendError(EGRESS_ERROR_REASONS.bufferOverflow);
+        buffer = "";
+        socket.destroy();
+        return;
+      }
       let newline;
       while ((newline = buffer.indexOf("\n")) !== -1) {
+        if (pending >= MAX_RELAY_QUEUE) {
+          sendError(EGRESS_ERROR_REASONS.queueOverflow);
+          buffer = "";
+          socket.destroy();
+          return;
+        }
         const line = buffer.slice(0, newline);
         buffer = buffer.slice(newline + 1);
-        chain = chain.then(() => respond(line)).catch(() => undefined);
+        pending += 1;
+        chain = chain
+          .then(() => respond(line))
+          .catch(() => undefined)
+          .finally(() => {
+            pending -= 1;
+          });
       }
     });
     socket.on("error", () => undefined);
@@ -903,7 +1027,7 @@ export function createEgressBrokerRelayServer({
         host: address.address,
         port: address.port,
         meta,
-        connections,
+        connections: peers,
         close: () =>
           new Promise((done) => {
             server.close(() => done());

@@ -932,14 +932,14 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/decision-gate.mjs",
-        "sha256": "04075d2afeb49aa603081e373b025501be2f4588467f6613d8dfc24d7fde0ef0",
-        "bytes": 26044,
+        "sha256": "8a0a296661498b4c48667bec77b47b9f952bec3db8b431ad217090b5127ad244",
+        "bytes": 26054,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/docker-worker-provider.mjs",
-        "sha256": "cbb50f218a4f496243b0f5cc5b95326845ca4807fb9827c3bb93d04c2718d439",
-        "bytes": 36935,
+        "sha256": "22ac6435ed4e26d866370879b2146ca8c95f9258e4e269fa3b470f92910e96c3",
+        "bytes": 38773,
         "mode": "0644"
       },
       {
@@ -950,8 +950,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/egress-broker.mjs",
-        "sha256": "7568efa83c7efec339dd7a9deb0149ea5e3dcd0796f29eee8e90fa837c644f4a",
-        "bytes": 36818,
+        "sha256": "2eebaa588b5176c60ee016304fef58b1f626ac15afbbfebabebfce23cb9cf159",
+        "bytes": 41274,
         "mode": "0644"
       },
       {
@@ -1100,8 +1100,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
-        "sha256": "9bb5e7793ac197b3b458526e1ea90f2fb9bcd6d8add490c2b010a0a7cf1a91c8",
-        "bytes": 31543,
+        "sha256": "47219de5fe1c9ee370d08da2c4893a154905bbfee4a5ab27566519d0aa713ecd",
+        "bytes": 32229,
         "mode": "0644"
       },
       {

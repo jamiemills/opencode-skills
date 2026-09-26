@@ -123,6 +123,9 @@ function runCommand(docker, args, { timeoutMs = 60_000, stdin = null } = {}) {
 function parseInspect(text) {
   const value = JSON.parse(text);
   const [entry] = Array.isArray(value) ? value : [value];
+  const config = entry.Config ?? {};
+  const configPresent = entry.Config !== undefined && entry.Config !== null;
+  const envReadable = configPresent && Array.isArray(config.Env);
   const host = entry.HostConfig ?? {};
   const repoDigests = Array.isArray(entry.RepoDigests) ? entry.RepoDigests : [];
   const topMounts = Array.isArray(entry.Mounts) ? entry.Mounts : [];
@@ -138,11 +141,74 @@ function parseInspect(text) {
     network: host.NetworkMode,
     capDrop: Array.isArray(host.CapDrop) ? host.CapDrop : [],
     securityOpt: Array.isArray(host.SecurityOpt) ? host.SecurityOpt : [],
-    env: Array.isArray(host.Env) ? host.Env : [],
+    env: envReadable ? config.Env : [],
+    envReadable,
     pidsLimit: host.PidsLimit,
     memory: host.Memory,
     init: host.Init === true,
   };
+}
+
+// Credential-shaped environment variable names. Docker containers always carry
+// benign defaults (PATH, HOSTNAME, LANG, ...), so the credentialsNone control
+// means "no credential-shaped variable", not "an empty environment". Name
+// matching is supplemented by a value-shape check for userinfo embedded in a
+// URL/DSN/PROXY value (e.g. DATABASE_URL=postgres://user:pw@host).
+const BENIGN_ENV_NAMES = new Set([
+  "public_key",
+  "primary_key",
+  "foreign_key",
+  "partition_key",
+  "sort_key",
+  "group_key",
+  "tokenizers_parallelism",
+  "no_proxy",
+]);
+const CREDENTIAL_ENV_SEGMENTS = new Set([
+  "key",
+  "secret",
+  "token",
+  "password",
+  "passwd",
+  "pwd",
+  "passphrase",
+  "credential",
+  "credentials",
+  "authorization",
+  "auth",
+  "bearer",
+  "jwt",
+  "apikey",
+  "cookie",
+  "session",
+  "netrc",
+  "pgpass",
+  "kubeconfig",
+  "proxy",
+  "dsn",
+]);
+const CREDENTIAL_ENV_SUBSTRINGS = [
+  "secret",
+  "password",
+  "passwd",
+  "credential",
+  "passphrase",
+  "jwt",
+  "netrc",
+  "pgpass",
+  "kubeconfig",
+];
+const URL_USERINFO_RE = /^[a-z][a-z0-9+.-]*:\/\/[^/@\s]+:[^/@\s]+@/i;
+
+function envEntryHasCredential(entry) {
+  const raw = String(entry);
+  const name = raw.split("=", 1)[0].toLowerCase();
+  if (BENIGN_ENV_NAMES.has(name)) return false;
+  if (CREDENTIAL_ENV_SUBSTRINGS.some((needle) => name.includes(needle))) return true;
+  if (name.split(/[^a-z0-9]+/).some((segment) => CREDENTIAL_ENV_SEGMENTS.has(segment))) return true;
+  const equals = raw.indexOf("=");
+  if (equals !== -1 && URL_USERINFO_RE.test(raw.slice(equals + 1))) return true;
+  return false;
 }
 
 // Extract the `sha256:...` portion of a `name@sha256:...` RepoDigest reference.
@@ -164,6 +230,7 @@ const WORKER_ATTESTATION_DATA_KEYS = Object.freeze([
   "matchedRepoDigestSource",
   "repoDigestsObserved",
   "workspaceDigest",
+  "envReadable",
 ]);
 
 function failedWorkerControls(attestation, { pinRequired = true } = {}) {
@@ -236,7 +303,7 @@ export function attestDockerWorker(
       expectedNetwork === null ? inspect.network === "none" : inspect.network === expectedNetwork,
     capDropAll: JSON.stringify(inspect.capDrop) === JSON.stringify(["ALL"]),
     noNewPrivileges: inspect.securityOpt.some((opt) => opt.startsWith("no-new-privileges")),
-    credentialsNone: inspect.env.length === 0,
+    credentialsNone: inspect.envReadable !== false && !inspect.env.some(envEntryHasCredential),
     reapingInit: inspect.init === true,
     resourceEnvelope:
       (expectedMemory === null || inspect.memory === expectedMemory) &&

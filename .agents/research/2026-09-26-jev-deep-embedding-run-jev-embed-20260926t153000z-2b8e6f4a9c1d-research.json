@@ -1,0 +1,562 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-jev-deep-embedding-20260926",
+  "runId": "run-jev-embed-20260926t153000z-2b8e6f4a9c1d",
+  "title": "Deep Jev Embedding: Elevating Jev as an Optional, Excessive-Where-Viable Classifier Across the CSM Suite",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "Jev can and should be embedded much more deeply and used far more aggressively — but as an OPTIONAL, fail-open CLASSIFIER that a deterministic harness consumes, never as the author of a gate. The research gives a safe path: fix the live contract first (it currently 400s on both state and instructions), wire a single run-scoped decision service so every skill can consult it, add ~12 new classification/ranking points, run one batched call per state (so \"excessive\" coverage costs ~$0.05-0.12 per large run), and elevate trust per (point x domain x model x prompt) through a 5-rung ladder capped at \"authoritative only for reversible non-safety applies\" — with a calibration program as the price of each promotion. Strong recommendation: do NOT let Jev own evaluator verdicts, closure, severity/evidence-class authority, VERIFY, or any acceptance/security/completion gate; at those surfaces Jev may pre-filter and pre-label, and the deterministic gate stays authoritative and byte-identical with Jev absent."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Question: how to embed Jev deeper, use it everywhere viable and \"excessively\" when enabled (optionally), elevate trust in it as a classifier, and swap LLM calls for it at gates/classification/judging/reviews — without losing the safety that makes the suite trustworthy.\n\nPipeline: 5 independent researchers (external Jev capability; repo LLM/subagent inventory; trust-ladder design; scale/cost/ops; gates-vs-substitution map) -> synthesis -> live probe -> invariants.\n\nThe core tension and its resolution: \"use Jev for gates\" and \"never let Jev own a gate\" are reconciled by making Jev the CLASSIFIER and the harness the JUDGE OF THE LABEL. Jev emits a typed label (choice/score/noul) into a closed, caller-supplied taxonomy; a deterministic, versioned, harness-owned policy consumes a BARE enum label and computes the action, receipt, and acceptance. The advisory object itself never enters a protected input (boundary-guard enforces this). That is the only form in which \"Jev everywhere\" is both aggressive and safe.\n\nHeadline evidence: live probe (5 mixed questions, one call, 712 ms, $2.55e-5, distributions returned); vendor docs for primitives/limits/pricing/failure modes; an independent benchmark that found the vendor's multipliers overstated (3.3x/40.6x vs 193.6x/444.6x) and confidently-wrong adjacent labels; and the repo's own adapter (batching, single-flight, cache, caps, breaker, kill switch, redaction) which already provides the operational levers."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported — Live contract is broken (state + instructions); fix before embedding. [ref-audit][ref-or-jev]\nK2. supported — Embedding is greenfield wiring, not gate surgery; only 2 points are code-wired; skills are instruction-led. [ref-points][ref-consult][ref-driver]\nK3. supported — Jev is a reliable closed-taxonomy classifier (choice<=255/score 2-10/noul; probabilities sum 1; schema-match guaranteed) but label correctness and confidence-as-correctness are NOT. [ref-ts-choice][ref-ts-confidence]\nK4. supported — Accuracy on arbitrary taxonomies is unmeasured; known failure modes + confidently-wrong adjacent categories + run-to-run drift; calibrate per taxonomy. [ref-ts-blog][ref-webofmike][ref-ts-jagged][ref-or-classify]\nK5. supported — Trust must be per-configuration and capped: L0 off .. L4 narrow authoritative; L5 refused; promotions signed/expiring/calibrated. [ref-points][ref-typed]\nK6. supported — Preserve the boundary via the bare-label pipe; gate outcomes invariant with Jev absent/failing/wrong. [ref-boundary][ref-typed]\nK7. supported — Substitution map: safe applies (route, review-assignment add-only, spike, ordering, dispatch, secret-preflag, ceremony labels); pre-filter-only (challenger/judge triage, dedup proposals, failure triage); never-Jev (evaluator, closure, severity authority, VERIFY, resume/retry, isolation, commit). [ref-points][ref-typed]\nK8. supported — Excessive coverage is cheap (<$0.15/run) IF batched per state; latency/rate-limits are the real budget; prefetch + advisory-first + cache + budget guard. [ref-jevq][ref-adapteridx]\nK9. supported — Promotion beyond L2 requires a human-labelled held-out calibration program with pre-registered thresholds; current calibration is synthetic and threshold-free. [ref-jevq][ref-typed]\nK10. supported — Enterprise caveats: no SLA, $50 liability cap, no self-hosting, unstable rate limits, alpha route; pin+expire the model snapshot. [ref-ts-legal][ref-ts-models]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1 The bare-label pipe (the central design).\n  Jev advice {providerId,pointId,answer,confidence,probabilities}\n    -> harness labelOf(pointId, advice) -> bare enum (e.g. \"retry\" | \"accept\")\n    -> harness policy(label, durable state) -> deterministic action + receipt + acceptance\n  labelOf and policy are versioned, testable across every label including \"Jev absent\", and never read confidence as authority (confidence may only escalate to more review). boundary-guard.mjs keeps advisory objects out of digests/receipts/gates/closure/acceptance.\n\nD2 Coverage that is both \"excessive\" and safe. Consult unit = one batched call per (runId, cycle, stateDigest); send all applicable points in one request; window state to <=~32k tokens and paginate; build ONE run-scoped adapter/service injected into every skill (one cache, one breaker, one budget); cache by (runId,pointId,stateDigest); prefetch the next state's advice; advisory-first so a run never waits on Jev; bounded concurrency; circuit break; a budget guard with tiers NORMAL -> THROTTLED (70%) -> SHADOW_ONLY (90%) -> OFF, which drops low-value advisory points first and NEVER pauses the run.\n\nD3 New high-value points (ranked): csm-deep-research-triage; build-repair-classification; make-tests-triage; csm-review-scale; plan-scale; make-tests-survivor-triage; plan-remediation-resolution; build-integrate-choice; grill-clarification-ranking; make-tests-surface-ranking; python-review-bucket; deep-research-verify-claim; and wire the dormant conditional-skill-ranking. All are advisory or non-safety apply; none touches an acceptance/security/completion surface.\n\nD4 Where LLMs can actually be saved. The suite's LLM usage is largely generative (researchers, synthesizers, finders, scenario/test generation) and must remain LLM. The savable calls are the typed decisions enumerated in K7: ceremony/scale labels (cheap, reversible), reviewer assignment (add-only), spike/order/dispatch (reversible), pre-filter triage of which findings/claims need a full adversarial LLM pass (Jev decides which to spend LLM tokens on), and dedup PROPOSALS (never a delete). Net: Jev as triage/first-pass lets the suite spend LLM calls only where Jev is uncertain or disagrees with the deterministic baseline.\n\nD5 The trust ladder and its price. L1 shadow: no behavior change, but requires a proven non-zero live consultation (today it would be silently zero). L2 advisory-consumed: requires human-labelled held-out corpora with IAA floor and agreement >= incumbent. L3 Jev-first with fallback: precision>=0.90 / recall>=0.85 / coverage>=0.80 / ECE<=0.10 / dangerous<=1% / zero top-band dangerous / 100% gate-invariance. L4 authoritative (reversible non-safety only): precision>=0.98 / FP<=1% / zero dangerous / verified reversibility + fallback + kill-drill. L5 refused by schema invariant. Promotions expire and auto-demote on drift/snapshot change.\n\nD6 Boundary changes required (additive only): optional trustLevel on points (ceiling preserved); a trust-level/escalation path replacing implicit apply-if-no-baseline; additive schemas csm-decision/2, csm-decision-calibration/2, csm-decision-trust/1, csm-decision-corpus/1, capabilities/4; new host budget env. Never changed: apply=>non-safety, the §6 never-Jev list, boundary-guard semantics, fail-open/breaker/kill only strengthenable, redaction never Jev-owned."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Decision-ready phased blueprint (turning this into an executable plan is a separate csm-plan invocation; this finding authorizes no work).\n\nPhase 0 — Make the layer real (blocker). Fix the provider to always send a non-empty instructions per question and a non-null state; reject at construction any point without instructions; add an opt-in, key-gated LIVE PARITY test asserting the shipped request shape is accepted by the live API; surface provider failures in telemetry/trace (today a 400 is invisible). Without this, \"excessive Jev\" is excessive nothing.\n\nPhase 1 — Wire it everywhere (advisory). Add csm-orchestrate/lib/decision-adapter/service.mjs (consult/prefetch/stats/budget) constructed once per run and threaded through the executor invocation seam so every skill lib can call decisionService?.consult(...). Give consult.mjs a direct-invocation entry so prose-only skills can consult from a SKILL step. Keep it OFF by default; all config layers can only narrow. Add the K7 safe points and the D3 candidates, all advisory or non-safety apply.\n\nPhase 2 — Make it excessive and safe. Coverage profiles (off/shadow/wide/excessive) via the request-2 decision block; one batched call per state; windowing; prefetch + bounded concurrency; run-level budget guard and per-decision telemetry (point, mode, latency, tokens, cost, applied/advisory, baselineAgreement, failures) with a terminal budget tier; Vercel as retryable-failure failover (count-only cost accounting).\n\nPhase 3 — Elevate trust per configuration. Stand up the calibration program; promote the reversible non-safety apply points L2->L3->L4 only when the pre-registered thresholds and gate-invariance hold; keep all safety/authority points advisory forever; never let Jev own a gate/receipt/closure.\n\nTrust-elevation accept criteria (all required for L3+): human-labelled held-out corpus (>=2 blind annotators, IAA floor), published precision/recall/coverage/ECE/dangerous-error metrics, 100% shadow gate-outcome invariance, independent approval + expiry + auto-demote, and a kill-drill proving graceful degradation. L5 is refused by construction.\n\nWhat would change the recommendation: if live parity cannot be guaranteed (alpha route/rate limits), cap at L2 shadow-only telemetry; if no human-labelled corpora can be funded, keep Jev at L1/L2 advisory indefinitely (still valuable as pre-filter and ranking). Cost of being wrong on K1 is a silently dead layer; on K7 a confidently-wrong label at a gate would erode the suite's only real enforcement, which is why that column stays never-Jev."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "- Vendor accuracy/calibration on arbitrary taxonomies is not published; only vendor workflow numbers and one independent small-n benchmark exist. Verification: run the calibration program.\n- Vendor multiplier claims (193.6x faster / 444.6x cheaper) are not independently reproduced; an independent n=60 test found ~3.3x/40.6x. Treat vendor multipliers as unverified.\n- Vercel route equivalence: the TypeSafe provider maps 'boolean' to 'noul' and rounds probabilities; whether it is behaviorally equivalent to the OpenRouter route for the same taxonomy is unverified (only one route was live-probed here).\n- The OpenRouter 'alpha' decisions route and model slug are documented but the bare model page was not publicly retrievable unauthenticated; long-term availability is not guaranteed (rate limits 'change without notice').\n- No self-hosting/private deployment is documented; enterprise ZDR is offered but its exact terms were not fetched.\n- The cost/latency math uses stated assumptions (A1-A8) and single-sample observations; treat the absolute dollar figures as order-of-magnitude, not exact."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-ts-intro] https://docs.typesafe.ai/introduction (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-primitives] https://docs.typesafe.ai/primitives (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-choice] https://docs.typesafe.ai/primitives/choice (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-score] https://docs.typesafe.ai/primitives/score (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-confidence] https://docs.typesafe.ai/confidence (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-models] https://docs.typesafe.ai/models (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-api] https://docs.typesafe.ai/api (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-jagged] https://docs.typesafe.ai/model-jaggedness/jev-1.13 (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-blog] https://www.typesafe.ai/blog/introducing-system-one-models-and-jev (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-legal] https://typesafe.ai/legal/mca (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-ts-privacy] https://typesafe.ai/legal/privacy-policy (TypeSafe (vendor); retrieved 2026-09-26)\n[ref-or-jev] https://openrouter.ai/docs/guides/community/jev (OpenRouter; retrieved 2026-09-26)\n[ref-or-classify] https://openrouter.ai/docs/cookbook/evaluate-and-optimize/jev-classification (OpenRouter; retrieved 2026-09-26)\n[ref-or-gate] https://openrouter.ai/docs/cookbook/building-agents/gate-tool-calls-with-jev (OpenRouter; retrieved 2026-09-26)\n[ref-vercel-ts] https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai (Vercel AI SDK; retrieved 2026-09-26)\n[ref-vercel-api] https://ai-gateway.vercel.sh/v1/models (Vercel AI Gateway; retrieved 2026-09-26)\n[ref-webofmike] https://github.com/jamiemills/opencode-skills/blob/main/https://webofmike.com/jev-benchmark/ (independent benchmark (webofmike); retrieved 2026-09-26)\n[ref-jevals] https://jevals.com/ (independent community board; retrieved 2026-09-26)\n[ref-typed] https://github.com/jamiemills/opencode-skills/blob/main/docs/typed-decisions.md (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-enf] https://github.com/jamiemills/opencode-skills/blob/main/docs/enforcement-model.md (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-points] https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/points.mjs (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-adapteridx] https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/index.mjs (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-consult] https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/consult.mjs (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-boundary] https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/boundary-guard.mjs (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-driver] https://github.com/jamiemills/opencode-skills/blob/main/scripts/run-orchestrator.mjs (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-audit] https://github.com/jamiemills/opencode-skills/blob/main/`.agents/research/2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-jevrj] https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-jevq] https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)\n[ref-jevoptin] https://github.com/jamiemills/opencode-skills/blob/main/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json (workspace-local (jamiemills/opencode-skills); retrieved 2026-09-26)"
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Tier DEEP, mode hybrid. Independent researchers (5, parallel): external Jev capability/economics; repo LLM/subagent inventory; trust-ladder design; scale/cost/ops; gate-vs-substitution map. Synthesis primary-led; no separate challenger/judge subagent dispatched this run (disclosed residual); additive to the validated system audit finding [ref-audit], whose findings are retained unchanged.\nLive probe (2026-09-26): one batched request, 5 mixed question types (choice/score/noul), state + instructions present, HTTP 200, 712 ms, usage 608/128 tokens, cost $0.0000255; answers carried probabilities/legends; the triage label was debatable (rated a security-boundary change 'quick'), illustrating why classification needs calibration and never gate authority.\nRepo levers confirmed: decideBatch, single-flight, run-scoped cache, per-point cap 32, circuit breaker (3), kill switches, per-call caps, baseline-agreement discard, redaction, boundary-guard, 25 points (7 apply/18 advisory), capabilities default false.\nInventory conclusion: LLM calls are instruction-led; the only executable model transports are the Jev adapter and the stub-only autoresearch adapter.\nLimitations: single-route live probe; no human-labelled corpus built; cost figures are assumptions; no independent challenger subagent this run."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-j-blocker",
+      "section": "keyFindings",
+      "statement": "The Jev layer is a BLOCKER-fix away from viability: the shipped provider sends state:null and omits per-question instructions, both of which the live API rejects (verified live 2026-09-26: HTTP 400 at ['state'] and at ['questions','<id>','instructions']; a mixed batch poisons all questions). Until fixed and guarded by a live-vs-mock parity test, no embedding or trust elevation is meaningful — every call fail-opens invisibly.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-audit",
+          "locator": "K5 state+instructions"
+        },
+        {
+          "referenceId": "ref-or-jev",
+          "locator": "record shape; alpha route"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-wiring-gap",
+      "section": "keyFindings",
+      "statement": "Most 'swap LLM for Jev' work is greenfield, not a gate change: the suite is instruction-led (model calls live in SKILL.md prose, not code), only two points are actually code-wired (route-classification in phase-compiler; trace-emission-verdict in run-orchestrator), the adapter is constructed only by the csm-orchestrate driver, and the consult seam has no direct-invocation entry for prose-only skills. 7 points are non-safety/apply; 18 are advisory; conditional-skill-ranking is declared but has no live consumer.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-points",
+          "locator": "25 points; 7 apply"
+        },
+        {
+          "referenceId": "ref-consult",
+          "locator": "no direct entry"
+        },
+        {
+          "referenceId": "ref-driver",
+          "locator": "adapter built by driver only"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-classifier",
+      "section": "keyFindings",
+      "statement": "Jev is reliable as a classifier into a CALLER-SUPPLIED closed taxonomy: Choice <=255 options, Score 2-10 levels, Noul boolean; every answer is constrained to the supplied options; per-option probabilities sum to 1; schema matching is guaranteed and label correctness is not; confidence is a distribution statistic, not correctness. State+questions share a ~32k-token budget. Live probe: 5 mixed question types in one call returned choice/score/noul answers with distributions in 712 ms for $0.0000255.",
+      "claimType": "mechanism",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ts-choice",
+          "locator": "<=255 options; probabilities sum 1"
+        },
+        {
+          "referenceId": "ref-ts-score",
+          "locator": "2-10 levels"
+        },
+        {
+          "referenceId": "ref-ts-confidence",
+          "locator": "confidence is a statistic, not correctness"
+        },
+        {
+          "referenceId": "ref-ts-models",
+          "locator": "32k state budget"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-accuracy",
+      "section": "keyFindings",
+      "statement": "Accuracy on arbitrary taxonomies is unmeasured and must not be assumed: vendor workflow accuracy is 67.8% on its own harness with consensus labels; the vendor's headline 193.6x/444.6x speed/cost claims are not independently reproduced (an independent n=60 test found ~3.3x / ~40.6x); known failure modes are published (counting, dates, indirection, large noisy state, adversarial content, contradictory criteria, cross-question arithmetic); confidently-wrong adjacent categories are observed (e.g. a kubectl prod change classified destructive at 0.97); and repeated identical calls drift by a few hundredths (non-deterministic). Our own probe rated a security-boundary egress change as triage 'quick'. Calibrate per taxonomy with human labels before trusting thresholds.",
+      "claimType": "observed-outcome",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-ts-blog",
+          "locator": "67.8%; vendor multipliers"
+        },
+        {
+          "referenceId": "ref-webofmike",
+          "locator": "independent 3.3x/40.6x; confidently-wrong"
+        },
+        {
+          "referenceId": "ref-ts-jagged",
+          "locator": "failure modes"
+        },
+        {
+          "referenceId": "ref-or-classify",
+          "locator": "per-tag calibration; drift"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-ladder",
+      "section": "keyFindings",
+      "statement": "Trust must be a per-configuration property, never global: bind promotions to (pointId x domain x provider x model-snapshot x promptVersion), cap the ladder at L4 (Jev-authoritative only for reversible non-safety apply points), and refuse L5 (acceptance/security/completion) structurally. Rungs: L0 off -> L1 shadow/telemetry -> L2 advisory-consumed -> L3 Jev-first with deterministic/LLM fallback -> L4 narrow authoritative. Promotion is a signed, expiring, falsifiable csm-decision-trust/1 record backed by a frozen human-labelled held-out corpus. The existing schema invariant 'apply => non-safety' already blocks L5.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-points",
+          "locator": "apply=>non-safety invariant"
+        },
+        {
+          "referenceId": "ref-typed",
+          "locator": "modes; advisory/apply; boundary"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-boundary",
+      "section": "keyFindings",
+      "statement": "The never-Jev boundary can be preserved while Jev 'is the classifier' by a one-way harness pipe: Jev emits an advisory object; harness code maps it to a BARE enum label; a deterministic, versioned policy consumes the label and owns the action, receipt, and acceptance. The advisory object never enters a digest/receipt/gate/closure/acceptance input; boundary-guard.mjs remains the tripwire. Invariant: every acceptance/security/completion/closure/receipt/digest/cursor/isolation/commit decision is computed from durable state alone and is identical whether Jev is absent, disabled, failing, or confidently wrong; Jev may only emit a non-safety label that is advisory, agreement-gated, or gap-filling.",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-boundary",
+          "locator": "advisory-shaped guard"
+        },
+        {
+          "referenceId": "ref-typed",
+          "locator": "never-Jev list §6"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-swaps",
+      "section": "keyFindings",
+      "statement": "Safe substitutions exist but are bounded. YES (apply/reversible or add-only, non-safety): route-classification (guard already limits to no-route-fill or agreement), review-assignment (add-only), spike-candidacy, ready-set-ordering, deep-research-dispatch, secret-preflag (scan stays authoritative), plus new ceremony/scale labels (DR tier x mode, review QUICK/FULL, plan scale, bdd size, make-tests surface ranking, grill clarification ranking). PRE-FILTER ONLY (advisory; never author): review/deep-research challenger triage, semantic-dedup proposals (must never delete a finding), make-tests triage, build repair/integrate classification. NEVER: evaluator verdicts/receipts, loop-guard exits, closure/verificationStatus/canSaveVerified, severity/evidence-class authority, per-claim VERIFY, classifyResume/retryDecision, trace gate, isolation/attestation/egress gates, posture rungs, redaction, commit/push.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-points",
+          "locator": "existing points"
+        },
+        {
+          "referenceId": "ref-typed",
+          "locator": "never-Jev list"
+        },
+        {
+          "referenceId": "ref-enf",
+          "locator": "enforcement layers"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-excessive",
+      "section": "keyFindings",
+      "statement": "'Excessive' coverage is affordable and low-risk if the unit of spend is ONE BATCHED CALL PER STATE, not per point. Math (assumptions in the appendix): a ~1,200-cycle run costs ~$0.05 batched vs ~$0.18 naive, and a hard per-point cap bounds it at <=~$0.12; token cost is economically irrelevant (<$0.15/run). The binding constraints are LATENCY and RATE LIMITS, so: prefetch advice off the critical path, advisory-first (never block), cache by (runId,pointId,stateDigest), one shared run-scoped adapter (one circuit breaker, one budget ledger), window state to <=~32k tokens, bounded concurrency, circuit break, and a run-level budget guard that degrades advisory-first and never pauses.",
+      "claimType": "projected-outcome",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-adapteridx",
+          "locator": "single-flight/cache/caps/breaker"
+        },
+        {
+          "referenceId": "ref-jevq",
+          "locator": "batching economics"
+        },
+        {
+          "referenceId": "ref-ts-models",
+          "locator": "rate limits; 32k"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-calibration",
+      "section": "keyFindings",
+      "statement": "Elevating trust past L2 requires a calibration program, not a config flip: per-domain human-labelled held-out corpora with >=2 blind annotators and an IAA floor, per-class precision/recall, coverage/abstention, reliability (ECE/Brier), a separate dangerous-error metric for known adjacent-category confusions, and a shadow differential proving the deterministic gate outcome is invariant with Jev engaged vs not. Promotion thresholds are pre-registered and anti-rubber-stamp (decoys, burn-after-use corpora, independent approver, expiry, rolling auto-demote). Current repo calibration is synthetic, agreement-only, threshold-free, promoted:false.",
+      "claimType": "recommendation",
+      "verdict": "supported",
+      "confidence": "high",
+      "citations": [
+        {
+          "referenceId": "ref-typed",
+          "locator": "accepted residual §9"
+        },
+        {
+          "referenceId": "ref-jevq",
+          "locator": "synthetic 195-item; no held-out"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-j-enterprise",
+      "section": "detailSections",
+      "statement": "Trust caveats for a classifier with elevated authority: no SLA/uninterrupted warranty; liability capped at the greater of 12-month fees or $50; inputs not used for training and US-hosted, with enterprise ZDR offered; no self-hosting/private deployment documented; rate limits change without notice; the OpenRouter 'alpha' decisions route is not the documented Vercel REST surface and both are auth-gated; version-pin and log the returned model snapshot, then expire promotions (a hosted snapshot can change under you).",
+      "claimType": "condition",
+      "verdict": "supported",
+      "confidence": "medium",
+      "citations": [
+        {
+          "referenceId": "ref-ts-legal",
+          "locator": "no SLA; $50 cap"
+        },
+        {
+          "referenceId": "ref-ts-privacy",
+          "locator": "no training; US"
+        },
+        {
+          "referenceId": "ref-ts-models",
+          "locator": "rate limits; pin version"
+        },
+        {
+          "referenceId": "ref-vercel-api",
+          "locator": "route flags"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-ts-intro",
+      "url": "https://docs.typesafe.ai/introduction",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-primitives",
+      "url": "https://docs.typesafe.ai/primitives",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-choice",
+      "url": "https://docs.typesafe.ai/primitives/choice",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-score",
+      "url": "https://docs.typesafe.ai/primitives/score",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-confidence",
+      "url": "https://docs.typesafe.ai/confidence",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-models",
+      "url": "https://docs.typesafe.ai/models",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-api",
+      "url": "https://docs.typesafe.ai/api",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-jagged",
+      "url": "https://docs.typesafe.ai/model-jaggedness/jev-1.13",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-blog",
+      "url": "https://www.typesafe.ai/blog/introducing-system-one-models-and-jev",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-legal",
+      "url": "https://typesafe.ai/legal/mca",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-ts-privacy",
+      "url": "https://typesafe.ai/legal/privacy-policy",
+      "publisher": "TypeSafe (vendor)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-or-jev",
+      "url": "https://openrouter.ai/docs/guides/community/jev",
+      "publisher": "OpenRouter",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-or-classify",
+      "url": "https://openrouter.ai/docs/cookbook/evaluate-and-optimize/jev-classification",
+      "publisher": "OpenRouter",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-or-gate",
+      "url": "https://openrouter.ai/docs/cookbook/building-agents/gate-tool-calls-with-jev",
+      "publisher": "OpenRouter",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-vercel-ts",
+      "url": "https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai",
+      "publisher": "Vercel AI SDK",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-vercel-api",
+      "url": "https://ai-gateway.vercel.sh/v1/models",
+      "publisher": "Vercel AI Gateway",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-webofmike",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/https://webofmike.com/jev-benchmark/",
+      "publisher": "independent benchmark (webofmike)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevals",
+      "url": "https://jevals.com/",
+      "publisher": "independent community board",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "retrieved 2026-09-26",
+      "sourcePosture": "vendor-documentation"
+    },
+    {
+      "referenceId": "ref-typed",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/typed-decisions.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enf",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/enforcement-model.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-points",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/points.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-adapteridx",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/index.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-consult",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/consult.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-boundary",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/boundary-guard.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-driver",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/run-orchestrator.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-audit",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/`.agents/research/2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevrj",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevq",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-19-jev-quality-checks-20260919t175546z-9f989edaf87f-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevoptin",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/approaches/2026-09-19-jev-optin-20260919t094754z-9a55d6438ca7-approach.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "HEAD 9deb2e4",
+      "sourcePosture": "empirical-measurement"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Additive Jev deep-embedding research; retains the validated audit findings",
+      "occurredAt": "2026-09-26T15:30:00Z"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "DEEP x hybrid; 5 tracks",
+      "occurredAt": "2026-09-26T15:31:00Z",
+      "cycle": 0,
+      "trigger": "user: embed Jev deeper, elevate trust, optional+excessive"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "5 parallel researchers + live batching probe",
+      "occurredAt": "2026-09-26T15:50:00Z",
+      "cycle": 0,
+      "trigger": "by angle"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Assembled ladder, substitution map, wiring, cost math, phased recommendation",
+      "occurredAt": "2026-09-26T16:00:00Z",
+      "cycle": 0,
+      "trigger": "evidence pack complete"
+    },
+    {
+      "sequence": 4,
+      "state": "VERIFY",
+      "event": "Schema-valid; protected-state re-run (only this file added)",
+      "occurredAt": "2026-09-26T16:05:00Z",
+      "cycle": 0,
+      "trigger": "write discipline"
+    },
+    {
+      "sequence": 5,
+      "state": "SAVED",
+      "event": "Wrote finding; not committed (no commit requested)",
+      "occurredAt": "2026-09-26T16:06:00Z",
+      "cycle": 0,
+      "trigger": "complete"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1.0.0",
+    "producedAt": "2026-09-26T16:06:00Z",
+    "sourceDigests": []
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

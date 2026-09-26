@@ -246,7 +246,8 @@ export function defaultEgressPolicy() {
 // N2: default outbound transport for HTTP(S) targets. Credentials are injected
 // by the listener (never here); this only performs the request. A caller with a
 // non-HTTP upstream still injects its own `forward`.
-export function createHttpForward({ timeoutMs = null } = {}) {
+export function createHttpForward({ timeoutMs = null, maxBytes = null } = {}) {
+  const cap = Number.isInteger(maxBytes) && maxBytes > 0 ? maxBytes : null;
   return function httpForward({ target = {}, method = "GET", headers = {}, body = null, signal }) {
     const scheme = String(target.scheme ?? "https").toLowerCase();
     const transport = scheme === "http" ? http : https;
@@ -256,18 +257,37 @@ export function createHttpForward({ timeoutMs = null } = {}) {
       throw new TypeError("egress forward requires a target host");
     const path = target.path ?? "/";
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
       const req = transport.request({ host, port, method, path, headers, signal }, (res) => {
         const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
-        res.on("end", () =>
+        let total = 0;
+        res.on("data", (chunk) => {
+          total += chunk.length;
+          if (cap !== null && total > cap) {
+            fail(new Error("egress forward response exceeds maxBytes"));
+            res.destroy();
+            req.destroy();
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on("end", () => {
+          if (settled) return;
+          settled = true;
           resolve({
             status: res.statusCode ?? 0,
             headers: res.headers,
             body: Buffer.concat(chunks).toString("utf8"),
-          }),
-        );
+          });
+        });
+        res.on("error", fail);
       });
-      req.on("error", reject);
+      req.on("error", fail);
       if (timeoutMs)
         req.setTimeout(timeoutMs, () => req.destroy(new Error("egress forward timeout")));
       if (body !== null && body !== undefined) req.write(body);
@@ -636,7 +656,10 @@ export function createVerifiedSandboxRuntime(config = {}) {
       ? config.forward
       : typeof config.sandboxExecutor === "function"
         ? null
-        : createHttpForward({ timeoutMs: config.forwardTimeoutMs ?? null });
+        : createHttpForward({
+            timeoutMs: config.forwardTimeoutMs ?? null,
+            maxBytes: config.forwardMaxBytes ?? null,
+          });
   const ledgerFactory =
     typeof config.ledgerFactory === "function"
       ? config.ledgerFactory

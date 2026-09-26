@@ -295,12 +295,12 @@ function fakeRun(records, { digest = PINNED_DIGEST, imageId = IMAGE_ID, repoDige
             Image: imageId,
             RepoDigests: digests,
             Mounts: [],
+            Config: { Env: [] },
             HostConfig: {
               ReadonlyRootfs: true,
               NetworkMode: "none",
               CapDrop: ["ALL"],
               SecurityOpt: ["no-new-privileges:true"],
-              Env: [],
               PidsLimit: 512,
               Memory: 2147483648,
               Init: true,

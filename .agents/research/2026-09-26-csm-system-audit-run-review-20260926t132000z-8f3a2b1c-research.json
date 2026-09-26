@@ -1,0 +1,561 @@
+{
+  "schema": "csm-research/1",
+  "schemaRevision": 1,
+  "artifactId": "art-csm-system-audit-20260926",
+  "runId": "run-review-20260926t132000z-8f3a2b1c",
+  "title": "CSM Skills Suite System Review: Execution, Gaps Between Intent and Function, and Improvement Priorities",
+  "sections": {
+    "tldr": {
+      "id": "tldr",
+      "content": "The system is functional and its core gates pass, but three classes of gap recur and one is live-broken: (1) the optional Jev decision layer is inert for 12 of 25 shipped points because they omit the per-question 'instructions' the live API requires, and the always-fail-open design plus the absence of any live-vs-mock parity gate hides the HTTP 400 — verified live 2026-09-26. (2) Durable plan records are not evidence-bound: 9 of 72 complete JSON plans hold 30 unfinished tasks and 37/72 have no completionReview. (3) Execution evidence cannot support a three-week review: trace.jsonl covers only 3 active days (4 of them silent) and is 72% test fixtures. Highest-leverage fix: add a live-vs-mock parity gate for every provider boundary, then close the record-integrity and packaging/producer drift."
+    },
+    "executiveSummary": {
+      "id": "executiveSummary",
+      "content": "Scope: read-only research into how the 14 CSM skills and their tools actually execute, across durable artifacts, the trace log, and live provider behavior, to find gaps between declared intent and realized function.\n\nPipeline shape:\n\n  request -> recon(skills/tools/traces) -> evidence(n=559 traces, 114 plans, 63 research, 13 reviews)\n     -> live probes (repo gates + live Jev) -> synthesis -> challenge (prior findings vs HEAD) -> verified finding\n\nWhat was actually measured (not inferred):\n- Repo gates at HEAD: check-checkout-hygiene exit 0 (warned: 4 managed worktrees remain); verify-traces ok (matched 559); make check runs check-suite then test-corpus.\n- Live Jev: transport no longer array-shaped; but omitting instructions yields HTTP 400 invalid_union and the adapter returns null advice; 12/25 points omit instructions and are therefore inert.\n- Plans: 72 JSON + 42 MD; 42/72 JSON complete; 9 complete-with-open-tasks; 16 superseded; dynamic-worker-runtime alone 21 files.\n- Traces: 135 runIds, ~100 synthetic fixtures, 19 terminal 'complete', 28 VERIFIED, 43 continue-without-terminal, one genuine leaked worker (run-3).\n\nHeadline caveats: the review is single-analyst with tool-verified evidence and a live adversarial probe; the Jev advisory ranking below is a second, non-authoritative opinion. No independent challenger/judge subagent was dispatched for this run, so tier independence is partial."
+    },
+    "keyFindings": {
+      "id": "keyFindings",
+      "content": "K1. supported — Jev decision layer is 48% inert live. 12/25 points omit the required 'instructions'; live HTTP 400 invalid_union; verified null for conditional-skill-ranking and route-classification; 13/25 with instructions return real advice. [ref-points][ref-questions][ref-jev-endpoint]\nK2. supported — no live-vs-mock parity gate. Fail-open is absolute and silent, so transport defects ship green; this class already produced the K2 array/record bug and now the instructions bug. [ref-session-retro][ref-jevs-review-judge]\nK3. supported — plan completion is not evidence-bound. 9/72 complete plans hold 30 open tasks; one has 8/8 pending; 37/72 have no completionReview. [ref-plan-opencode]\nK4. supported — supersession is the dominant failure mode. 16/114 superseded; 21 plans for one goal in 3 days; a 12-link single-day supersession chain. [ref-plan-build][ref-session-retro]\nK5. supported — trace evidence cannot cover 3 weeks. 3 active days, 4-day silence, 401/559 fixture records; feature introduced 2026-09-20. [ref-trace-log]\nK6. supported — packaged csm-browse is not runnable as documented. Payload has no scripts/; SKILL.md still references scripts/browse.mjs; payload-index says the runtime closure is excluded. [ref-pack][ref-browse-skill][ref-payload-index]\nK7. supported — producer-contract drift. Missing format headers (research, scan), stale scan canonicalPath (NORMS.json), review producer pins /1 while SKILL says /2; no producer registry. [ref-producer-scan][ref-producer-review][ref-registry]\nK8. supported — 23 hardcoded $HOME/.config/opencode/skills paths in 3 SKILL.md files. [ref-browse-skill]\nK9. supported — csm-orchestrate SKILL.md omits its real driver/worker runtime (0 references to run-orchestrator/run-worker/intake/phase-compiler). [ref-orchestrate-skill]\nK10. supported — enforcement efficacy is self-declared CONDITIONAL GO; the deterministic guard, not the evaluator, carries the weight. [ref-enforcement-model]\nK11. supported — several prior recurring findings are fixed at HEAD (JSON corpus gated via make check -> test-corpus; KNOWN_UNWIRED_TESTS empty; test-suite-tooling in make test; csm-plan frontmatter quoted; Jev record shape fixed), while acceptance-signal strength, a plan-lineage gate, and a live-LLM evaluation harness remain open. [ref-makefile][ref-check-suite][ref-session-retro]\nK12. partially-supported — execution instrumentation is fixture-dominated: ~100 of 135 runIds are synthetic; genuine production signal is thin; one leaked worker (run-3). [ref-trace-log]"
+    },
+    "detailSections": {
+      "id": "detailSections",
+      "content": "D1. Live Jev path (highest priority). The adapter, provider, and question protocol are record-shaped and correct in transport, but questionForPoint only emits 'instructions' when the point supplies question.instructions. points.mjs defines it for 13 points (the judge/challenger/verdict family) and omits it for 12 (route-classification, spike-candidacy, ready-set-ordering, deep-research-dispatch, review-assignment, secret-preflag, conditional-skill-ranking, critique-severity, task-risk, evidence-class-bucketing, semantic-dedup, severity-bucketing). Live probe (2026-09-26) against https://openrouter.ai/api/alpha/decisions with typesafe/jev-1.13: a question without instructions -> HTTP 400 {\"code\":\"invalid_union\", path [\"questions\",\"q1\",\"instructions\"]}; with instructions -> HTTP 200 and a typed answer. Through the real adapter, decideBatch over the two instruction-less points returned all-null; the three instruction-bearing points returned values (trace-emission-verdict 0.75; deep-research-judge-factual-accuracy 1.12/1.14 score; orchestrate-reviewer-finding \"uphold\"). decision-points.json contains 0 'instructions' despite a guard claiming lockstep with points.mjs.\n\nD2. The missing gate. Every provider boundary fails open by design, which is correct for availability but means a live 400 is never surfaced as a defect. Offline tests assert the request shape against a mock; they cannot catch a live schema field. The prior record-shape defect (K2) and the current instructions defect are the same class: green offline, broken live, invisible.\n\nD3. Record integrity. Plan artifacts are the durable cursor. 9 complete plans carry unfinished tasks; 2026-08-30-remove-opencode-proper-csm.json has status=complete and currentState=COMPLETE with all eight tasks pending yet a completionReview listing \"test evidence\" and a summary. 37/72 plans lack completionReview. This is the single clearest intent-vs-functionality gap: \"complete\" does not mean \"delivered and evidenced\".\n\nD4. Churn. dynamic-worker-runtime: 13 files on 2026-09-12 (12 superseded), 4 on 09-13, 4 on 09-14; the supersession chain has 12 links in one day. This is rolling re-planning: plans drafted too narrowly and reissued opportunistically, which inflates the corpus and orphans tasks.\n\nD5. Evidence substrate. trace.jsonl is a healthy append-only log with atomic writes and a verifier, but it starts 2026-09-20 and has a 4-day silence; 72% of records are harness fixtures on 2026-09-26. A 3-week execution review therefore leans on git history and artifacts, not traces; a separate telemetry fixture corpus exists under .agents/evidence/orchestrator/.\n\nD6. Packaging and contracts. pack-bootstrap uses an explicit allowlist, so anything unmapped is silently absent from the payload (and the reverse-drift gate only compares allowlisted files). csm-browse is the sharpest case: no scripts in the payload. Producers drift from their SKILL.md: scan canonicalPath, review revision, missing format headers. No registry entry ties a producer to a schema.\n\nD7. Specification drift. csm-orchestrate/SKILL.md describes the API seam, not the shipped runtime; referenced-but-unresolvable paths exist (lib/progress-tracker.mjs from every skill dir; schemas/verification-status.schema.json without prefix); 23 hardcoded HOME paths; csm-deep-research/SKILL.md's own Browser Retrieval Fallback still names $HOME/.config/opencode/skills/csm-browse for the csm-browse scripts.\n\nD8. Jev advisory ranking of the candidate defects (live noul, 2026-09-26, typesafe/jev-1.13, non-authoritative): d6 no-mock-gate 0.92; d1 inert-points 0.91; d2 browse-payload 0.91; d8 systemic-gap 0.91; d4 trace-window 0.89; d3 plan-closure 0.88; d7 runtime-omission 0.86; d5 abs-paths 0.73. Jev returned no confidence for noul questions (confidence null), consistent with the repo's no-confidence-gate doctrine."
+    },
+    "recommendation": {
+      "id": "recommendation",
+      "content": "Recommend, in order, with the first as the enabling fix.\n\n1. Add a live-vs-mock parity gate at every provider boundary (highest leverage; Jev ranks it 0.92). A single opt-in, key-gated test that sends one minimal question with and without instructions through the real descriptor and asserts the API accepts the shipped shape would have caught both the record-shape and instructions defects. Treat any live 4xx as a red test, not a silent fail-open.\n2. Fix the 12 instruction-less points and make points.mjs and decision-points.json lockstep real: emit instructions for every point (or reject a point without instructions at validation) and have the guard compare the full question spec, not just ids.\n3. Enforce plan-closure integrity: reject status=complete when any task is not completed; require a completionReview for every complete plan; reconcile or explicitly retire the 9 offending plans. Confidence high this is correct; the cost of being wrong is small (a gate on durable records).\n4. Add a spec-path lint: every scripts//lib//schema path referenced by a SKILL.md must resolve from the skill root; fix lib/progress-tracker.mjs and schemas/verification-status.schema.json references; replace the 23 $HOME paths with skill-root-relative references (re-confirm the browse fallback in csm-deep-research).\n5. Reconcile packaging and producer contracts: either pack csm-browse's scripts (or mark the mirrored references conditional), add missing format headers, fix the scan canonicalPath and the review schema revision, and register producers in schemas/registry.json so drift is a gate failure, not a silent omission.\n6. Extend trace retention/rotation and label fixture telemetry so a reviewer can distinguish production runs from harness runs; a 3-week review should not depend on a 3-day log.\n7. Add a plan-lineage gate (one terminal plan per goal; no terminal plan with blockers/open tasks) and address the still-open acceptance-signal strength; keep the live-LLM evaluation harness on the deferred ledger with an explicit decision.\n8. Keep Jev advisory. The transport is now usable for the 13 instruction-bearing points; do not promote it to any acceptance, security, or completion gate.\n\nWhat would change the recommendation: if a live parity gate is judged too costly to run routinely, make it a release-gate (run on every change to a descriptor) rather than a per-run test; the finding stands either way. Cost of being wrong on D1 is low (a wasted provider call); on D3/D5 it is a false sense that the suite's durable record can be trusted for a retrospective."
+    },
+    "unverifiedClaims": {
+      "id": "unverifiedClaims",
+      "content": "- The 12 instruction-less points' live behavior is verified only for two representative points (conditional-skill-ranking, route-classification). Verifying all 12 requires one live call each; the mechanism (missing required field -> invalid_union) is identical, so the projection to 12 is high-confidence but not individually observed.\n- Whether the 9 complete-with-open-tasks plans were closed by a human decision (grandfathered) or by a defect is not recorded in the artifacts; only the fields were read. Verification: inspect each plan's journal for an explicit closure rationale.\n- Trace-based numbers describe the trace log's contents, not necessarily all execution: production runs before 2026-09-20 were never traced (feature introduced then), so absence of traces is not absence of runs.\n- The Jev advisory ranking is a single non-authoritative model opinion from a synthetic state; it is not a calibrated judgment and carries no gate authority.\n- csm-browse packaging may be a deliberate decision to exclude a dependency-heavy runtime; the defect is the SKILL.md/payload contradiction, not necessarily the exclusion. Verification: read the browse packaging decision record."
+    },
+    "references": {
+      "id": "references",
+      "content": "[ref-trace-log] .agents/logs/trace.jsonl — 559 records, 2026-09-20..2026-09-26 (workspace-local; 2026-09-26).\n[ref-session-retro] .agents/research/2026-09-20-csm-session-retro-...-research.json (workspace-local; 2026-09-26).\n[ref-skills-meta] .agents/research/2026-09-14-csm-skills-completion-meta-...-research.json (workspace-local; 2026-09-26).\n[ref-plan-build] .agents/research/2026-09-14-csm-plan-build-completion-...-research.json (workspace-local; 2026-09-26).\n[ref-jevs-review-judge] .agents/research/2026-09-20-jev-review-judge-adversarial-substitution-...-research.json (workspace-local; 2026-09-26).\n[ref-questions] csm-orchestrate/lib/decision-adapter/question-protocol.mjs (workspace-local; 2026-09-26).\n[ref-points] csm-orchestrate/lib/decision-adapter/points.mjs (workspace-local; 2026-09-26).\n[ref-openrouter] csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs (workspace-local; 2026-09-26).\n[ref-jev-endpoint] https://openrouter.ai/api/alpha/decisions — live probe (retrieved 2026-09-26).\n[ref-pack] scripts/pack-bootstrap.mjs (workspace-local; 2026-09-26).\n[ref-payload-index] bootstrap/payload-index.json (workspace-local; 2026-09-26).\n[ref-browse-skill] csm-browse/SKILL.md (workspace-local; 2026-09-26).\n[ref-producer-scan] csm-scan/norms-producer.json (workspace-local; 2026-09-26).\n[ref-producer-review] csm-review/producer.json (workspace-local; 2026-09-26).\n[ref-producer-research] csm-deep-research/research-producer.json (workspace-local; 2026-09-26).\n[ref-orchestrate-skill] csm-orchestrate/SKILL.md (workspace-local; 2026-09-26).\n[ref-check-suite] scripts/check-suite.mjs (workspace-local; 2026-09-26).\n[ref-registry] schemas/registry.json (workspace-local; 2026-09-26).\n[ref-makefile] Makefile (workspace-local; 2026-09-26).\n[ref-validate-corpus] scripts/validate-corpus-v2.mjs (workspace-local; 2026-09-26).\n[ref-enforcement-model] docs/enforcement-model.md (workspace-local; 2026-09-26).\n[ref-review-0806] .agents/reviews/2026-09-06-opencode-skills-...-review.json (workspace-local; 2026-09-26).\n[ref-plan-opencode] .agents/plans/2026-08-30-remove-opencode-proper-csm.json (workspace-local; 2026-09-26).\n[ref-ci] .github/workflows/ci.yml (workspace-local; 2026-09-26).\nAll workspace-local references are cited via the repository origin (jamiemills/opencode-skills) at main; the schema's URL pattern (https://) does not admit file:// locators, so local evidence is represented by its repository URL plus a locator."
+    },
+    "processAppendix": {
+      "id": "processAppendix",
+      "content": "Triage: tier DEEP (system-wide, decision-shaping), source mode hybrid (repository + live web endpoint).\nTracks: (1) trace/execution evidence; (2) durable plan/build-state corpus; (3) prior research/review recurring issues vs HEAD; (4) skill-source vs tool/packaging intent-vs-implementation; (5) live provider probes.\nMethod: read-only retrieval plus four parallel read-only analysis subagents; live probes of the Jev endpoint and the real decision adapter with the host-provided key (no key material recorded); repo gates run directly (check-checkout-hygiene, verify-traces).\nIndependence: primary-led; no separate challenger/judge subagent was dispatched, so tier independence is partial and is disclosed here as a residual.\nJev advisory (live, 2026-09-26, typesafe/jev-1.13, ~$5.9e-5 for the batch): d6 no-mock-gate 0.92, d1 inert-points 0.91, d2 browse-payload 0.91, d8 systemic 0.91, d4 trace-window 0.89, d3 plan-closure 0.88, d7 runtime-omission 0.86, d5 abs-paths 0.73. Advisory only; never a gate.\nGates at HEAD: check-checkout-hygiene exit 0 (warn: 4 managed worktrees remain); verify-traces ok (matched 559).\nControl journal: INTAKE 2026-09-26T13:20Z scaffold; TRIAGE tier=DEEP mode=hybrid; RESEARCH five tracks; SYNTHESIZE; CHALLENGE prior-findings-vs-HEAD; VERIFY live probes + gates; SAVED.\nKnown limits: no browser retrieval needed (all sources fetchable as text); no execution of researched-repository code; the trace window bounds the execution history that can be evidenced."
+    }
+  },
+  "claims": [
+    {
+      "claimId": "claim-jev-inert-points",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "12 of the 25 shipped Jev decision points (points.mjs) omit the per-question 'instructions' field the live API requires, so they return no advice in live mode and fail open silently; the remaining 13 work. Live probe: a question without instructions returns HTTP 400 invalid_union at questions.<id>.instructions; conditional-skill-ranking and route-classification returned null while trace-emission-verdict returned 0.75 and deep-research-judge-factual-accuracy returned a score.",
+      "citations": [
+        {
+          "referenceId": "ref-points",
+          "locator": "points.mjs decisionPoints",
+          "quote": "12/25 points lack question.instructions"
+        },
+        {
+          "referenceId": "ref-questions",
+          "locator": "questionForPoint",
+          "quote": "instructions only set when override.instructions is present"
+        },
+        {
+          "referenceId": "ref-jev-endpoint",
+          "locator": "live probe 2026-09-26",
+          "quote": "HTTP 400 invalid_union; questions.<id>.instructions required"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-no-live-parity-gate",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "causal",
+      "statement": "No gate compares live provider behavior against the offline mock, so transport defects ship while tests stay green; because fail-open is absolute and silent, a live 400 is indistinguishable from 'no advice'. The prior record-shape defect (K2) shipped this way, and the instruction-required defect still does.",
+      "citations": [
+        {
+          "referenceId": "ref-session-retro",
+          "locator": "claim-lived-mock-gap",
+          "quote": "mock passes, live path broken"
+        },
+        {
+          "referenceId": "ref-jevs-review-judge",
+          "locator": "K2 claim-k2-transport-mismatch",
+          "quote": "offline tests assert the array shape against a mock, so tests pass while every live consultation fail-opens"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-plan-closure-not-evidence-bound",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "Plan completion is not evidence-bound: 9 of 72 JSON plans carry status=complete while holding 30 non-completed tasks (one holds 8/8 pending with a completionReview claiming success), and 37 of 72 complete plans have no completionReview object at all.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-opencode",
+          "locator": "2026-08-30-remove-opencode-proper-csm.json",
+          "quote": "status complete; tasks T001-T008 all pending; completionReview.status complete"
+        },
+        {
+          "referenceId": "ref-session-retro",
+          "locator": "claim-plan-lineage",
+          "quote": "113 orphaned tasks; history of complete-with-open-tasks"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-plan-churn",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "Supersession, not blocking, is the dominant non-completion mode: 16 of 114 plan files are superseded, and one goal (dynamic-worker-runtime) produced 21 plan files in three days including a single-day 12-link supersession chain.",
+      "citations": [
+        {
+          "referenceId": "ref-plan-build",
+          "locator": "claim-proliferation",
+          "quote": "the dynamic-worker-runtime goal spans 21 plans (12 frozen siblings)"
+        },
+        {
+          "referenceId": "ref-session-retro",
+          "locator": "claim-plan-lineage",
+          "quote": "one goal spawned 21 plans"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-trace-window",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "The trace log cannot evidence a three-week execution history: trace.jsonl spans only 2026-09-20 to 2026-09-26 (3 active days, a 4-day silence on 09-22..09-25), and 401 of 559 records are test-harness fixtures written on 09-26; the trace feature was introduced 2026-09-20.",
+      "citations": [
+        {
+          "referenceId": "ref-trace-log",
+          "locator": "first/last ts + per-day counts",
+          "quote": "first 2026-09-20T16:02:49.399Z, last 2026-09-26T13:07:00.570Z; 401 records on 2026-09-26"
+        },
+        {
+          "referenceId": "ref-session-retro",
+          "locator": "claim-trace-empty",
+          "quote": "traces are near-empty; nothing auto-emits them"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-browse-payload",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "The packaged csm-browse skill cannot run as documented: bootstrap/package/payload/skills/csm-browse contains only lib/, schemas/ and SKILL.md, while the mirrored SKILL.md still references scripts/browse.mjs repeatedly, and pack-bootstrap maps only lib and schemas for csm-browse.",
+      "citations": [
+        {
+          "referenceId": "ref-pack",
+          "locator": "csm-browse mapping",
+          "quote": "srcDir csm-browse/lib and csm-browse/schemas only"
+        },
+        {
+          "referenceId": "ref-browse-skill",
+          "locator": "scripts/browse.mjs references",
+          "quote": "mirror SKILL.md references scripts absent from payload"
+        },
+        {
+          "referenceId": "ref-payload-index",
+          "locator": "csm-browse entry",
+          "quote": "runtime closure excluded: chrome-remote-interface and jimp are external dependencies"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-producer-drift",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "Producer descriptors are inconsistent and partially stale: csm-deep-research/research-producer.json and csm-scan/norms-producer.json omit the csm-producer-descriptor/1 format header; csm-scan/norms-producer.json declares canonicalPath NORMS.json while its SKILL.md declares .agents/norms/<date>-<repo-slug>-<run-id>-norms.json; and csm-review/producer.json pins csm-review-findings/1 while csm-review/SKILL.md states /2 is current. There is no producer registry in schemas/registry.json.",
+      "citations": [
+        {
+          "referenceId": "ref-producer-scan",
+          "locator": "canonicalPath",
+          "quote": "NORMS.json"
+        },
+        {
+          "referenceId": "ref-producer-review",
+          "locator": "schema",
+          "quote": "csm-review-findings/1"
+        },
+        {
+          "referenceId": "ref-producer-research",
+          "locator": "format",
+          "quote": "absent"
+        },
+        {
+          "referenceId": "ref-registry",
+          "locator": "producer entries",
+          "quote": "0"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-hardcoded-paths",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "23 hardcoded $HOME/.config/opencode/skills paths remain across three SKILL.md files (csm-browse 16, csm-upload 6, csm-deep-research 1), making those skills non-portable across agent hosts and install scopes.",
+      "citations": [
+        {
+          "referenceId": "ref-browse-skill",
+          "locator": "grep -c",
+          "quote": "16 occurrences"
+        },
+        {
+          "referenceId": "ref-orchestrate-skill",
+          "locator": "peer skills",
+          "quote": "other skills use repo-relative paths"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-orchestrate-spec-omission",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "csm-orchestrate/SKILL.md documents only the orchestrate() API seam and never names the sanctioned runtime the repo actually uses: run-orchestrator.mjs, run-worker.mjs, intake, phase-compiler, and request-router each appear 0 times, though AGENTS.md treats them as the child/worker seam and driver.",
+      "citations": [
+        {
+          "referenceId": "ref-orchestrate-skill",
+          "locator": "grep counts",
+          "quote": "run-orchestrator=0, run-worker=0, intake=0, phase-compiler=0"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-fix-efficacy-unproven",
+      "section": "keyFindings",
+      "verdict": "supported",
+      "confidence": "medium",
+      "claimType": "condition",
+      "statement": "The in-loop completion enforcement is structurally real but its efficacy is unproven by the repo's own record: docs/enforcement-model.md states the evaluator's efficacy is a CONDITIONAL GO and independent obedience has not been demonstrated; the deterministic guard carries the weight.",
+      "citations": [
+        {
+          "referenceId": "ref-enforcement-model",
+          "locator": "evaluator efficacy",
+          "quote": "dispatched; efficacy is a CONDITIONAL GO"
+        }
+      ]
+    },
+    {
+      "claimId": "claim-prior-fixes-landed",
+      "section": "detailSections",
+      "verdict": "supported",
+      "confidence": "high",
+      "claimType": "observed-outcome",
+      "statement": "Several prior recurring findings are fixed at HEAD: make check now runs test-corpus (validate-corpus-v2) so the canonical JSON plan/build corpus is gated; KNOWN_UNWIRED_TESTS is now empty; make test includes test-suite-tooling; csm-plan frontmatter is quoted; and the Jev request is now record-shaped. Remaining open from the same set: acceptance-signal strength, a plan-lineage gate, and the live-LLM evaluation harness.",
+      "citations": [
+        {
+          "referenceId": "ref-makefile",
+          "locator": "check + test targets",
+          "quote": "check -> check-suite + test-corpus; test includes test-suite-tooling"
+        },
+        {
+          "referenceId": "ref-check-suite",
+          "locator": "KNOWN_UNWIRED_TESTS",
+          "quote": "Object.freeze([])"
+        },
+        {
+          "referenceId": "ref-session-retro",
+          "locator": "recommendations",
+          "quote": "plan-lineage gate; acceptance-signal; live-LLM harness"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "ref-trace-log",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/logs/trace.jsonl",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "559 JSONL records, 2026-09-20..2026-09-26",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-session-retro",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-csm-session-retro-20260920t220000z-32f5897cca20-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Prior retro: repeating issues across 10 days",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-skills-meta",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-14-csm-skills-completion-meta-20260914t080000z-csmskillsmeta-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Completion-defect analysis across the suite",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-build",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-14-csm-plan-build-completion-20260914t060000z-csmplanbuildmeta-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Why plan/build sessions stop with work remaining",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jevs-review-judge",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/research/2026-09-20-jev-review-judge-adversarial-substitution-20260920t164518z-a1f7d0eb0b48-research.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Jev review/judge substitution; K2 transport mismatch",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-questions",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/question-protocol.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Record-shaped typed-question protocol",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-points",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/points.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "25 decision points; 12 omit instructions",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-openrouter",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "OpenRouter descriptor, endpoint, default model",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jev-endpoint",
+      "url": "https://openrouter.ai/api/alpha/decisions",
+      "publisher": "OpenRouter/TypeSafe Jev",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Live endpoint probed 2026-09-26",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-pack",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/pack-bootstrap.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Explicit supportingFiles allowlist",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-payload-index",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/bootstrap/payload-index.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Packaged payload index; browse runtime closure excluded",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-browse-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-browse/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "References scripts/browse.mjs (mirror lacks scripts/)",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-producer-scan",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-scan/norms-producer.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Stale canonicalPath NORMS.json; no format header",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-producer-review",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-review/producer.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Pins csm-review-findings/1 while SKILL says /2 current",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-producer-research",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-deep-research/research-producer.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "No format header",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-orchestrate-skill",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/csm-orchestrate/SKILL.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Driver/worker surface referenced 0 times",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-check-suite",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/check-suite.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Gate implementation; phrase-only progress-tracker check",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-registry",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/schemas/registry.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Schema registry; no producer entries",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-makefile",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/Makefile",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "check runs check-suite + test-corpus; test includes test-suite-tooling",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-validate-corpus",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/scripts/validate-corpus-v2.mjs",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Declared-revision plan/build-state validator",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-enforcement-model",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/docs/enforcement-model.md",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Evaluator efficacy is CONDITIONAL GO",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-review-0806",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/reviews/2026-09-06-opencode-skills-20260906t091407z-6e281cd9-review.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "28 findings, fixActions empty",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-plan-opencode",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.agents/plans/2026-08-30-remove-opencode-proper-csm.json",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "status complete with 8/8 pending tasks",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-ci",
+      "url": "https://github.com/jamiemills/opencode-skills/blob/main/.github/workflows/ci.yml",
+      "publisher": "workspace-local (jamiemills/opencode-skills)",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "branches-ignore wt/**; full gate at CI",
+      "sourcePosture": "empirical-measurement"
+    },
+    {
+      "referenceId": "ref-jev-produced",
+      "url": "https://opencode.ai/docs/",
+      "publisher": "opencode docs",
+      "retrievedAt": "2026-09-26",
+      "publishedOrUpdated": "Environment/harness context",
+      "sourcePosture": "empirical-measurement"
+    }
+  ],
+  "journal": [
+    {
+      "sequence": 0,
+      "state": "INTAKE",
+      "event": "Scaffolded run-owned finding; captured protected-state baseline",
+      "occurredAt": "2026-09-26T13:20:00Z"
+    },
+    {
+      "sequence": 1,
+      "state": "TRIAGE",
+      "event": "Classified DEEP x hybrid; defined five tracks",
+      "occurredAt": "2026-09-26T13:21:00Z",
+      "cycle": 0,
+      "trigger": "system-wide review"
+    },
+    {
+      "sequence": 2,
+      "state": "RESEARCH",
+      "event": "Collected trace, plans, prior findings, skill-vs-tool, and live-probe evidence",
+      "occurredAt": "2026-09-26T13:30:00Z",
+      "cycle": 0,
+      "trigger": "five non-overlapping tracks"
+    },
+    {
+      "sequence": 3,
+      "state": "SYNTHESIZE",
+      "event": "Drafted nine-part finding; grounded each claim to a reference",
+      "occurredAt": "2026-09-26T13:35:00Z",
+      "cycle": 0,
+      "trigger": "evidence pack complete"
+    },
+    {
+      "sequence": 4,
+      "state": "CHALLENGE",
+      "event": "Cross-checked prior recurring findings against HEAD; fixed or confirmed status of each",
+      "occurredAt": "2026-09-26T13:38:00Z",
+      "cycle": 0,
+      "trigger": "anti-staleness"
+    },
+    {
+      "sequence": 5,
+      "state": "VERIFY",
+      "event": "Ran repo gates and live provider probes; verified K1 and K3 at HEAD",
+      "occurredAt": "2026-09-26T13:40:00Z",
+      "cycle": 0,
+      "trigger": "primary-personal verification"
+    },
+    {
+      "sequence": 6,
+      "state": "SAVED",
+      "event": "Wrote finding; not committed (no commit requested)",
+      "occurredAt": "2026-09-26T13:42:00Z",
+      "cycle": 0,
+      "trigger": "verification complete"
+    }
+  ],
+  "declaredArtifacts": [],
+  "provenance": {
+    "producer": "csm-deep-research",
+    "producerVersion": "1.0.0",
+    "producedAt": "2026-09-26T13:42:00Z",
+    "sourceDigests": [
+      "sha256:03c414d3c873328c5adaaa11703c5f4ff766f4f9d0c5107982999f56f38e50a0",
+      "sha256:9a82f1677ca58f7de86bc6681dd385f08815f78f8552b3736e7c9a9375505046",
+      "sha256:079f61814f0310a76a9d9b6517c17f5e4a891fb7a72bf9a5a0240f985d982227"
+    ]
+  },
+  "projection": {
+    "profile": "csm-research-human/1",
+    "sectionOrder": [
+      "tldr",
+      "executiveSummary",
+      "keyFindings",
+      "detailSections",
+      "recommendation",
+      "unverifiedClaims",
+      "references",
+      "processAppendix"
+    ],
+    "legacyMarkdownStatus": "history-only"
+  }
+}

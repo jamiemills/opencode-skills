@@ -192,12 +192,12 @@ function rawInspect({ network = "none" } = {}) {
     Image: IMAGE_DIGEST,
     RepoDigests: [`node:22@${IMAGE_DIGEST}`],
     Mounts: [],
+    Config: { Env: [] },
     HostConfig: {
       ReadonlyRootfs: true,
       NetworkMode: network,
       CapDrop: ["ALL"],
       SecurityOpt: ["no-new-privileges:true"],
-      Env: [],
       PidsLimit: 512,
       Memory: 2147483648,
       Init: true,

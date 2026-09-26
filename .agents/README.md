@@ -129,6 +129,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (complete; csm-plan/1): enforce that action/decision traces are actually emitted (off|auto|required gate on both driver paths; strict when Jev is active) with a resolver-backed verifier and an optional Jev advisory verifier — status: complete
 - `2026-09-26-enforcement-closure-csm.json` — 2026-09-26 — plan (complete; csm-plan/1): closed the truly-needed remaining work — 9 tasks: author+register schemas for the 7 enforcement record ids (T001), gate the canonical JSON corpus via make test-corpus (T002), resolve the 7 KNOWN_UNWIRED_TESTS and keep the orphan gate green (T003), close the stale trace-log-fix plan via closePlan (T004), decide/record Jev per-role accuracy (T005), verify telemetry resume rehydration (T006), make live proofs required or record the residual (T007), verify orchestrate first-node-failure (T008), regen + final verification (T009) — status: complete
 - `2026-09-26-enforce-trace-emission-csm.json` — 2026-09-26 — plan (ready; csm-plan/1): enforce and verify that action/decision traces are actually emitted, with an optional Jev verifier — status: reference
+- `2026-09-26-system-remediation-jev-embedding-csm.json` — 2026-09-26 — 36-task plan combining the validated audit and Jev deep-embedding findings; T001-T004 built+reviewed — status: in progress
 
 ## decisions/
 
@@ -246,6 +247,9 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-jev-judge.json` (under research/artifacts/) — 2026-09-20 — csm-jev-rubric-judge/1 declared run artifact — status: reference
 - `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-jev-review.json` (under research/artifacts/) — 2026-09-20 — csm-jev-fix-review/1 declared run artifact — status: reference
 - `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-prototypes.json` (under research/artifacts/) — 2026-09-20 — csm-trace-fix-prototype/1 declared run artifact — status: reference
+- `2026-09-26-csm-system-audit-run-review-20260926t132000z-8f3a2b1c-research.json` — 2026-09-26 — DEEP initial system review of skills/tools/execution — status: superseded by the validated finding
+- `2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json` — 2026-09-26 — adversarially validated audit findings (34 claims) — status: reference
+- `2026-09-26-jev-deep-embedding-run-jev-embed-20260926t153000z-2b8e6f4a9c1d-research.json` — 2026-09-26 — deep Jev embedding + trust ladder + substitution map — status: reference
 
 ## Retention
 
