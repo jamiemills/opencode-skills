@@ -574,7 +574,8 @@
       "artifactId": "art-4789e322ab839d19640762e6cb755b7f",
       "runId": "run-1a67020cb2a9bb01e02a2283c7a67ce7",
       "schema": "csm-plan/1",
-      "digest": "sha256:a0f521544c8bedd57eb6aaf500c5a266dbbda7a22a359fa2dff6e3ec169b5f35"
+      "digest": "sha256:a0f521544c8bedd57eb6aaf500c5a266dbbda7a22a359fa2dff6e3ec169b5f35",
+      "path": ".agents/plans/2026-09-27-remaining-work-continuous-run-csm.json"
     },
     "supersededAt": "2026-09-27T23:40:00Z",
     "reason": "Its remaining tasks were executed under the remaining-work continuous-run plan (T001-T011), which is complete; this driver plan is retained for history only."
