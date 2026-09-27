@@ -93,7 +93,7 @@ Choose the outcome you need. `csm-orchestrate` is the common entry point; the sp
 | Review Python idioms and design | [csm-review-python](csm-review-python/SKILL.md) | Evidence-backed findings and a fix guide grounded in 140 rules |
 | Improve a measurable target | [csm-autoresearch](csm-autoresearch/SKILL.md) | Evaluated candidates, a trial ledger, and an approval-ready result |
 | Demonstrate a browser flow | [csm-browse](csm-browse/SKILL.md) | Screenshots, video, DOM, console, network, and performance evidence |
-| Share captured evidence | [csm-upload](csm-upload/SKILL.md) | A dated GitHub Pages demo and a publication receipt |
+| Share captured evidence | [csm-upload](csm-upload/SKILL.md) | A dated GitHub Pages demo and explicit pushed/deployed/verified statuses |
 
 Expand a skill for its capabilities, outputs, and operating boundaries.
 
@@ -323,7 +323,7 @@ Publish reviewed evidence to a configured GitHub Pages repository.
 - Requires permanent-publication confirmation before commit/push and checks that the effective Git destination matches the configured repository.
 - Records push, deployment, and URL-verification status separately.
 
-**Output:** a JSON publication receipt under `.agents/upload/` and a dated Pages projection. A successful push or an expected URL alone does not prove the page is live.
+**Output:** a dated Pages projection. A successful push or an expected URL alone does not prove the page is live.
 
 [Full reference and configuration](csm-upload/SKILL.md)
 
@@ -477,7 +477,7 @@ How each skill composes — standalone entry conditions, what it consumes and pr
 | `csm-review` | repository target, explicit review, audit, or assessment request | repository at a pinned commit, optional registered JSON norms | authoritative JSON findings at .agents/reviews/<date>-<repo-slug>-<run-id>-review.json | review findings to a subsequent csm-plan run, separate human-mediated dispatch to csm-review-python |
 | `csm-scan` | repository target, scan or conventions-analysis request | committed repository declarations | authoritative JSON norms at NORMS.json (or the --out path) | optional registered JSON norms input to csm-plan, csm-bdd-tdd, csm-build, or csm-review; NORMS.md is projection/history only |
 | `csm-browse` | need to drive a headful Chromium browser | browser session, CDP verbs, delivery target | validated JSON session/event/evidence descriptors plus referenced binary evidence | JSON evidence descriptors to a separately invoked csm-upload |
-| `csm-upload` | evidence files ready, configured GitHub Pages destination | validated JSON evidence/publication descriptors and referenced binary evidence, GitHub configuration | authoritative JSON publication receipt at .agents/upload/<date>-<run-id>-publication.json and external Pages projection | expected evidence URL to the user; verify Pages deployment separately |
+| `csm-upload` | evidence files ready, configured GitHub Pages destination | validated JSON evidence/publication descriptors and referenced binary evidence, GitHub configuration | external Pages projection and explicit pushed/deployed/verified statuses | expected evidence URL to the user; verify Pages deployment separately |
 | `csm-deep-research` | research question or topic, explicit deep-research request, dispatch from csm-grill or csm-plan | research question, retrievable sources (web, docs, repositories), browser-rendered retrieval via csm-browse fallback (JS-only pages) | run-ID-suffixed JSON research finding at .agents/research/<date>-<slug>-<run-id>-research.json, optional declared run artifacts under .agents/research/artifacts/ | research document and any declared run artifacts to the user or a dispatching csm-grill or csm-plan; parent records and verifies the handoff without writing artifacts |
 | `csm-make-tests` | repository checkout at a pinned commit, optional change-surface scope | repository working tree, optional registered JSON norms, cited research findings under .agents/research/ | executable test files and goldens in the target repository, .agents/tests/<date>-<repo-slug>-<run-id>-tests-ledger.jsonl, .agents/tests/<date>-<repo-slug>-<run-id>-verification.json, .agents/tests/<date>-<repo-slug>-<run-id>-test-package.json | verified suite, ledger, and verification report to the user or a later explicit csm-build run |
 | `csm-review-python` | target python repository checkout at a pinned commit, optional change-surface scope, explicit user consent for any tool installation | repository working tree (read-only), optional registered JSON norms, bundled artifacts artifact/python-idiomatic-reviewer-rules.json and artifact/pep20-idiomatic-python-consolidated-research.md | .agents/doctrine/<date>-<repo-slug>-<run-id>-python-doctrine-review.json | single doctrine report (findings + fix guide) to the user or a dispatching csm-review; terminal otherwise |

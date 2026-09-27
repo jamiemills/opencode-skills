@@ -39,14 +39,14 @@ Upload progress output is limited to bounded, redacted file and publication
 status summaries. Never include credentials, GitHub tokens, config contents,
 private repository data, local absolute paths, binary contents, session data, or
 publication secrets. Progress never claims a push, deployment, or URL
-verification without the authoritative publication receipt and separate
+verification without the pushed/deployed/verified statuses and separate
 evidence. Progress cannot authorize or perform publication side effects.
 
 ## Interface
 
 - Consumes: validated JSON evidence/publication descriptors and referenced local binary evidence, plus the `~/.agents/csm-upload.json` configuration; Markdown/HTML projections are rejected as machine inputs
-- Produces: an authoritative JSON publication receipt at `.agents/upload/<date>-<run-id>-publication.json`; a dated demo directory with `index.html` is an external projection, plus explicit pushed/deployed/verified statuses
-- Hands off: terminal — the JSON publication receipt and any published URL return to the user
+- Produces: a dated demo directory with `index.html` (external projection) plus explicit pushed/deployed/verified statuses
+- Hands off: terminal — the published URL and deployment status return to the user
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
 ## Requirements

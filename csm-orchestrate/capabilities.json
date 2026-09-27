@@ -2,7 +2,7 @@
   "schema": "csm-orchestrate-capabilities/3",
   "version": 3,
   "schemaRevision": 3,
-  "contentDigest": "sha256:424d02bb909af020e77be657ee226f171657e0644dbb20b088de1fe60521082d",
+  "contentDigest": "sha256:eab7e194f3b8012af4bc42fa137bb55b6711e7cd7921171fce77a588c46d83d0",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -132,7 +132,7 @@
     {
       "skill": "csm-bdd-tdd",
       "version": "1",
-      "digest": "sha256:19e9edbe766321b2042803c46ce7c6f30cf986ba6eb6defcf06a30fe13a8a6c9",
+      "digest": "sha256:fbc86898f7c0caaf837c50a58a89d0056129b43e28ba962aa6193219e1d74c3c",
       "source": {
         "skillPath": "csm-bdd-tdd/SKILL.md",
         "producerPath": null
@@ -955,7 +955,7 @@
     {
       "skill": "csm-upload",
       "version": "1",
-      "digest": "sha256:a0cd1db9020e92a07f76a615b5dbf1560ef22b592781b1b44dcb6ddc4c3c5664",
+      "digest": "sha256:cb5c28d0cf15afadd9ffe58b8f1cb2749e407abdf3eee67abc542c186c727253",
       "source": {
         "skillPath": "csm-upload/SKILL.md",
         "producerPath": null
@@ -974,7 +974,7 @@
       ],
       "outputs": [
         {
-          "name": "publication receipt",
+          "name": "publication descriptor",
           "kind": "receipt",
           "schema": "csm-upload-publication/1",
           "terminal": true
@@ -992,7 +992,7 @@
       "parallelism": "serial",
       "reviewLevel": "standard",
       "terminal": {
-        "behavior": "returns JSON publication receipt and URL",
+        "behavior": "returns JSON publication descriptor and URL",
         "statuses": ["PUBLISHED", "BLOCKED", "FAILED"]
       },
       "execution": {

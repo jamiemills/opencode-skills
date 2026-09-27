@@ -264,6 +264,8 @@ Address every issue; cycle back to `SCENARIOS` or `TEST_DESIGN` as needed.
 
 ### 8. SAVED
 
+Before display, write the machine package at `specs/<goal-slug>/package.json` with `writeBddPackage(path, createBddPackage(overrides), { root })` from `csm-bdd-tdd/lib/package.mjs`; build the overrides from the base plan artifact (`artifactId`, `runId`, `path`, `digest`), the resolved `specs/<goal-slug>/` paths, and the approved scenarios/test-designs/traceability, and validate with `validateBddPackage` against `csm-bdd-tdd/schemas/package.schema.json`. A package that fails validation, or whose `sourcePlan` lineage does not match the base plan, blocks the save — never ship the demo defaults.
+
 Commit only when the user explicitly authorizes a commit in the current invocation; otherwise do not invoke Git commit. When authorized, define the owned pathset as the specs folder, mutated plan, and source plan pointer, verify the staged and post-commit pathsets, and use `git commit --only -- <owned paths>` with no bare `git commit`. Unrelated staged paths must remain outside the commit and must not be cleared. Never push unless explicitly requested. If the working directory is not a git repository, skip the commit and note why.
 
 Display: the mutated plan path, specs folder path, scenario and task counts, validation summary (execution + strictness), the commit hash or the reason the commit was skipped, `ready` or `blocked` status, and any user decisions required. State explicitly that no implementation was started and that execution requires a separate, explicit `csm-build` invocation naming the **new** plan. Then stop.
@@ -278,6 +280,7 @@ Display: the mutated plan path, specs folder path, scenario and task counts, val
   test-harness/            runner config + step-definition stubs (no implementation)
   tests/design/*.md|yaml   unit test designs (TDD)
   validation/              scenario execution + strictness reports
+  package.json             machine package (createBddPackage/writeBddPackage) consumed by csm-build
 ```
 
 File rules: one file type, one purpose; stable filenames; no mixed concerns; human-readable first, machine-parseable second; diff-friendly; no implementation code anywhere in this phase.

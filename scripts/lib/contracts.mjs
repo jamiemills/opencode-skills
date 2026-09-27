@@ -335,9 +335,7 @@ const INTERFACES = {
       "validated JSON evidence/publication descriptors and referenced binary evidence",
       "GitHub configuration",
     ],
-    produces: [
-      "authoritative JSON publication receipt at .agents/upload/<date>-<run-id>-publication.json and external Pages projection",
-    ],
+    produces: ["external Pages projection and explicit pushed/deployed/verified statuses"],
     handoff: ["expected evidence URL to the user; verify Pages deployment separately"],
     midPipeline: ["clone or pull", "copy files", "generate index", "commit and push"],
   },
