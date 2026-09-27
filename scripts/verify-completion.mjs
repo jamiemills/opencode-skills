@@ -84,12 +84,46 @@ export function verifyGitClean({ cwd = process.cwd(), run = spawnSync } = {}) {
   return { schema: VERDICT_SCHEMA, ok: true, reason: "ok" };
 }
 
+// T015: assert the CI run for `sha` is a completed success on `branch`. Reads
+// the runs via `gh`; if `gh` is unavailable the check fails closed.
+export function verifyCiGreen({ sha, branch = "main", cwd = process.cwd(), run = spawnSync } = {}) {
+  let resolved = sha;
+  if (!resolved || resolved === "HEAD") {
+    const head = run("git", ["rev-parse", "HEAD"], { cwd, encoding: "utf8" });
+    if (head.status !== 0) return { schema: VERDICT_SCHEMA, ok: false, reason: "git-unavailable" };
+    resolved = String(head.stdout ?? "").trim();
+  }
+  const listed = run(
+    "gh",
+    ["run", "list", "--branch", branch, "--limit", "30", "--json", "headSha,status,conclusion"],
+    { cwd, encoding: "utf8" },
+  );
+  if (listed.status !== 0) return { schema: VERDICT_SCHEMA, ok: false, reason: "ci-unavailable" };
+  let runs;
+  try {
+    runs = JSON.parse(String(listed.stdout ?? "[]"));
+  } catch {
+    return { schema: VERDICT_SCHEMA, ok: false, reason: "ci-unparseable" };
+  }
+  const forSha = runs.filter((r) => String(r.headSha ?? "").startsWith(resolved));
+  if (forSha.length === 0)
+    return { schema: VERDICT_SCHEMA, ok: false, reason: "ci-pending", sha: resolved };
+  const green = forSha.some((r) => r.status === "completed" && r.conclusion === "success");
+  return green
+    ? { schema: VERDICT_SCHEMA, ok: true, reason: "ok", sha: resolved }
+    : { schema: VERDICT_SCHEMA, ok: false, reason: "ci-not-green", sha: resolved };
+}
+
 function parseArgs(argv) {
   const flags = { mode: "verdict" };
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (token === "--git-clean") {
       flags.mode = "git-clean";
+      continue;
+    }
+    if (token === "--ci-green") {
+      flags.mode = "ci-green";
       continue;
     }
     if (!token.startsWith("--")) continue;
@@ -106,6 +140,7 @@ function parseArgs(argv) {
 export function runVerifyCompletionCli({ argv = process.argv.slice(2), cwd = process.cwd() } = {}) {
   const flags = parseArgs(argv);
   if (flags.mode === "git-clean") return verifyGitClean({ cwd });
+  if (flags.mode === "ci-green") return verifyCiGreen({ sha: flags.sha, cwd });
   if (typeof flags.plan !== "string" || typeof flags.verdict !== "string")
     throw new TypeError("usage: verify-completion --plan <path> --verdict <path> | --git-clean");
   const plan = JSON.parse(readFileSync(flags.plan, "utf8"));

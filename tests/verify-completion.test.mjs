@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { verifyCompletion, verifyGitClean } from "../scripts/verify-completion.mjs";
+import { verifyCiGreen, verifyCompletion, verifyGitClean } from "../scripts/verify-completion.mjs";
 
 const plan = { schema: "csm-plan/1", planId: "p1", tasks: [{ taskId: "T001" }, { ordinal: 2 }] };
 const base = () => ({
@@ -80,4 +80,36 @@ test("git-clean passes on an empty porcelain and fails when dirty", () => {
     verifyGitClean({ run: () => ({ status: 1, stdout: "" }) }).reason,
     "git-unavailable",
   );
+});
+
+test("ci-green resolves HEAD and requires a completed success run for the sha", () => {
+  const green = verifyCiGreen({
+    sha: "HEAD",
+    run: (cmd, _args) => {
+      if (cmd === "git") return { status: 0, stdout: "abc123def\n" };
+      return {
+        status: 0,
+        stdout: JSON.stringify([
+          { headSha: "abc123def", status: "completed", conclusion: "success" },
+          { headSha: "old", status: "completed", conclusion: "failure" },
+        ]),
+      };
+    },
+  });
+  assert.equal(green.ok, true);
+  const notGreen = verifyCiGreen({
+    sha: "abc123def",
+    run: (cmd) =>
+      cmd === "gh"
+        ? {
+            status: 0,
+            stdout: JSON.stringify([
+              { headSha: "abc123def", status: "in_progress", conclusion: "" },
+            ]),
+          }
+        : { status: 0, stdout: "abc123def\n" },
+  });
+  assert.equal(notGreen.reason, "ci-not-green");
+  const unavailable = verifyCiGreen({ sha: "abc", run: () => ({ status: 1, stdout: "" }) });
+  assert.equal(unavailable.reason, "ci-unavailable");
 });
