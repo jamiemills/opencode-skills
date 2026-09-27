@@ -81,10 +81,12 @@ record/defer/waive/skip` escape-hatch pattern. It does **not** reject every
   exit `0` and a `complete` verdict receipt before `COMPLETE`. A `/2` build
   cannot reach `COMPLETE` without a receipt.
 - **csm-review** — the evaluator checkpoint gates every forward and back-edge
-  transition. A `VERIFIED` save requires all three of a `complete` receipt, a
-  zero loop-guard exit over the exact record revision, and `canSaveVerified`
-  (every finding carries a closed remediation-closure/disposition link). A
-  non-zero guard forbids `VERIFIED`; the review may still terminate honestly as
+  transition. A `VERIFIED` save requires (a) a `complete` receipt journaled with
+  the transition (process-enforced) and (b) a zero loop-guard exit over the exact
+  record revision; a zero exit over a `VERIFIED` record already implies
+  `canSaveVerified` (every finding carries a closed remediation-closure/
+  disposition link), so it is not a separate machine check. A non-zero guard
+  forbids `VERIFIED`; the review may still terminate honestly as
   `INCOMPLETE`/`BLOCKED`. Frozen `/1` review records remain readable and are
   tolerated: mandatory closure applies only to the additive `/2` revision (or a
   finding that already carries a `closure` object), so reverting a `/2` writer

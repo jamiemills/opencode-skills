@@ -90,8 +90,8 @@
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "3e1462370acd07dc7f2a1d59295e763683c1b330f0babb6c1fa716231259d960",
-        "bytes": 50981,
+        "sha256": "def16e92e90fa5b15bb89f62a32d371e4e65bbc5597ebbb55dd4f8f0e30043f9",
+        "bytes": 51099,
         "mode": "0644"
       },
       {
@@ -782,7 +782,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "6359d899927ac9c303bafa996c7fb8a44d919806337ec79b0875c8e28a694128",
+        "sha256": "a0725bc25692e6c9ec21b0344fb5bc138fac52399c57e3a9a148612537f4f3dd",
         "bytes": 26286,
         "mode": "0644"
       },
