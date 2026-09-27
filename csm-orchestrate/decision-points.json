@@ -9,7 +9,10 @@
       "criteria": ["route", "deterministic-match", "explicit-mode"],
       "fallback": "deterministic-route",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Classify the request into exactly one route. Treat the deterministic match as the reference; only fill a route the deterministic router could not resolve."
+      }
     },
     {
       "id": "spike-candidacy",
@@ -18,7 +21,10 @@
       "criteria": ["spike-value", "risk", "reversibility"],
       "fallback": "harness-spike-selection",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Decide whether this task warrants an isolated R&D spike before implementation."
+      }
     },
     {
       "id": "ready-set-ordering",
@@ -27,7 +33,10 @@
       "criteria": ["dependency-ready", "critical-path", "batch-width"],
       "fallback": "deterministic-ready-set",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Rank the ready task set for dispatch order. Dependency readiness and batch sizing remain deterministic."
+      }
     },
     {
       "id": "deep-research-dispatch",
@@ -36,7 +45,10 @@
       "criteria": ["evidence-gap", "external-need", "budget"],
       "fallback": "deterministic-dispatch",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Decide whether this research track requires an external deep-research dispatch."
+      }
     },
     {
       "id": "review-assignment",
@@ -45,7 +57,10 @@
       "criteria": ["add-only", "coverage-gap", "reviewer-fit"],
       "fallback": "deterministic-reviewer-set",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Choose additional reviewers or dimensions to add. Never remove or override the deterministic reviewer set."
+      }
     },
     {
       "id": "secret-preflag",
@@ -54,7 +69,10 @@
       "criteria": ["secret-likelihood", "redaction", "false-positive-cost"],
       "fallback": "no-preflag",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Estimate whether the given text likely contains a secret that should be redacted. The deterministic secret scan remains authoritative."
+      }
     },
     {
       "id": "conditional-skill-ranking",
@@ -63,7 +81,10 @@
       "criteria": ["repo-signal", "task-signal", "explicit-mode-exclusion"],
       "fallback": "deterministic-skill-order",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "apply"
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Rank the candidate skills for this repository and task signal. Explicit-mode exclusions remain deterministic."
+      }
     },
     {
       "id": "critique-severity",
@@ -72,7 +93,10 @@
       "criteria": ["severity", "evidence-strength"],
       "fallback": "deterministic-severity",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Rate the severity and evidence strength of this critique finding."
+      }
     },
     {
       "id": "task-risk",
@@ -81,7 +105,10 @@
       "criteria": ["risk", "blast-radius", "reversibility"],
       "fallback": "deterministic-risk",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Rate the risk, blast radius, and reversibility of this task."
+      }
     },
     {
       "id": "evidence-class-bucketing",
@@ -90,7 +117,10 @@
       "criteria": ["evidence-class", "source-kind"],
       "fallback": "deterministic-evidence-class",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Classify the evidence class (E1-E4) and source kind of this finding."
+      }
     },
     {
       "id": "semantic-dedup",
@@ -99,7 +129,10 @@
       "criteria": ["similarity", "finding-identity"],
       "fallback": "deterministic-dedup",
       "safetyClass": "non-safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Rate how similar this candidate finding is to the other candidate. Never merge or delete a finding."
+      }
     },
     {
       "id": "severity-bucketing",
@@ -108,7 +141,10 @@
       "criteria": ["severity", "finding-class"],
       "fallback": "deterministic-severity-bucket",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Assign the severity bucket for this finding class."
+      }
     },
     {
       "id": "review-challenger-verdict",
@@ -117,7 +153,16 @@
       "criteria": ["agree", "downgrade", "retract", "new_finding"],
       "fallback": "deterministic-challenger-verdict",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Act as an independent adversarial challenger. Assuming the finding is false until the quoted evidence proves it true, does the evidence support the finding and its proposed severity/confidence?",
+        "criteria": {
+          "agree": "Evidence fully supports the finding and its proposed severity/confidence",
+          "downgrade": "The finding is real but its severity or confidence is overstated",
+          "retract": "The evidence does not support the finding",
+          "new_finding": "The evidence reveals a different, additional real finding"
+        }
+      }
     },
     {
       "id": "deep-research-challenger-verdict",
@@ -126,7 +171,16 @@
       "criteria": ["uphold", "downgrade", "retract", "suggest_new_claim"],
       "fallback": "deterministic-challenger-verdict",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "As an anti-anchored challenger, does the cited claim hold against the quoted evidence? Assume the claim is false until the evidence proves it true.",
+        "criteria": {
+          "uphold": "Evidence supports the claim as written",
+          "downgrade": "The claim overstates the evidence",
+          "retract": "The evidence does not support the claim",
+          "suggest_new_claim": "A missing claim should be added"
+        }
+      }
     },
     {
       "id": "deep-research-judge-factual-accuracy",
@@ -141,7 +195,17 @@
       ],
       "fallback": "no-advisory",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Judge the factual accuracy of the draft against its cited references.",
+        "criteria": [
+          "Unsupported/contradicted",
+          "Mostly unsupported",
+          "Mixed",
+          "Mostly supported",
+          "Fully supported"
+        ]
+      }
     },
     {
       "id": "deep-research-judge-citation-accuracy",
@@ -150,7 +214,17 @@
       "criteria": ["wrong", "loose", "mixed", "mostly-correct", "supported"],
       "fallback": "no-advisory",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Does each citation actually support the claim it is attached to?",
+        "criteria": [
+          "Wrong citations",
+          "Loose mapping",
+          "Mixed",
+          "Mostly correct",
+          "Every citation supports its claim"
+        ]
+      }
     },
     {
       "id": "deep-research-judge-completeness",
@@ -159,7 +233,17 @@
       "criteria": ["mostly-missing", "several-missing", "mixed", "one-missing", "complete"],
       "fallback": "no-advisory",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Are all required sections present and non-empty?",
+        "criteria": [
+          "Mostly missing",
+          "Several missing",
+          "Mixed",
+          "One missing",
+          "All present and substantive"
+        ]
+      }
     },
     {
       "id": "deep-research-judge-clarity",
@@ -168,7 +252,11 @@
       "criteria": ["illegible", "hard-to-follow", "mixed", "mostly-clear", "clear"],
       "fallback": "no-advisory",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Is the finding legible to a reader without the research notes?",
+        "criteria": ["Illegible", "Hard to follow", "Mixed", "Mostly clear", "Fully clear"]
+      }
     },
     {
       "id": "python-review-judge-severity",
@@ -177,7 +265,18 @@
       "criteria": ["C", "R", "W", "E", "F", "Nit"],
       "fallback": "deterministic-severity",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "For an idiomatic-Python review finding, choose the urgency band. C = convention, R = refactor, W = warning, E = error/probable bug, F = fatal, Nit = trivial.",
+        "criteria": {
+          "C": "Convention deviation with no runtime effect",
+          "R": "Refactor opportunity",
+          "W": "Warning; not a definite bug",
+          "E": "Error or probable bug",
+          "F": "Fatal defect or data-loss risk",
+          "Nit": "Trivial style nit"
+        }
+      }
     },
     {
       "id": "python-review-dedup",
@@ -186,7 +285,17 @@
       "criteria": ["distinct", "weak", "moderate", "strong", "duplicate"],
       "fallback": "deterministic-dedup",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "How similar is this candidate finding to the other candidate?",
+        "criteria": [
+          "Distinct",
+          "Weakly related",
+          "Moderately related",
+          "Strongly related",
+          "Duplicate"
+        ]
+      }
     },
     {
       "id": "build-review-verdict",
@@ -195,7 +304,16 @@
       "criteria": ["pass", "needs_repair", "fail", "uncertain"],
       "fallback": "deterministic-review-verdict",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "As an independent reviewer of this integrated change, does the evidence support passing this review track?",
+        "criteria": {
+          "pass": "No material issue in this track",
+          "needs_repair": "A bounded repair is required",
+          "fail": "The change does not satisfy this track",
+          "uncertain": "Evidence is insufficient to decide"
+        }
+      }
     },
     {
       "id": "autoresearch-judge-ranking",
@@ -204,7 +322,11 @@
       "criteria": ["worst", "poor", "average", "good", "best"],
       "fallback": "deterministic-judge-ranking",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Rank this blinded candidate against the others for the stated optimization target.",
+        "criteria": ["Worst", "Poor", "Average", "Good", "Best"]
+      }
     },
     {
       "id": "bdd-tdd-validation-verdict",
@@ -213,7 +335,15 @@
       "criteria": ["valid", "needs_repair", "invalid"],
       "fallback": "deterministic-validation-verdict",
       "safetyClass": "safety",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Does this scenario fail for the right reason and go green only when the correct behavior is implemented?",
+        "criteria": {
+          "valid": "Fails for the right reason; strictness holds",
+          "needs_repair": "Bounded repair required",
+          "invalid": "Passes before implementation or fails for the wrong reason"
+        }
+      }
     },
     {
       "id": "orchestrate-reviewer-finding",
@@ -222,7 +352,17 @@
       "criteria": ["uphold", "downgrade", "retract", "missing-evidence", "suggest-new-requirement"],
       "fallback": "deterministic-reviewer-finding",
       "safetyClass": "authority",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "As the independent final reviewer, classify this claim against the requirement, evidence, and artifact identity you were given. Advisory context only; the deterministic acceptance gate is not affected.",
+        "criteria": {
+          "uphold": "Requirement supported by evidence",
+          "downgrade": "Partially supported; scope is overstated",
+          "retract": "Not supported by the evidence",
+          "missing-evidence": "No evidence supplied for a stated requirement",
+          "suggest-new-requirement": "A missing requirement should be added"
+        }
+      }
     },
     {
       "id": "trace-emission-verdict",
@@ -231,7 +371,164 @@
       "criteria": ["trace-present", "runid-match", "shipped-with-audit"],
       "fallback": "deterministic-trace-verdict",
       "safetyClass": "authority",
-      "applyVsAdvisory": "advisory"
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Given the run id and the trace-log verification summary (path and counts only), does the evidence indicate the run emitted its action traces? Advisory only; the deterministic verifier remains authoritative.",
+        "criteria": {
+          "true": "The evidence indicates the run's traces were emitted",
+          "false": "The evidence indicates the run's traces are missing"
+        }
+      }
+    },
+    {
+      "id": "csm-deep-research-triage",
+      "seam": "csm-deep-research",
+      "type": "choice",
+      "criteria": ["quick", "standard", "deep"],
+      "fallback": "deterministic-triage",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Classify the research query into QUICK, STANDARD, or DEEP. Treat the deterministic default (STANDARD) as the floor; never downgrade below it without strong signal."
+      }
+    },
+    {
+      "id": "csm-review-scale",
+      "seam": "csm-review",
+      "type": "choice",
+      "criteria": ["quick", "full"],
+      "fallback": "deterministic-scale",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Choose QUICK or FULL review scope. Treat FULL as the safe default; choose QUICK only for a clearly small, low-risk change."
+      }
+    },
+    {
+      "id": "plan-scale",
+      "seam": "csm-plan",
+      "type": "choice",
+      "criteria": ["small", "large"],
+      "fallback": "deterministic-scale",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Classify the ask as a small or large planning effort; proportionality defaults are the reference."
+      }
+    },
+    {
+      "id": "build-repair-classification",
+      "seam": "csm-build",
+      "type": "choice",
+      "criteria": [
+        "plan-misunderstanding",
+        "genuine-defect",
+        "environmental-flake",
+        "ownership-collision",
+        "reviewer-false-positive"
+      ],
+      "fallback": "primary-classification",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Classify the failure or finding before acting: plan/spec misunderstanding, genuine defect, environmental/flaky check, ownership/integration collision, or reviewer false positive. Advisory only."
+      }
+    },
+    {
+      "id": "build-integrate-choice",
+      "seam": "csm-build",
+      "type": "choice",
+      "criteria": ["salvage", "redispatch", "discard"],
+      "fallback": "primary-choice",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Given a partially sound subagent result, choose salvage, re-dispatch with narrowed scope, or discard and redo. Advisory only."
+      }
+    },
+    {
+      "id": "plan-remediation-resolution",
+      "seam": "csm-plan",
+      "type": "choice",
+      "criteria": ["resolved", "disproved", "deferred", "blocked"],
+      "fallback": "primary-resolution",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Record how a critique finding was resolved: resolved, disproved, deferred, or converted into an explicit blocker. Advisory; the primary records the final resolution."
+      }
+    },
+    {
+      "id": "deep-research-verify-claim",
+      "seam": "csm-deep-research",
+      "type": "choice",
+      "criteria": ["supported", "partially-supported", "not-supported", "unverifiable"],
+      "fallback": "primary-verify",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Per-claim verdict for a draft finding: supported, partially-supported, not-supported, or unverifiable. Advisory only; VERIFY is primary-personal."
+      }
+    },
+    {
+      "id": "python-review-bucket",
+      "seam": "csm-review-python",
+      "type": "choice",
+      "criteria": ["architecture", "mechanical", "semantic-static", "judgment"],
+      "fallback": "primary-bucket",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Classify a candidate Python finding into architecture, mechanical, semantic-static, or judgment. Advisory only."
+      }
+    },
+    {
+      "id": "make-tests-triage",
+      "seam": "csm-make-tests",
+      "type": "choice",
+      "criteria": ["intended", "defect", "noise"],
+      "fallback": "primary-triage",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Classify a captured golden: intended behavior, a defect, or noise. Advisory only; APPROVE stays human."
+      }
+    },
+    {
+      "id": "make-tests-survivor-triage",
+      "seam": "csm-make-tests",
+      "type": "choice",
+      "criteria": ["equivalent", "unproductive", "real-gap"],
+      "fallback": "primary-triage",
+      "safetyClass": "safety",
+      "applyVsAdvisory": "advisory",
+      "question": {
+        "instructions": "Triage a surviving mutant: equivalent, unproductive, or a real coverage gap. Advisory only."
+      }
+    },
+    {
+      "id": "make-tests-surface-ranking",
+      "seam": "csm-make-tests",
+      "type": "score",
+      "criteria": ["low", "medium", "high", "critical"],
+      "fallback": "heuristic-ranking",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Rank a candidate surface by change-risk for test generation."
+      }
+    },
+    {
+      "id": "grill-clarification-ranking",
+      "seam": "csm-grill",
+      "type": "score",
+      "criteria": ["low", "medium", "high", "critical"],
+      "fallback": "primary-ranking",
+      "safetyClass": "non-safety",
+      "applyVsAdvisory": "apply",
+      "question": {
+        "instructions": "Rank the areas that most need user clarification, by how much the answer changes the design."
+      }
     }
   ]
 }

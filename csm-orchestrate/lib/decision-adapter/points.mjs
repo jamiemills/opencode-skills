@@ -19,6 +19,8 @@ export const DECISION_SEAMS = Object.freeze([
   "csm-deep-research",
   "csm-autoresearch",
   "csm-bdd-tdd",
+  "csm-make-tests",
+  "csm-grill",
   "csm-orchestrate-review",
   "skill-selection",
 ]);
@@ -491,6 +493,169 @@ export const decisionPoints = Object.freeze(
         },
       },
     },
+    // T026: additional safe classification/ranking points (advisory or
+    // non-safety apply only; no acceptance/security/completion surface).
+    {
+      id: "csm-deep-research-triage",
+      seam: "csm-deep-research",
+      type: "choice",
+      criteria: ["quick", "standard", "deep"],
+      fallback: "deterministic-triage",
+      safetyClass: "non-safety",
+      applyVsAdvisory: "apply",
+      question: {
+        instructions:
+          "Classify the research query into QUICK, STANDARD, or DEEP. Treat the deterministic default (STANDARD) as the floor; never downgrade below it without strong signal.",
+      },
+    },
+    {
+      id: "csm-review-scale",
+      seam: "csm-review",
+      type: "choice",
+      criteria: ["quick", "full"],
+      fallback: "deterministic-scale",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Choose QUICK or FULL review scope. Treat FULL as the safe default; choose QUICK only for a clearly small, low-risk change.",
+      },
+    },
+    {
+      id: "plan-scale",
+      seam: "csm-plan",
+      type: "choice",
+      criteria: ["small", "large"],
+      fallback: "deterministic-scale",
+      safetyClass: "non-safety",
+      applyVsAdvisory: "apply",
+      question: {
+        instructions:
+          "Classify the ask as a small or large planning effort; proportionality defaults are the reference.",
+      },
+    },
+    {
+      id: "build-repair-classification",
+      seam: "csm-build",
+      type: "choice",
+      criteria: [
+        "plan-misunderstanding",
+        "genuine-defect",
+        "environmental-flake",
+        "ownership-collision",
+        "reviewer-false-positive",
+      ],
+      fallback: "primary-classification",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Classify the failure or finding before acting: plan/spec misunderstanding, genuine defect, environmental/flaky check, ownership/integration collision, or reviewer false positive. Advisory only.",
+      },
+    },
+    {
+      id: "build-integrate-choice",
+      seam: "csm-build",
+      type: "choice",
+      criteria: ["salvage", "redispatch", "discard"],
+      fallback: "primary-choice",
+      safetyClass: "non-safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Given a partially sound subagent result, choose salvage, re-dispatch with narrowed scope, or discard and redo. Advisory only.",
+      },
+    },
+    {
+      id: "plan-remediation-resolution",
+      seam: "csm-plan",
+      type: "choice",
+      criteria: ["resolved", "disproved", "deferred", "blocked"],
+      fallback: "primary-resolution",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Record how a critique finding was resolved: resolved, disproved, deferred, or converted into an explicit blocker. Advisory; the primary records the final resolution.",
+      },
+    },
+    {
+      id: "deep-research-verify-claim",
+      seam: "csm-deep-research",
+      type: "choice",
+      criteria: ["supported", "partially-supported", "not-supported", "unverifiable"],
+      fallback: "primary-verify",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Per-claim verdict for a draft finding: supported, partially-supported, not-supported, or unverifiable. Advisory only; VERIFY is primary-personal.",
+      },
+    },
+    {
+      id: "python-review-bucket",
+      seam: "csm-review-python",
+      type: "choice",
+      criteria: ["architecture", "mechanical", "semantic-static", "judgment"],
+      fallback: "primary-bucket",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Classify a candidate Python finding into architecture, mechanical, semantic-static, or judgment. Advisory only.",
+      },
+    },
+    {
+      id: "make-tests-triage",
+      seam: "csm-make-tests",
+      type: "choice",
+      criteria: ["intended", "defect", "noise"],
+      fallback: "primary-triage",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Classify a captured golden: intended behavior, a defect, or noise. Advisory only; APPROVE stays human.",
+      },
+    },
+    {
+      id: "make-tests-survivor-triage",
+      seam: "csm-make-tests",
+      type: "choice",
+      criteria: ["equivalent", "unproductive", "real-gap"],
+      fallback: "primary-triage",
+      safetyClass: "safety",
+      applyVsAdvisory: "advisory",
+      question: {
+        instructions:
+          "Triage a surviving mutant: equivalent, unproductive, or a real coverage gap. Advisory only.",
+      },
+    },
+    {
+      id: "make-tests-surface-ranking",
+      seam: "csm-make-tests",
+      type: "score",
+      criteria: ["low", "medium", "high", "critical"],
+      fallback: "heuristic-ranking",
+      safetyClass: "non-safety",
+      applyVsAdvisory: "apply",
+      question: {
+        instructions: "Rank a candidate surface by change-risk for test generation.",
+      },
+    },
+    {
+      id: "grill-clarification-ranking",
+      seam: "csm-grill",
+      type: "score",
+      criteria: ["low", "medium", "high", "critical"],
+      fallback: "primary-ranking",
+      safetyClass: "non-safety",
+      applyVsAdvisory: "apply",
+      question: {
+        instructions:
+          "Rank the areas that most need user clarification, by how much the answer changes the design.",
+      },
+    },
   ]
     .map(withDefaultQuestion)
     .map(definePoint),
@@ -528,6 +693,7 @@ export function serializeDecisionPoints() {
       fallback: point.fallback,
       safetyClass: point.safetyClass,
       applyVsAdvisory: point.applyVsAdvisory,
+      question: structuredClone(point.question),
     })),
   };
 }
