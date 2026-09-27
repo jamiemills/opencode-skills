@@ -22,13 +22,28 @@
 // longest string fields are truncated after redaction with an explicit
 // `…[truncated:<n>]` marker. A record is NEVER dropped: loss-less means every
 // record is represented, not that oversized fields are stored verbatim.
-import { closeSync, mkdirSync, openSync, writeSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { repoLogPath } from "./repo-state.mjs";
 import { resolveTraceLogPath } from "./trace-config.mjs";
 import { isUtc, utcNow } from "./utc.mjs";
 
 const REQUIRED_FIELDS = ["runId", "actor", "action", "target", "justification", "outcome"];
+
+// Every record is labelled so a fixture/rehearsal trace can never be mistaken
+// for production evidence. Unlabelled legacy lines are read as production.
+export const TRACE_LABELS = Object.freeze(["production", "fixture"]);
+export const DEFAULT_ROTATION_BYTES = 16 * 1024 * 1024;
+export const DEFAULT_ROTATION_GENERATIONS = 5;
 
 // Bounded single-write size: the serialized line (including its trailing
 // newline) must fit in one write() so no writer can observe a torn line.
@@ -143,7 +158,7 @@ function writeLine(target, line) {
   }
 }
 
-async function writeTrace(entry, { file, now, kind } = {}) {
+async function writeTrace(entry, { file, now, kind, fixture } = {}) {
   if (entry === null || typeof entry !== "object" || Array.isArray(entry))
     throw new TypeError("trace entry must be an object");
   const ts = entry.ts ?? resolveNow(now);
@@ -153,7 +168,11 @@ async function writeTrace(entry, { file, now, kind } = {}) {
     if (typeof entry[field] !== "string" || entry[field].length === 0)
       throw new TypeError(`trace entry is missing required field: ${field}`);
   }
-  const record = redact({ ...entry, ts, kind });
+  const isFixture = fixture ?? entry.fixture ?? process.env.CSM_TRACE_FIXTURE === "1";
+  const label = entry.label ?? (isFixture ? "fixture" : "production");
+  if (!TRACE_LABELS.includes(label))
+    throw new TypeError(`trace entry label must be one of: ${TRACE_LABELS.join(", ")}`);
+  const record = redact({ ...entry, ts, kind, label });
   const target = resolve(
     file ??
       repoLogPath(process.cwd(), {
@@ -162,6 +181,29 @@ async function writeTrace(entry, { file, now, kind } = {}) {
   );
   writeLine(target, fitLine(record));
   return { file: target, entry: record };
+}
+
+// Bounded retention: shift the active log to .1 (and older generations up to
+// maxGenerations), dropping the ones beyond the cap. Loss-less append is a
+// writer property; rotation is an explicit, caller-invoked maintenance step, so
+// reads never observe a torn line.
+export function rotateTraceLog(
+  target,
+  { maxBytes = DEFAULT_ROTATION_BYTES, maxGenerations = DEFAULT_ROTATION_GENERATIONS } = {},
+) {
+  if (!Number.isInteger(maxGenerations) || maxGenerations < 1)
+    throw new TypeError("maxGenerations must be an integer >= 1");
+  const path = resolve(target);
+  if (!existsSync(path)) return { rotated: false, generations: 0, file: path };
+  if (statSync(path).size < maxBytes) return { rotated: false, generations: 0, file: path };
+  const oldest = `${path}.${maxGenerations}`;
+  if (existsSync(oldest)) unlinkSync(oldest);
+  for (let gen = maxGenerations - 1; gen >= 1; gen -= 1) {
+    const src = `${path}.${gen}`;
+    if (existsSync(src)) renameSync(src, `${path}.${gen + 1}`);
+  }
+  renameSync(path, `${path}.1`);
+  return { rotated: true, generations: maxGenerations, file: path };
 }
 
 export function appendTrace(entry, options = {}) {

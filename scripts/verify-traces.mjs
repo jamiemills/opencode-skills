@@ -18,6 +18,9 @@ import { resolveTraceLogPath } from "./lib/trace-config.mjs";
 export const VERIFY_SCHEMA = "csm-trace-verification/1";
 export const AUDIT_ACTIONS = Object.freeze(["trace-verification-failed"]);
 export const DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+// How many rotated generations (`.1`..`.N`) the verifier reads alongside the
+// active log, oldest first, so rotation never hides retained evidence.
+export const DEFAULT_READ_GENERATIONS = 5;
 
 export async function resolveVerificationPath({ root = process.cwd(), env = process.env } = {}) {
   const configured = await resolveTraceLogPath({ root, env });
@@ -31,6 +34,8 @@ export function verifyTraces({
   expectAtLeast = 1,
   kinds = null,
   actions = null,
+  requireProduction = false,
+  generations = DEFAULT_READ_GENERATIONS,
   maxBytes = DEFAULT_MAX_BYTES,
 } = {}) {
   if (typeof file !== "string" || file.length === 0)
@@ -42,7 +47,10 @@ export function verifyTraces({
       file: null,
       reason: "no-path",
     };
-  if (!existsSync(file))
+  const candidates = [file];
+  for (let gen = 1; gen <= generations; gen += 1) candidates.push(`${file}.${gen}`);
+  const present = candidates.filter((candidate) => existsSync(candidate));
+  if (present.length === 0)
     return {
       schema: VERIFY_SCHEMA,
       ok: false,
@@ -51,43 +59,46 @@ export function verifyTraces({
       file,
       reason: "log-absent",
     };
+  // Oldest generation first (`.N` ... `.1`, then the active log) so the
+  // firstTs ordering and retention view are chronological.
+  const unreadable = () => ({
+    schema: VERIFY_SCHEMA,
+    ok: false,
+    matched: 0,
+    malformed: 0,
+    file,
+    reason: "log-unreadable",
+  });
   let size = 0;
-  try {
-    size = statSync(file).size;
-  } catch {
-    return {
-      schema: VERIFY_SCHEMA,
-      ok: false,
-      matched: 0,
-      malformed: 0,
-      file,
-      reason: "log-unreadable",
-    };
+  const parts = [];
+  for (const candidate of present.toReversed()) {
+    let candidateSize = 0;
+    try {
+      candidateSize = statSync(candidate).size;
+    } catch {
+      return unreadable();
+    }
+    size += candidateSize;
+    if (size > maxBytes)
+      return {
+        schema: VERIFY_SCHEMA,
+        ok: false,
+        matched: 0,
+        malformed: 0,
+        file,
+        reason: "log-too-large",
+      };
+    try {
+      parts.push(readFileSync(candidate, "utf8"));
+    } catch {
+      return unreadable();
+    }
   }
-  if (size > maxBytes)
-    return {
-      schema: VERIFY_SCHEMA,
-      ok: false,
-      matched: 0,
-      malformed: 0,
-      file,
-      reason: "log-too-large",
-    };
-  let text;
-  try {
-    text = readFileSync(file, "utf8");
-  } catch {
-    return {
-      schema: VERIFY_SCHEMA,
-      ok: false,
-      matched: 0,
-      malformed: 0,
-      file,
-      reason: "log-unreadable",
-    };
-  }
+  const text = parts.join("\n");
   let matched = 0;
   let malformed = 0;
+  let production = 0;
+  let fixture = 0;
   let firstTs = null;
   for (const line of text.split("\n")) {
     if (line.length === 0) continue;
@@ -106,7 +117,14 @@ export function verifyTraces({
     if (runId !== null && record.runId !== runId) continue;
     if (Array.isArray(kinds) && !kinds.includes(record.kind)) continue;
     if (Array.isArray(actions) && !actions.includes(record.action)) continue;
+    const label = record.label ?? "production";
+    if (label !== "production" && label !== "fixture") {
+      malformed += 1;
+      continue;
+    }
     matched += 1;
+    if (label === "fixture") fixture += 1;
+    else production += 1;
     if (typeof record.ts === "string" && (firstTs === null || record.ts < firstTs))
       firstTs = record.ts;
   }
@@ -130,7 +148,29 @@ export function verifyTraces({
       reason: "no-trace-for-run",
       firstTs,
     };
-  return { schema: VERIFY_SCHEMA, ok: true, matched, malformed: 0, file, reason: "ok", firstTs };
+  if (requireProduction && production < expectAtLeast)
+    return {
+      schema: VERIFY_SCHEMA,
+      ok: false,
+      matched,
+      malformed: 0,
+      production,
+      fixture,
+      file,
+      reason: "no-production-trace-for-run",
+      firstTs,
+    };
+  return {
+    schema: VERIFY_SCHEMA,
+    ok: true,
+    matched,
+    malformed: 0,
+    production,
+    fixture,
+    file,
+    reason: "ok",
+    firstTs,
+  };
 }
 
 function parseArgs(argv) {
@@ -139,8 +179,8 @@ function parseArgs(argv) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
     const name = token.slice(2);
-    if (name === "json") {
-      flags.json = true;
+    if (name === "json" || name === "require-production") {
+      flags[name === "json" ? "json" : "requireProduction"] = true;
       continue;
     }
     const value = argv[index + 1];
@@ -170,6 +210,7 @@ export async function runVerifyTracesCli({
     expectAtLeast,
     kinds: flags.kind ? [flags.kind] : null,
     actions: flags.action ? [flags.action] : null,
+    requireProduction: flags.requireProduction === true,
   });
   write(
     flags.json

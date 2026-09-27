@@ -1,4 +1,5 @@
 {
+  "format": "csm-producer-descriptor/1",
   "producer": "csm-deep-research",
   "schema": "csm-research/1",
   "schemaRevision": 1,

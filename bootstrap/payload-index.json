@@ -24,8 +24,8 @@
     "skills": [
       {
         "path": "payload/skills/csm-autoresearch/SKILL.md",
-        "sha256": "584e392cd4ee93e379f75c736c4b720a2d61d2f6cfa48f4222c5ed208929de31",
-        "bytes": 9235,
+        "sha256": "137bbdc08e10a6db238330903a2a6c98430235b7e4560945c18de689e8d72dbc",
+        "bytes": 9310,
         "mode": "0644"
       },
       {
@@ -644,8 +644,8 @@
       },
       {
         "path": "payload/skills/csm-deep-research/research-producer.json",
-        "sha256": "2c74cea87f98735a533375b2949e15940842a5f5dfd8af53c70447787b36419d",
-        "bytes": 839,
+        "sha256": "8f0a9eac02497e7dba2668f3359fe0070b6bdb29ea56874a21e6a752e35f993b",
+        "bytes": 880,
         "mode": "0644"
       },
       {
@@ -782,7 +782,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "d9d98e93040451cbcdb273af269d3a48b1f23fc62b20df39e7001288c0b8d355",
+        "sha256": "cce091af8b2158fa3c20717760ef3e8d887468f414e209fad767d3ba9d53e9cc",
         "bytes": 26286,
         "mode": "0644"
       },
@@ -1124,8 +1124,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/verified-sandbox-runtime.mjs",
-        "sha256": "47219de5fe1c9ee370d08da2c4893a154905bbfee4a5ab27566519d0aa713ecd",
-        "bytes": 32229,
+        "sha256": "74f732af1707e64a094871e492dc2fccadb35257a866faada249a47e97aa6bc7",
+        "bytes": 33527,
         "mode": "0644"
       },
       {
@@ -1586,8 +1586,8 @@
       },
       {
         "path": "payload/skills/csm-review/producer.json",
-        "sha256": "ea92dc53ae5bb57db4d3d23766016bb632329a0df761887b84c500052bf73f71",
-        "bytes": 596,
+        "sha256": "070180d8a64c733e06a021e56527763a4fedb0486dc5d5a7bb1f09c8d6965a55",
+        "bytes": 644,
         "mode": "0644"
       },
       {

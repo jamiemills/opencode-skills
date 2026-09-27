@@ -34,7 +34,8 @@ resource limits, and status. Candidates never own their score or evaluator.
   deterministic evaluator policy, datasets, and a bounded trial budget.
 - Produces: bounded JSONL evaluator exchanges, append-only ledger at
   `.agents/autoresearch/<yyyy-mm-dd>-<run-id>-ledger.jsonl`, and an atomic report
-  at `.agents/autoresearch/<yyyy-mm-dd>-<run-id>-report.json`.
+  at `.agents/autoresearch/<yyyy-mm-dd>-<run-id>-report.json`, validated by
+  `csm-autoresearch-report/1` (`schemas/report.schema.json`).
 - Hands off: a rejected, quarantined, or approval-ready artifact set; protected
   promotion remains a separate human decision.
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-scan, csm-upload, csm-deep-research, csm-make-tests, csm-review-python, csm-ddd

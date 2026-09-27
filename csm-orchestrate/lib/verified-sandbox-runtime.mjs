@@ -544,8 +544,9 @@ export function createLiveVerifiedSandboxRuntime({
         }
         const drift = reattestationFailure(monitor?.snapshots?.().at(-1) ?? null);
         if (drift) throw drift;
+        let dropCapture = null;
         if (broker && typeof activeProvider.collectDrops === "function")
-          await collectDropsWithRetry(
+          dropCapture = await collectDropsWithRetry(
             activeProvider,
             {
               id: started.id,
@@ -559,6 +560,19 @@ export function createLiveVerifiedSandboxRuntime({
             },
             request.dropCapturePoll ?? base.dropCapturePoll ?? null,
           );
+        // T010: consume the provider's degraded-capture fact. A run that
+        // REQUIRES drop capture fails closed when capture degraded mid-run; a
+        // best-effort caller still sees the degradation surfaced in `result`.
+        const requireDropCapture =
+          request.requireDropCapture ??
+          base.requireDropCapture ??
+          base.egress?.requireDropCapture ??
+          base.policy?.dropCapture?.required ??
+          false;
+        if (dropCapture?.degraded === true && requireDropCapture === true)
+          throw Object.assign(new Error("drop capture degraded while required"), {
+            code: "drop-capture-degraded",
+          });
         // T002: the live terminal trust gate. After every egress decision/drop
         // is recorded and before the runtime returns, re-authorize the egress
         // chain's final sink and the worker attestation under the accepted
@@ -578,9 +592,21 @@ export function createLiveVerifiedSandboxRuntime({
               ...result.egress,
               records: ledger.records(),
               verify: typeof ledger.verify === "function" ? ledger.verify() : null,
+              dropCapture: dropCapture
+                ? { degraded: dropCapture.degraded === true, reason: dropCapture.reason ?? null }
+                : null,
             },
           };
         if (result && typeof result === "object") result = { ...result, trust };
+        // T010: surface the capture outcome on every result (top level), so a
+        // best-effort degraded run is observable even without an egress ledger.
+        if (result && typeof result === "object")
+          result = {
+            ...result,
+            dropCapture: dropCapture
+              ? { degraded: dropCapture.degraded === true, reason: dropCapture.reason ?? null }
+              : null,
+          };
         return result;
       } finally {
         if (monitor) monitor.stop();
