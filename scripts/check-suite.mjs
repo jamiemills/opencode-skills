@@ -823,6 +823,80 @@ function checkCapabilityManifestFreshness(rootDir) {
   return issues;
 }
 
+// Metadata-mapped package files (bootstrap/package/lib/**, /schemas/**, LICENSE)
+// are copied byte-for-byte by pack-bootstrap, so compare them directly. Without
+// this, a change to a metadata-mapped source (e.g. lib/render-html) is not
+// caught by check-suite/CI — only scripts/regen.mjs verifyPayloadParity.
+function checkMetadataDrift(rootDir) {
+  const issues = [];
+  const outputRoot = path.join(rootDir, "bootstrap", "package");
+  const compare = (srcPath, destPath, label) => {
+    let src;
+    try {
+      src = fs.readFileSync(srcPath);
+    } catch {
+      issues.push(`MISSING-SOURCE ${label}`);
+      return;
+    }
+    let dest;
+    try {
+      dest = fs.readFileSync(destPath);
+    } catch {
+      issues.push(`MISSING-IN-PAYLOAD ${label} (rerun scripts/pack-bootstrap.mjs)`);
+      return;
+    }
+    if (
+      createHash("sha256").update(transformBootstrapPayload(src, label)).digest("hex") !==
+      createHash("sha256").update(dest).digest("hex")
+    )
+      issues.push(`DIFF ${label}`);
+  };
+  for (const item of mapping.metadata) {
+    if (item.srcDir) {
+      const srcDir = toPosix(item.srcDir);
+      const destDir = toPosix(item.destDir);
+      const absSrc = path.join(rootDir, srcDir.split("/").join(path.sep));
+      let files;
+      try {
+        files = walkRelFiles(absSrc);
+      } catch {
+        continue; // a metadata source dir absent in this root is not drift
+      }
+      for (const rel of files)
+        compare(
+          path.join(absSrc, rel.split("/").join(path.sep)),
+          path.join(outputRoot, destDir.split("/").join(path.sep), rel.split("/").join(path.sep)),
+          `${destDir}/${rel}`,
+        );
+    } else {
+      compare(path.join(rootDir, item.src), path.join(outputRoot, item.dest), toPosix(item.dest));
+    }
+  }
+  // Reverse: a committed metadata payload file whose source no longer exists is
+  // drift (a deleted/renamed source leaving a stale payload copy behind).
+  for (const item of mapping.metadata) {
+    if (!item.srcDir) continue;
+    const srcDir = toPosix(item.srcDir);
+    const destDir = toPosix(item.destDir);
+    const absDest = path.join(outputRoot, destDir.split("/").join(path.sep));
+    let payloadFiles;
+    try {
+      payloadFiles = walkRelFiles(absDest);
+    } catch {
+      continue;
+    }
+    for (const rel of payloadFiles) {
+      const srcPath = path.join(
+        rootDir,
+        srcDir.split("/").join(path.sep),
+        rel.split("/").join(path.sep),
+      );
+      if (!fs.existsSync(srcPath)) issues.push(`UNEXPECTED ${destDir}/${rel} (no metadata source)`);
+    }
+  }
+  return issues;
+}
+
 function checkPayloadDrift(rootDir) {
   const payloadRoot = path.join(rootDir, "bootstrap", "package", "payload", "skills");
   const srcMap = buildPayloadSrcMap(rootDir);
@@ -880,6 +954,7 @@ function checkPayloadDrift(rootDir) {
       }
     }
   }
+  issues.push(...checkMetadataDrift(rootDir));
   console.log(`payload drift: {compared:${compared}, issues:${JSON.stringify(issues)}}`);
   return issues;
 }
@@ -2102,6 +2177,7 @@ export {
   containsOutsideFences,
   README_PATH_RE,
   checkCommittedPayloadIndex,
+  checkMetadataDrift,
   loadSkillManifest,
   ALLOWLIST_ENTRY_FIELDS,
 };
