@@ -65,7 +65,7 @@ import { appendTrace, recordDecision } from "./lib/trace-log.mjs";
 import { acquireRunLease } from "./lib/run-lease.mjs";
 import { resolveTracePolicy, evaluateTraceGate } from "./lib/trace-enforcement.mjs";
 import { resolveVerificationPath, verifyTraces } from "./verify-traces.mjs";
-import { createConsultSeam } from "../csm-orchestrate/lib/decision-adapter/consult.mjs";
+import { createDecisionService } from "../csm-orchestrate/lib/decision-adapter/service.mjs";
 import { classifyRequest } from "../csm-orchestrate/lib/request-router.mjs";
 import {
   explicitModeSkills,
@@ -642,8 +642,8 @@ async function realModeBypass({ kind, artifact, artifactPath }) {
     // deterministic gate so it can never change the outcome. Advisory only.
     if (decisionAdapter) {
       try {
-        const seam = createConsultSeam({ adapter: decisionAdapter });
-        const advice = await seam.consultPoints(["trace-emission-verdict"], {
+        const decisionService = createDecisionService({ adapter: decisionAdapter });
+        const advice = await decisionService.consult(["trace-emission-verdict"], {
           runId,
           traceLogPath: traceFile,
           scheduled: 1,
@@ -1050,8 +1050,8 @@ async function realMode() {
     // can never change the outcome. Advisory only, off unless opted in.
     if (decisionAdapter) {
       try {
-        const seam = createConsultSeam({ adapter: decisionAdapter });
-        const advice = await seam.consultPoints(["trace-emission-verdict"], {
+        const decisionService = createDecisionService({ adapter: decisionAdapter });
+        const advice = await decisionService.consult(["trace-emission-verdict"], {
           runId,
           traceLogPath: traceFile,
           scheduled: traceHooks.emitted(),

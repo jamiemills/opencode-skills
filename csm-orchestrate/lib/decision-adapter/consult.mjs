@@ -12,6 +12,9 @@
 // `createConsultCli` exists for the env-gated one-off/direct path and reuses
 // the existing provider registry + key resolution.
 
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
 import { redactTraceValue } from "../recovery.mjs";
 import { createProviderRegistry } from "./providers/index.mjs";
 import { createDecisionTransport } from "./transport.mjs";
@@ -113,6 +116,21 @@ export function createConsultCli({
     return record;
   }
   return Object.freeze({ run });
+}
+
+// T002: direct-invocation entry so a prose-only skill step can consult the seam:
+//   CSM_DECISION_CLI=1 CSM_DECISION_STATE='<json>' node consult.mjs <point...>
+// Gated by the existing CSM_DECISION_CLI=1 env; never prints a key.
+if (
+  process.env[CONSULT_CLI_GATE_ENV] === "1" &&
+  typeof process.argv[1] === "string" &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+) {
+  void createConsultCli()
+    .run(process.argv.slice(2))
+    .catch(() => {
+      process.stdout.write(`${JSON.stringify({ ok: false, reason: "consult failed" })}\n`);
+    });
 }
 
 export default { CONSULT_CLI_GATE_ENV, createConsultSeam, createConsultCli, adviceSummary };

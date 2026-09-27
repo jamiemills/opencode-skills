@@ -884,8 +884,8 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/lib/decision-adapter/consult.mjs",
-        "sha256": "7b506569f1efd6536430a30251f01f3f967c75ef431393fcdb1ff1200ff46273",
-        "bytes": 4811,
+        "sha256": "81d4b984c9d2982ddf1bdd38861c225219671b9b26c5bbad7bc5f5dd414428ae",
+        "bytes": 5466,
         "mode": "0644"
       },
       {
@@ -928,6 +928,12 @@
         "path": "payload/skills/csm-orchestrate/lib/decision-adapter/question-protocol.mjs",
         "sha256": "7e49e642eb38282b403239521c004e317ebdd32d81abe0bc3cccf8d0e8d4a7f4",
         "bytes": 7115,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-orchestrate/lib/decision-adapter/service.mjs",
+        "sha256": "f7acfe5c1683781bc3e5b7a27e639d24eb78a78fd2f77a6d3fcaadc1cf6f9d8b",
+        "bytes": 1297,
         "mode": "0644"
       },
       {
