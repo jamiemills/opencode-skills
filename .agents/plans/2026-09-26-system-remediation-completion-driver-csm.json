@@ -1,1 +1,582 @@
-{"acceptanceCriteria":[{"evidence":"verify-completion.mjs over the base plan exits 0.","id":"AC1","statement":"Every base-plan task is complete or explicitly excluded, with a committed test and an independent reviewer receipt."},{"evidence":".agents/evidence/completion/final-verdict.json with independent:true and verdict:complete.","id":"AC2","statement":"A distinct-reviewer adversarial agent returns a 'complete' verdict for the whole change set."},{"evidence":"gh run view <sha> shows success; verify-completion.mjs --ci-green exits 0.","id":"AC3","statement":"main is pushed and the CI run for HEAD concludes success on every job."},{"evidence":"make check + make test + node scripts/regen.mjs exit 0.","id":"AC4","statement":"The full local gate is green."}],"applicability":null,"artifactId":"art-177896a424582971f2bbdcb1760d517d","assumptionsAndDecisions":[{"decision":"Model the run as a driver plan with one task per base-plan group plus explicit adversarial-verification and CI-green gates.","rationale":"Keeps each task atomically validatable and makes the termination conditions executable."},{"decision":"Require a distinct-reviewer completion verdict rather than trusting task status.","rationale":"Prior cycles showed self-attested completeness is unreliable; an independent gate is the whole point."},{"decision":"Bound the CI loop and re-run once on suspected flake before treating a failure as real.","rationale":"Avoids infinite loops and false repairs."},{"decision":"T024's live parity probe stays opt-in (no CI key) as a recorded deviation.","rationale":"Wiring it into the required gate would fail CI without a secret."}],"completionReview":null,"control":{"activeTasks":[],"blockers":[],"commits":"disabled","currentState":"NOT_STARTED","cycle":0,"lastCheckpoint":"none","lastModelRun":"","nextTransition":"On a future explicit csm-build invocation, NOT_STARTED -> RECOVER","resume":{"instruction":"re-read control, latest journal, recovery notes, requirements, and working-tree diff"},"status":"ready"},"critiqueResolution":[],"currentStateEvidence":{"observations":["Base plan: 36 tasks; T001-T004, T023, T024 complete with CI green; T005 partial (lease in, acceptance test missing, worktree guard reverted after review); T006-T022 and T025-T036 pending.","CI pattern: repository gates ~12-13 min, adapter integrations ~4 min; green on commits fa648ef, 8fb88e6, 2af137b.","Per-task adversarial review via subagents has repeatedly caught real defects (dead guards, lifetime connection cap, broken --resume, swallowed construction errors)."]},"design":{"approach":"T001 reconcile -> T002-T008 groups (each with the per-task loop) -> T009 independent completeness review + fix loop -> T010 commit -> T011 push + CI-green loop -> T012 close.","summary":"A driver plan that reconciles the base plan, completes each remaining group through csm-build build->adversarial-review->repair loops, then requires an independent completeness verdict and a green CI run for the pushed HEAD before closing."},"digest":"sha256:9eee522125a083cb987cfc4dd10b1c3d0415370c994b89a7d00a5829704129e7","discoveredRequirements":[{"requirement":"Per-task adversarial review must use a reviewer that did not implement the task.","source":"user instruction; prior review findings"},{"requirement":"CI green is a hard termination condition, evaluated per pushed SHA.","source":"user instruction"}],"executionGraph":{"criticalPath":"T001 -> T002..T008 -> T009 -> T010 -> T011 -> T012","parallelGroups":{"G1":["T001"],"G10":["T010"],"G11":["T011"],"G12":["T012"],"G2":["T002"],"G3":["T003"],"G4":["T004"],"G5":["T005"],"G6":["T006"],"G7":["T007"],"G8":["T008"],"G9":["T009"]}},"goal":{"constraints":["Plan only; this invocation authorizes no implementation.","Every task is built with an independent adversarial reviewer subagent (never the implementer); fixes go to a different subagent; loop until the reviewer PASSes.","Termination requires BOTH a distinct-reviewer 'complete' verdict AND a green CI run for the pushed HEAD; neither is self-attested.","Never weaken the never-Jev boundary or any acceptance/security/completion gate.","Commit owned paths only; never force-push or disable checks."],"deliverables":["A completion ledger reconciling the base plan.","All remaining base tasks completed with per-task adversarial receipts.","A final independent adversarial completeness verdict artifact.","Commits pushed to main with CI green for HEAD.","A final report of outcomes, artifacts, commits, and the CI run URL."],"exclusions":["Implementing any task during this planning invocation.","New scope beyond the base plan and its validated findings.","Pushing anything other than the completed, verified change set."],"goal":"Drive the 36-task system-remediation plan to FULL completion using csm-build cycles with per-task adversarial review, an independent final completeness verdict, and a bounded CI-green loop — and do not stop until an adversarial reviewer says the whole plan is complete and CI is green after a commit and push."},"inputs":[{"artifactId":"system-remediation-jev-embedding","digest":"sha256:b1decddf4b0adeba3feca6c9849c935258ef14892ee396832c5bd078a3170924","owner":"csm-plan","path":".agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json","schema":"csm-plan/1"}],"journal":[{"cycle":0,"evidence":"User asked for a driver plan to complete the base plan autonomously with subagents and adversarial gates.","nextState":"DISCOVER","sequence":0,"tasks":[],"timestamp":"2026-09-26T23:00:00Z","transition":"INTAKE -> DISCOVER"},{"cycle":0,"evidence":"Base plan read (36 tasks); current completion state reconciled from commits and CI history.","nextState":"RESEARCH","sequence":1,"tasks":[],"timestamp":"2026-09-26T23:05:00Z","transition":"DISCOVER -> RESEARCH"},{"cycle":0,"evidence":"12 driver tasks across groups, each with a runnable signal and the per-task adversarial loop.","nextState":"DRAFT","sequence":2,"tasks":[],"timestamp":"2026-09-26T23:12:00Z","transition":"RESEARCH -> DRAFT"},{"cycle":0,"evidence":"Each task has a signal, risk, anti-scope, owned scope, dependencies, and recovery; termination conditions are executable.","nextState":"VERIFY","sequence":3,"tasks":[],"timestamp":"2026-09-26T23:18:00Z","transition":"DRAFT -> VERIFY"},{"cycle":0,"evidence":"validatePlan returned valid=true; all tasks pending; no implementation performed.","nextState":"NOT_STARTED","sequence":4,"tasks":[],"timestamp":"2026-09-26T23:20:00Z","transition":"VERIFY -> NOT_STARTED"}],"planId":"system-remediation-completion-driver","projection":{"legacyMarkdownStatus":"history-only","profile":"csm-plan-human/1"},"provenance":{"producedAt":"2026-09-26T23:20:00Z","producer":"csm-plan","producerVersion":"csm-plan/1","sourceDigests":["sha256:b1decddf4b0adeba3feca6c9849c935258ef14892ee396832c5bd078a3170924"]},"rdRecord":[{"answer":"Yes: a typed csm-completion-verdict/1 artifact signed by a distinct reviewer, validated by a deterministic script that also re-runs every task signal.","question":"Can an independent final adversarial verdict be made deterministic enough to gate completion?","status":"resolved"}],"risksAndRecovery":{"recovery":"Resumable from the completion ledger + base plan + driver control; each group is independent and revertible.","risks":[{"mitigation":"Two-attempt repair budget per task, then fresh-eyes diagnosis or BLOCKED with evidence.","risk":"A task loops without converging."},{"mitigation":"Fetch the exact failed job log, isolate, re-run once on suspected flake, then bounded repair.","risk":"CI fails for environment reasons."},{"mitigation":"Deterministic verify-completion.mjs requires a distinct-reviewer verdict and re-runs every task signal.","risk":"A self-attested completion slips through."},{"mitigation":"The base plan and its validated findings are the only authorized scope.","risk":"Scope creep beyond the base plan."}]},"runId":"run-936d667b7e4ce232053aeac2ba2d0ce1","schema":"csm-plan/1","schemaRevision":1,"status":"ready","tasks":[{"acceptanceEvidence":"A ledger at .agents/docs/2026-09-26-completion-ledger.json marks every one of the 36 base tasks done/partial/todo with the exact evidence (test command + result, commit SHA), derived from committed state and re-run acceptance signals, never from chat history.","acceptanceSignal":"`node --test tests/completion-driver/reconcile.test.mjs` exits 0.","actions":["Add tests/completion-driver/reconcile.test.mjs and a small reconciler that reads the base plan, runs each task's acceptance signal, and writes the ledger.","Reconcile honestly: T001-T004,T023,T024 done; T005 partial (lease in, acceptance test missing, worktree guard reverted); T006-T022,T025-T036 pending.","Record the ledger path in the driver plan control."],"dependsOn":[],"notInScope":"changing base-plan task definitions","ordinal":1,"ownedScope":"tests/completion-driver/reconcile.test.mjs; .agents/docs/2026-09-26-completion-ledger.json","parallelGroup":"G1","recoveryNote":"Re-run the reconciler; discard a stale ledger.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm each base task's acceptance signal is runnable as written.","status":"pending","taskId":"T001","title":"Reconcile the base plan into a live completion ledger","validation":["node csm-plan/lib/loop-evaluator.mjs guard --record .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json"]},{"acceptanceEvidence":"The bypass run-lease and worktree fencing are acceptance-tested: two concurrent bypass runs on one artifact cannot both dispatch, and a re-run/resume is fenced; the reverted dirty-worktree guard is either reintroduced correctly or the plan records why it is not.","acceptanceSignal":"`node --test tests/orchestrate-bypass-lease.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Resolve T005 specifically: add tests/orchestrate-bypass-lease.test.mjs proving concurrent lease acquisition fails closed for the loser and that a stale/dirty derived worktree is bound to the current runId/attempt (not rejected in a way that breaks --resume)."],"dependsOn":["T001"],"notInScope":"changing the run-lease API","ordinal":2,"ownedScope":"tests/orchestrate-bypass-lease.test.mjs; scripts/run-orchestrator.mjs; scripts/lib/agent-session-executor.mjs","parallelGroup":"G2","recoveryNote":"Revert the acceptance test and the guard.","repairAttempts":0,"risk":"high","spikeCandidate":"Prove the concurrent-lease race with a real two-process harness or a deterministic in-process seam.","status":"pending","taskId":"T002","title":"Complete the security groups G1-G2 (T005 acceptance test + review debt)","validation":["node --test tests/orchestrate-agent-session-executor.test.mjs tests/orchestrate-driver-contract.test.mjs"]},{"acceptanceEvidence":"Payload metadata drift is caught by the gate/CI, and .agents builds/research/reviews/approaches/decisions JSON are validated; the 256-error builds record is repaired or retired with a recorded decision.","acceptanceSignal":"`node --test tests/check-suite-metadata-drift.test.mjs tests/corpus-gate-completeness.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T006 (include mapping.metadata in the payload-drift gate or run regen verifyFresh in hook+CI) and T007 (gate the full corpus; repair the invalid builds record)."],"dependsOn":["T001"],"notInScope":"changing the pack mapping allowlist beyond metadata coverage","ordinal":3,"ownedScope":"scripts/check-suite.mjs; scripts/regen.mjs; scripts/validate-corpus-v2.mjs; .lefthook.yml; .github/workflows/ci.yml; .agents/builds/*.json","parallelGroup":"G3","recoveryNote":"Revert the gate changes; restore the record from git.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm regen verifyFresh already catches metadata drift (use it as the oracle).","status":"pending","taskId":"T003","title":"Complete the gates/corpus group G3 (T006,T007)","validation":["node scripts/check-suite.mjs","node scripts/validate-corpus-v2.mjs"]},{"acceptanceEvidence":"The 6 production schemas are registered; the compatibility matrix covers the missing pairs; a coverage test enumerates registry vs matrix.","acceptanceSignal":"`node --test tests/schema-registry-coverage.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T008 (register schemas + compat pairs + coverage test)."],"dependsOn":["T001"],"notInScope":"changing frozen /1 schemas","ordinal":4,"ownedScope":"schemas/registry.json; schemas/compatibility-matrix.json; tests/schema-registry-coverage.test.mjs","parallelGroup":"G4","recoveryNote":"Revert registry/matrix edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Enumerate all multi-revision bases without a matrix entry.","status":"pending","taskId":"T004","title":"Complete the registry group G4 (T008)","validation":["node scripts/check-suite.mjs","node --test tests/compatibility.test.mjs"]},{"acceptanceEvidence":"Every documented SKILL/contract artifact matches the shipped code: csm-scan norms path, csm-review corroboration bump + E1 redacted, csm-review-python severity, csm-upload receipt, csm-bdd-tdd package, csm-deep-research states/marker, csm-plan review /2.","acceptanceSignal":"`node --test tests/scan-norms-path-contract.test.mjs tests/csm-review-finding-contract.test.mjs tests/python-review-severity-contract.test.mjs tests/upload-publication-receipt.test.mjs tests/bdd-package-contract.test.mjs tests/deep-research-contract.test.mjs tests/plan-review-input.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T009-T015 as seven atomic contracts; each fix must make code, schema, and SKILL agree (or remove the unsupported claim)."],"dependsOn":["T001"],"notInScope":"changing frozen /1 schemas","ordinal":5,"ownedScope":"csm-scan/SKILL.md; csm-review/lib/findings-validator.mjs; csm-review/SKILL.md; csm-review-python/schemas/*.json; csm-upload/scripts/upload.mjs; csm-bdd-tdd/SKILL.md; csm-deep-research/SKILL.md; csm-plan/lib/input-resolver.mjs; tests/*contract*.test.mjs","parallelGroup":"G5","recoveryNote":"Revert each contract's edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide per contract: fix code or fix doc (never both divergently).","status":"pending","taskId":"T005","title":"Complete the contract groups G5-G6 (T009-T015)","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"csm-review's binding receipt is wired or its claim removed; make precommit mirrors the CI fast gate and CI runs regen; documented counts/scripts/ids match code.","acceptanceSignal":"`node --test tests/csm-review-loop-closure-wiring.test.mjs tests/precommit-parity.test.mjs tests/docs-consistency.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T016-T018."],"dependsOn":["T003"],"notInScope":"adding heavyweight suites to precommit","ordinal":6,"ownedScope":"csm-review/lib/loop-closure.mjs; Makefile; .github/workflows/ci.yml; docs/enforcement-model.md; docs/config-inventory.md; docs/typed-decisions.md; tests/*.test.mjs","parallelGroup":"G6","recoveryNote":"Revert Makefile/CI/doc edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Measure precommit runtime to keep it a fast subset.","status":"pending","taskId":"T006","title":"Complete the enforcement/docs group G7 (T016-T018)","validation":["node scripts/check-suite.mjs","node scripts/regen.mjs"]},{"acceptanceEvidence":"csm-ddd relative --repo/--help/isolation, csm-grill writer mkdir, csm-autoresearch live-mode branch, and the bootstrap trust root are fixed and tested.","acceptanceSignal":"`node --test csm-ddd/test/cli.test.mjs csm-grill/test/approach-writer.test.mjs csm-autoresearch/test/llm-mode.test.mjs tests/bootstrap-trust-root.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T019-T022."],"dependsOn":["T001"],"notInScope":"shipping a live transport or changing csm-scan","ordinal":7,"ownedScope":"csm-ddd/scripts/ddd.mjs; csm-ddd/lib/ddd/*.mjs; csm-grill/lib/approach.mjs; csm-autoresearch/lib/llm/index.mjs; bootstrap/package/bin/csm-skills-bootstrap.js; tests/*.test.mjs","parallelGroup":"G7","recoveryNote":"Revert each skill's edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide vendoring vs documenting the csm-ddd -> csm-scan dependency.","status":"pending","taskId":"T007","title":"Complete the skill-code group G8 (T019-T022)","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"A shared run-scoped decision service exists; new safe points validate in lockstep with decision-points.json (including the question spec, closing T023's deferred finding); coverage profiles/budget/telemetry; a calibration program; trust-ladder schemas with L5 refused and the never-Jev boundary intact.","acceptanceSignal":"`node --test tests/orchestrate-decision-service.test.mjs tests/orchestrate-decision-points-expanded.test.mjs tests/orchestrate-decision-budget.test.mjs tests/offline/decision-calibration-program.test.mjs tests/foundation/decision-trust-schemas.test.mjs` exits 0.","actions":["Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T025-T029, and in T026 close T023's deferred findings: add question.criteria to the defaulted points so instruction and options agree, and serialize the question spec into decision-points.json with a lockstep test. Jev stays advisory/off-by-default; no gate consumes it."],"dependsOn":["T001"],"notInScope":"weakening the never-Jev boundary; making a safety point apply","ordinal":8,"ownedScope":"csm-orchestrate/lib/decision-adapter/**; csm-orchestrate/schemas/*.json; schemas/registry.json; docs/typed-decisions.md; docs/enforcement-model.md; tests/orchestrate-decision-*.test.mjs; tests/foundation/decision-*.test.mjs","parallelGroup":"G8","recoveryNote":"Revert the schema/service edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm the live provider contract and the boundary guard before wiring the service.","status":"pending","taskId":"T008","title":"Complete the Jev program G9-G11 (T025-T029)","validation":["node scripts/check-suite.mjs","node --test tests/orchestrate-decision-adapter.test.mjs"]},{"acceptanceEvidence":"An INDEPENDENT adversarial agent (fresh, never an implementer or per-task reviewer) audits the whole delivered change set against the base plan's acceptance criteria and the validated findings, returns a typed completion verdict with per-task evidence, and the deterministic verify-completion script asserts: every base task complete/superseded with a committed test + reviewer receipt, the full gate green, and a distinct-reviewer 'complete' verdict journaled. If the verdict is not 'complete', generate repair tasks and loop T002-T008 until it is.","acceptanceSignal":"`node scripts/verify-completion.mjs --plan .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json --verdict .agents/evidence/completion/final-verdict.json` exits 0.","actions":["Add scripts/verify-completion.mjs and a completion-verdict schema (schema csm-completion-verdict/1: {schema, planDigest, reviewer, independent:true, verdict: complete|incomplete, perTask:[{taskId,status,evidence}], findings:[]}).","Dispatch 2+ independent adversarial agents (different from every implementer/per-task reviewer) to red-team the total work: missing tasks, weak tests, doc/code drift, security regressions, boundary violations.","Convert any incomplete verdict into repair tasks and re-enter T002-T008; never accept a self-attested verdict."],"dependsOn":["T002","T003","T004","T005","T006","T007","T008"],"notInScope":"letting a non-independent reviewer sign the verdict","ordinal":9,"ownedScope":"scripts/verify-completion.mjs; schemas/csm-completion-verdict.schema.json; .agents/evidence/completion/final-verdict.json","parallelGroup":"G9","recoveryNote":"Discard the verdict artifact and re-review.","repairAttempts":0,"risk":"high","spikeCandidate":"Define the independence rule and the exact per-task evidence required for a 'complete' verdict.","status":"pending","taskId":"T009","title":"Final adversarial completeness review + fix loop","validation":["node scripts/check-suite.mjs","node --test tests/decision-live-parity"]},{"acceptanceEvidence":"All owned paths are committed with `git commit --only -- <paths>` (no bare commit), the working tree is clean of owned changes, and the base plan + driver plan + ledger are updated to reflect completion.","acceptanceSignal":"`node scripts/verify-completion.mjs --git-clean` exits 0.","actions":["Stage exactly the owned paths from every completed task plus the updated base/driver plans and the completion ledger.","Commit with an accurate message; verify the owned pathset before and after.","No push in this task."],"dependsOn":["T009"],"notInScope":"committing unrelated or foreign paths","ordinal":10,"ownedScope":"all owned paths from T002-T009; .agents/plans/*; .agents/docs/2026-09-26-completion-ledger.json","parallelGroup":"G10","recoveryNote":"Unstage and re-stage owned paths only.","repairAttempts":0,"risk":"high","spikeCandidate":"None; deterministic path staging.","status":"pending","taskId":"T010","title":"Commit the completed change set (owned paths only)","validation":["node scripts/check-suite.mjs","git status --porcelain"]},{"acceptanceEvidence":"main is pushed and the CI run for HEAD concludes success on every job (frozen-install, dependency-audit, node24-canary, repository-gates, adapter-integrations, required-checks). On any failing job, diagnose, fix, commit, push again, and loop until the run for HEAD is green.","acceptanceSignal":"`node scripts/verify-completion.mjs --ci-green --sha HEAD` exits 0.","actions":["Push main.","Poll `gh run view` for the pushed SHA; on failure, fetch the failed job log, create a bounded repair task, fix, commit, push, and re-poll.","Only terminate when the HEAD run's conclusion is success; record the run URL + SHA."],"dependsOn":["T010"],"notInScope":"force-push, disabling checks, or editing CI to skip a real failure","ordinal":11,"ownedScope":"node_modules; package.json; repository source (repair only, bounded)","parallelGroup":"G11","recoveryNote":"If CI is red on a flaky/unrelated suite, isolate and re-run once before treating it as a failure.","repairAttempts":0,"risk":"high","spikeCandidate":"Identify the CI job(s) most likely to fail from local-vs-CI Node/runtime differences.","status":"pending","taskId":"T011","title":"Push and drive CI to green","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Every driver task is complete with evidence, the base plan is fully complete, CI is green, and the final report names the outcomes, artifacts, commits, and run URL.","acceptanceSignal":"`node csm-plan/lib/loop-evaluator.mjs guard --record .agents/plans/2026-09-26-system-remediation-completion-driver-csm.json` exits 0.","actions":["Mark the base plan status complete and the driver plan complete.","Write the final report; no follow-on work is queued."],"dependsOn":["T011"],"notInScope":"starting new scope","ordinal":12,"ownedScope":".agents/plans/*; .agents/README.md","parallelGroup":"G12","recoveryNote":"Reopen only via a new explicit user request.","repairAttempts":0,"risk":"high","spikeCandidate":"None.","status":"pending","taskId":"T012","title":"Close the driver plan and report","validation":["node scripts/verify-completion.mjs --plan .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json --verdict .agents/evidence/completion/final-verdict.json"]}],"verificationStrategy":{"independence":"No reviewer may have implemented or previously reviewed the same work; the final verdict is signed by an agent distinct from all implementers and per-task reviewers.","tiers":["Per task: the task's single positive acceptance signal, then an independent adversarial reviewer re-runs it and attempts falsification.","Per group: the full gate subset for the touched area.","Whole plan: the independent completeness verdict + make check + make test + regen; then CI green for the pushed SHA."]}}
+{
+  "acceptanceCriteria": [
+    {
+      "evidence": "verify-completion.mjs over the base plan exits 0.",
+      "id": "AC1",
+      "statement": "Every base-plan task is complete or explicitly excluded, with a committed test and an independent reviewer receipt."
+    },
+    {
+      "evidence": ".agents/evidence/completion/final-verdict.json with independent:true and verdict:complete.",
+      "id": "AC2",
+      "statement": "A distinct-reviewer adversarial agent returns a 'complete' verdict for the whole change set."
+    },
+    {
+      "evidence": "gh run view <sha> shows success; verify-completion.mjs --ci-green exits 0.",
+      "id": "AC3",
+      "statement": "main is pushed and the CI run for HEAD concludes success on every job."
+    },
+    {
+      "evidence": "make check + make test + node scripts/regen.mjs exit 0.",
+      "id": "AC4",
+      "statement": "The full local gate is green."
+    }
+  ],
+  "applicability": null,
+  "artifactId": "art-177896a424582971f2bbdcb1760d517d",
+  "assumptionsAndDecisions": [
+    {
+      "decision": "Model the run as a driver plan with one task per base-plan group plus explicit adversarial-verification and CI-green gates.",
+      "rationale": "Keeps each task atomically validatable and makes the termination conditions executable."
+    },
+    {
+      "decision": "Require a distinct-reviewer completion verdict rather than trusting task status.",
+      "rationale": "Prior cycles showed self-attested completeness is unreliable; an independent gate is the whole point."
+    },
+    {
+      "decision": "Bound the CI loop and re-run once on suspected flake before treating a failure as real.",
+      "rationale": "Avoids infinite loops and false repairs."
+    },
+    {
+      "decision": "T024's live parity probe stays opt-in (no CI key) as a recorded deviation.",
+      "rationale": "Wiring it into the required gate would fail CI without a secret."
+    }
+  ],
+  "completionReview": null,
+  "control": {
+    "activeTasks": [],
+    "blockers": [],
+    "commits": "disabled",
+    "currentState": "STOP",
+    "cycle": 0,
+    "lastCheckpoint": "none",
+    "lastModelRun": "",
+    "nextTransition": "none; closed as superseded",
+    "resume": {
+      "instruction": "re-read control, latest journal, recovery notes, requirements, and working-tree diff"
+    },
+    "status": "superseded"
+  },
+  "critiqueResolution": [],
+  "currentStateEvidence": {
+    "observations": [
+      "Base plan: 36 tasks; T001-T004, T023, T024 complete with CI green; T005 partial (lease in, acceptance test missing, worktree guard reverted after review); T006-T022 and T025-T036 pending.",
+      "CI pattern: repository gates ~12-13 min, adapter integrations ~4 min; green on commits fa648ef, 8fb88e6, 2af137b.",
+      "Per-task adversarial review via subagents has repeatedly caught real defects (dead guards, lifetime connection cap, broken --resume, swallowed construction errors)."
+    ]
+  },
+  "design": {
+    "approach": "T001 reconcile -> T002-T008 groups (each with the per-task loop) -> T009 independent completeness review + fix loop -> T010 commit -> T011 push + CI-green loop -> T012 close.",
+    "summary": "A driver plan that reconciles the base plan, completes each remaining group through csm-build build->adversarial-review->repair loops, then requires an independent completeness verdict and a green CI run for the pushed HEAD before closing."
+  },
+  "digest": "sha256:9eee522125a083cb987cfc4dd10b1c3d0415370c994b89a7d00a5829704129e7",
+  "discoveredRequirements": [
+    {
+      "requirement": "Per-task adversarial review must use a reviewer that did not implement the task.",
+      "source": "user instruction; prior review findings"
+    },
+    {
+      "requirement": "CI green is a hard termination condition, evaluated per pushed SHA.",
+      "source": "user instruction"
+    }
+  ],
+  "executionGraph": {
+    "criticalPath": "T001 -> T002..T008 -> T009 -> T010 -> T011 -> T012",
+    "parallelGroups": {
+      "G1": [
+        "T001"
+      ],
+      "G10": [
+        "T010"
+      ],
+      "G11": [
+        "T011"
+      ],
+      "G12": [
+        "T012"
+      ],
+      "G2": [
+        "T002"
+      ],
+      "G3": [
+        "T003"
+      ],
+      "G4": [
+        "T004"
+      ],
+      "G5": [
+        "T005"
+      ],
+      "G6": [
+        "T006"
+      ],
+      "G7": [
+        "T007"
+      ],
+      "G8": [
+        "T008"
+      ],
+      "G9": [
+        "T009"
+      ]
+    }
+  },
+  "goal": {
+    "constraints": [
+      "Plan only; this invocation authorizes no implementation.",
+      "Every task is built with an independent adversarial reviewer subagent (never the implementer); fixes go to a different subagent; loop until the reviewer PASSes.",
+      "Termination requires BOTH a distinct-reviewer 'complete' verdict AND a green CI run for the pushed HEAD; neither is self-attested.",
+      "Never weaken the never-Jev boundary or any acceptance/security/completion gate.",
+      "Commit owned paths only; never force-push or disable checks."
+    ],
+    "deliverables": [
+      "A completion ledger reconciling the base plan.",
+      "All remaining base tasks completed with per-task adversarial receipts.",
+      "A final independent adversarial completeness verdict artifact.",
+      "Commits pushed to main with CI green for HEAD.",
+      "A final report of outcomes, artifacts, commits, and the CI run URL."
+    ],
+    "exclusions": [
+      "Implementing any task during this planning invocation.",
+      "New scope beyond the base plan and its validated findings.",
+      "Pushing anything other than the completed, verified change set."
+    ],
+    "goal": "Drive the 36-task system-remediation plan to FULL completion using csm-build cycles with per-task adversarial review, an independent final completeness verdict, and a bounded CI-green loop — and do not stop until an adversarial reviewer says the whole plan is complete and CI is green after a commit and push."
+  },
+  "inputs": [
+    {
+      "artifactId": "system-remediation-jev-embedding",
+      "digest": "sha256:b1decddf4b0adeba3feca6c9849c935258ef14892ee396832c5bd078a3170924",
+      "owner": "csm-plan",
+      "path": ".agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json",
+      "schema": "csm-plan/1"
+    }
+  ],
+  "journal": [
+    {
+      "cycle": 0,
+      "evidence": "User asked for a driver plan to complete the base plan autonomously with subagents and adversarial gates.",
+      "nextState": "DISCOVER",
+      "sequence": 0,
+      "tasks": [],
+      "timestamp": "2026-09-26T23:00:00Z",
+      "transition": "INTAKE -> DISCOVER"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Base plan read (36 tasks); current completion state reconciled from commits and CI history.",
+      "nextState": "RESEARCH",
+      "sequence": 1,
+      "tasks": [],
+      "timestamp": "2026-09-26T23:05:00Z",
+      "transition": "DISCOVER -> RESEARCH"
+    },
+    {
+      "cycle": 0,
+      "evidence": "12 driver tasks across groups, each with a runnable signal and the per-task adversarial loop.",
+      "nextState": "DRAFT",
+      "sequence": 2,
+      "tasks": [],
+      "timestamp": "2026-09-26T23:12:00Z",
+      "transition": "RESEARCH -> DRAFT"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Each task has a signal, risk, anti-scope, owned scope, dependencies, and recovery; termination conditions are executable.",
+      "nextState": "VERIFY",
+      "sequence": 3,
+      "tasks": [],
+      "timestamp": "2026-09-26T23:18:00Z",
+      "transition": "DRAFT -> VERIFY"
+    },
+    {
+      "cycle": 0,
+      "evidence": "validatePlan returned valid=true; all tasks pending; no implementation performed.",
+      "nextState": "NOT_STARTED",
+      "sequence": 4,
+      "tasks": [],
+      "timestamp": "2026-09-26T23:20:00Z",
+      "transition": "VERIFY -> NOT_STARTED"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Superseded by the remaining-work continuous-run plan (all its tasks completed there); closed for history.",
+      "nextState": "closed",
+      "sequence": 5,
+      "tasks": [],
+      "timestamp": "2026-09-27T23:40:00Z",
+      "transition": "none; closed as superseded"
+    }
+  ],
+  "planId": "system-remediation-completion-driver",
+  "projection": {
+    "legacyMarkdownStatus": "history-only",
+    "profile": "csm-plan-human/1"
+  },
+  "provenance": {
+    "producedAt": "2026-09-26T23:20:00Z",
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "sourceDigests": [
+      "sha256:b1decddf4b0adeba3feca6c9849c935258ef14892ee396832c5bd078a3170924"
+    ]
+  },
+  "rdRecord": [
+    {
+      "answer": "Yes: a typed csm-completion-verdict/1 artifact signed by a distinct reviewer, validated by a deterministic script that also re-runs every task signal.",
+      "question": "Can an independent final adversarial verdict be made deterministic enough to gate completion?",
+      "status": "resolved"
+    }
+  ],
+  "risksAndRecovery": {
+    "recovery": "Resumable from the completion ledger + base plan + driver control; each group is independent and revertible.",
+    "risks": [
+      {
+        "mitigation": "Two-attempt repair budget per task, then fresh-eyes diagnosis or BLOCKED with evidence.",
+        "risk": "A task loops without converging."
+      },
+      {
+        "mitigation": "Fetch the exact failed job log, isolate, re-run once on suspected flake, then bounded repair.",
+        "risk": "CI fails for environment reasons."
+      },
+      {
+        "mitigation": "Deterministic verify-completion.mjs requires a distinct-reviewer verdict and re-runs every task signal.",
+        "risk": "A self-attested completion slips through."
+      },
+      {
+        "mitigation": "The base plan and its validated findings are the only authorized scope.",
+        "risk": "Scope creep beyond the base plan."
+      }
+    ]
+  },
+  "runId": "run-936d667b7e4ce232053aeac2ba2d0ce1",
+  "schema": "csm-plan/2",
+  "schemaRevision": 2,
+  "status": "superseded",
+  "tasks": [
+    {
+      "acceptanceEvidence": "A ledger at .agents/docs/2026-09-26-completion-ledger.json marks every one of the 36 base tasks done/partial/todo with the exact evidence (test command + result, commit SHA), derived from committed state and re-run acceptance signals, never from chat history.",
+      "acceptanceSignal": "`node --test tests/completion-driver/reconcile.test.mjs` exits 0.",
+      "actions": [
+        "Add tests/completion-driver/reconcile.test.mjs and a small reconciler that reads the base plan, runs each task's acceptance signal, and writes the ledger.",
+        "Reconcile honestly: T001-T004,T023,T024 done; T005 partial (lease in, acceptance test missing, worktree guard reverted); T006-T022,T025-T036 pending.",
+        "Record the ledger path in the driver plan control."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing base-plan task definitions",
+      "ordinal": 1,
+      "ownedScope": "tests/completion-driver/reconcile.test.mjs; .agents/docs/2026-09-26-completion-ledger.json",
+      "parallelGroup": "G1",
+      "recoveryNote": "Re-run the reconciler; discard a stale ledger.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm each base task's acceptance signal is runnable as written.",
+      "status": "pending",
+      "taskId": "T001",
+      "title": "Reconcile the base plan into a live completion ledger",
+      "validation": [
+        "node csm-plan/lib/loop-evaluator.mjs guard --record .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The bypass run-lease and worktree fencing are acceptance-tested: two concurrent bypass runs on one artifact cannot both dispatch, and a re-run/resume is fenced; the reverted dirty-worktree guard is either reintroduced correctly or the plan records why it is not.",
+      "acceptanceSignal": "`node --test tests/orchestrate-bypass-lease.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Resolve T005 specifically: add tests/orchestrate-bypass-lease.test.mjs proving concurrent lease acquisition fails closed for the loser and that a stale/dirty derived worktree is bound to the current runId/attempt (not rejected in a way that breaks --resume)."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "changing the run-lease API",
+      "ordinal": 2,
+      "ownedScope": "tests/orchestrate-bypass-lease.test.mjs; scripts/run-orchestrator.mjs; scripts/lib/agent-session-executor.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "Revert the acceptance test and the guard.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Prove the concurrent-lease race with a real two-process harness or a deterministic in-process seam.",
+      "status": "pending",
+      "taskId": "T002",
+      "title": "Complete the security groups G1-G2 (T005 acceptance test + review debt)",
+      "validation": [
+        "node --test tests/orchestrate-agent-session-executor.test.mjs tests/orchestrate-driver-contract.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Payload metadata drift is caught by the gate/CI, and .agents builds/research/reviews/approaches/decisions JSON are validated; the 256-error builds record is repaired or retired with a recorded decision.",
+      "acceptanceSignal": "`node --test tests/check-suite-metadata-drift.test.mjs tests/corpus-gate-completeness.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T006 (include mapping.metadata in the payload-drift gate or run regen verifyFresh in hook+CI) and T007 (gate the full corpus; repair the invalid builds record)."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "changing the pack mapping allowlist beyond metadata coverage",
+      "ordinal": 3,
+      "ownedScope": "scripts/check-suite.mjs; scripts/regen.mjs; scripts/validate-corpus-v2.mjs; .lefthook.yml; .github/workflows/ci.yml; .agents/builds/*.json",
+      "parallelGroup": "G3",
+      "recoveryNote": "Revert the gate changes; restore the record from git.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm regen verifyFresh already catches metadata drift (use it as the oracle).",
+      "status": "pending",
+      "taskId": "T003",
+      "title": "Complete the gates/corpus group G3 (T006,T007)",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node scripts/validate-corpus-v2.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The 6 production schemas are registered; the compatibility matrix covers the missing pairs; a coverage test enumerates registry vs matrix.",
+      "acceptanceSignal": "`node --test tests/schema-registry-coverage.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T008 (register schemas + compat pairs + coverage test)."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "changing frozen /1 schemas",
+      "ordinal": 4,
+      "ownedScope": "schemas/registry.json; schemas/compatibility-matrix.json; tests/schema-registry-coverage.test.mjs",
+      "parallelGroup": "G4",
+      "recoveryNote": "Revert registry/matrix edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Enumerate all multi-revision bases without a matrix entry.",
+      "status": "pending",
+      "taskId": "T004",
+      "title": "Complete the registry group G4 (T008)",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node --test tests/compatibility.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Every documented SKILL/contract artifact matches the shipped code: csm-scan norms path, csm-review corroboration bump + E1 redacted, csm-review-python severity, csm-upload receipt, csm-bdd-tdd package, csm-deep-research states/marker, csm-plan review /2.",
+      "acceptanceSignal": "`node --test tests/scan-norms-path-contract.test.mjs tests/csm-review-finding-contract.test.mjs tests/python-review-severity-contract.test.mjs tests/upload-publication-receipt.test.mjs tests/bdd-package-contract.test.mjs tests/deep-research-contract.test.mjs tests/plan-review-input.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T009-T015 as seven atomic contracts; each fix must make code, schema, and SKILL agree (or remove the unsupported claim)."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "changing frozen /1 schemas",
+      "ordinal": 5,
+      "ownedScope": "csm-scan/SKILL.md; csm-review/lib/findings-validator.mjs; csm-review/SKILL.md; csm-review-python/schemas/*.json; csm-upload/scripts/upload.mjs; csm-bdd-tdd/SKILL.md; csm-deep-research/SKILL.md; csm-plan/lib/input-resolver.mjs; tests/*contract*.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "Revert each contract's edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide per contract: fix code or fix doc (never both divergently).",
+      "status": "pending",
+      "taskId": "T005",
+      "title": "Complete the contract groups G5-G6 (T009-T015)",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "csm-review's binding receipt is wired or its claim removed; make precommit mirrors the CI fast gate and CI runs regen; documented counts/scripts/ids match code.",
+      "acceptanceSignal": "`node --test tests/csm-review-loop-closure-wiring.test.mjs tests/precommit-parity.test.mjs tests/docs-consistency.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T016-T018."
+      ],
+      "dependsOn": [
+        "T003"
+      ],
+      "notInScope": "adding heavyweight suites to precommit",
+      "ordinal": 6,
+      "ownedScope": "csm-review/lib/loop-closure.mjs; Makefile; .github/workflows/ci.yml; docs/enforcement-model.md; docs/config-inventory.md; docs/typed-decisions.md; tests/*.test.mjs",
+      "parallelGroup": "G6",
+      "recoveryNote": "Revert Makefile/CI/doc edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Measure precommit runtime to keep it a fast subset.",
+      "status": "pending",
+      "taskId": "T006",
+      "title": "Complete the enforcement/docs group G7 (T016-T018)",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node scripts/regen.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "csm-ddd relative --repo/--help/isolation, csm-grill writer mkdir, csm-autoresearch live-mode branch, and the bootstrap trust root are fixed and tested.",
+      "acceptanceSignal": "`node --test csm-ddd/test/cli.test.mjs csm-grill/test/approach-writer.test.mjs csm-autoresearch/test/llm-mode.test.mjs tests/bootstrap-trust-root.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T019-T022."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "shipping a live transport or changing csm-scan",
+      "ordinal": 7,
+      "ownedScope": "csm-ddd/scripts/ddd.mjs; csm-ddd/lib/ddd/*.mjs; csm-grill/lib/approach.mjs; csm-autoresearch/lib/llm/index.mjs; bootstrap/package/bin/csm-skills-bootstrap.js; tests/*.test.mjs",
+      "parallelGroup": "G7",
+      "recoveryNote": "Revert each skill's edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide vendoring vs documenting the csm-ddd -> csm-scan dependency.",
+      "status": "pending",
+      "taskId": "T007",
+      "title": "Complete the skill-code group G8 (T019-T022)",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A shared run-scoped decision service exists; new safe points validate in lockstep with decision-points.json (including the question spec, closing T023's deferred finding); coverage profiles/budget/telemetry; a calibration program; trust-ladder schemas with L5 refused and the never-Jev boundary intact.",
+      "acceptanceSignal": "`node --test tests/orchestrate-decision-service.test.mjs tests/orchestrate-decision-points-expanded.test.mjs tests/orchestrate-decision-budget.test.mjs tests/offline/decision-calibration-program.test.mjs tests/foundation/decision-trust-schemas.test.mjs` exits 0.",
+      "actions": [
+        "Drive each base-plan task through the csm-build cycle: SELECT the ready task, dispatch an implementation subagent with the task's acceptance signal and owned scope, then dispatch an INDEPENDENT adversarial reviewer subagent (never the implementer) that re-runs the acceptance signal and tries to falsify the change, then REPAIR the findings with a different subagent and re-verify. Loop build->review->fix until the reviewer returns PASS and the acceptance signal is green. Record every cycle's evidence and the reviewer verdict in a per-task receipt. Complete T025-T029, and in T026 close T023's deferred findings: add question.criteria to the defaulted points so instruction and options agree, and serialize the question spec into decision-points.json with a lockstep test. Jev stays advisory/off-by-default; no gate consumes it."
+      ],
+      "dependsOn": [
+        "T001"
+      ],
+      "notInScope": "weakening the never-Jev boundary; making a safety point apply",
+      "ordinal": 8,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/**; csm-orchestrate/schemas/*.json; schemas/registry.json; docs/typed-decisions.md; docs/enforcement-model.md; tests/orchestrate-decision-*.test.mjs; tests/foundation/decision-*.test.mjs",
+      "parallelGroup": "G8",
+      "recoveryNote": "Revert the schema/service edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm the live provider contract and the boundary guard before wiring the service.",
+      "status": "pending",
+      "taskId": "T008",
+      "title": "Complete the Jev program G9-G11 (T025-T029)",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node --test tests/orchestrate-decision-adapter.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "An INDEPENDENT adversarial agent (fresh, never an implementer or per-task reviewer) audits the whole delivered change set against the base plan's acceptance criteria and the validated findings, returns a typed completion verdict with per-task evidence, and the deterministic verify-completion script asserts: every base task complete/superseded with a committed test + reviewer receipt, the full gate green, and a distinct-reviewer 'complete' verdict journaled. If the verdict is not 'complete', generate repair tasks and loop T002-T008 until it is.",
+      "acceptanceSignal": "`node scripts/verify-completion.mjs --plan .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json --verdict .agents/evidence/completion/final-verdict.json` exits 0.",
+      "actions": [
+        "Add scripts/verify-completion.mjs and a completion-verdict schema (schema csm-completion-verdict/1: {schema, planDigest, reviewer, independent:true, verdict: complete|incomplete, perTask:[{taskId,status,evidence}], findings:[]}).",
+        "Dispatch 2+ independent adversarial agents (different from every implementer/per-task reviewer) to red-team the total work: missing tasks, weak tests, doc/code drift, security regressions, boundary violations.",
+        "Convert any incomplete verdict into repair tasks and re-enter T002-T008; never accept a self-attested verdict."
+      ],
+      "dependsOn": [
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008"
+      ],
+      "notInScope": "letting a non-independent reviewer sign the verdict",
+      "ordinal": 9,
+      "ownedScope": "scripts/verify-completion.mjs; schemas/csm-completion-verdict.schema.json; .agents/evidence/completion/final-verdict.json",
+      "parallelGroup": "G9",
+      "recoveryNote": "Discard the verdict artifact and re-review.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Define the independence rule and the exact per-task evidence required for a 'complete' verdict.",
+      "status": "pending",
+      "taskId": "T009",
+      "title": "Final adversarial completeness review + fix loop",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node --test tests/decision-live-parity"
+      ]
+    },
+    {
+      "acceptanceEvidence": "All owned paths are committed with `git commit --only -- <paths>` (no bare commit), the working tree is clean of owned changes, and the base plan + driver plan + ledger are updated to reflect completion.",
+      "acceptanceSignal": "`node scripts/verify-completion.mjs --git-clean` exits 0.",
+      "actions": [
+        "Stage exactly the owned paths from every completed task plus the updated base/driver plans and the completion ledger.",
+        "Commit with an accurate message; verify the owned pathset before and after.",
+        "No push in this task."
+      ],
+      "dependsOn": [
+        "T009"
+      ],
+      "notInScope": "committing unrelated or foreign paths",
+      "ordinal": 10,
+      "ownedScope": "all owned paths from T002-T009; .agents/plans/*; .agents/docs/2026-09-26-completion-ledger.json",
+      "parallelGroup": "G10",
+      "recoveryNote": "Unstage and re-stage owned paths only.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "None; deterministic path staging.",
+      "status": "pending",
+      "taskId": "T010",
+      "title": "Commit the completed change set (owned paths only)",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "git status --porcelain"
+      ]
+    },
+    {
+      "acceptanceEvidence": "main is pushed and the CI run for HEAD concludes success on every job (frozen-install, dependency-audit, node24-canary, repository-gates, adapter-integrations, required-checks). On any failing job, diagnose, fix, commit, push again, and loop until the run for HEAD is green.",
+      "acceptanceSignal": "`node scripts/verify-completion.mjs --ci-green --sha HEAD` exits 0.",
+      "actions": [
+        "Push main.",
+        "Poll `gh run view` for the pushed SHA; on failure, fetch the failed job log, create a bounded repair task, fix, commit, push, and re-poll.",
+        "Only terminate when the HEAD run's conclusion is success; record the run URL + SHA."
+      ],
+      "dependsOn": [
+        "T010"
+      ],
+      "notInScope": "force-push, disabling checks, or editing CI to skip a real failure",
+      "ordinal": 11,
+      "ownedScope": "node_modules; package.json; repository source (repair only, bounded)",
+      "parallelGroup": "G11",
+      "recoveryNote": "If CI is red on a flaky/unrelated suite, isolate and re-run once before treating it as a failure.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Identify the CI job(s) most likely to fail from local-vs-CI Node/runtime differences.",
+      "status": "pending",
+      "taskId": "T011",
+      "title": "Push and drive CI to green",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Every driver task is complete with evidence, the base plan is fully complete, CI is green, and the final report names the outcomes, artifacts, commits, and run URL.",
+      "acceptanceSignal": "`node csm-plan/lib/loop-evaluator.mjs guard --record .agents/plans/2026-09-26-system-remediation-completion-driver-csm.json` exits 0.",
+      "actions": [
+        "Mark the base plan status complete and the driver plan complete.",
+        "Write the final report; no follow-on work is queued."
+      ],
+      "dependsOn": [
+        "T011"
+      ],
+      "notInScope": "starting new scope",
+      "ordinal": 12,
+      "ownedScope": ".agents/plans/*; .agents/README.md",
+      "parallelGroup": "G12",
+      "recoveryNote": "Reopen only via a new explicit user request.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "None.",
+      "status": "pending",
+      "taskId": "T012",
+      "title": "Close the driver plan and report",
+      "validation": [
+        "node scripts/verify-completion.mjs --plan .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json --verdict .agents/evidence/completion/final-verdict.json"
+      ]
+    }
+  ],
+  "verificationStrategy": {
+    "independence": "No reviewer may have implemented or previously reviewed the same work; the final verdict is signed by an agent distinct from all implementers and per-task reviewers.",
+    "tiers": [
+      "Per task: the task's single positive acceptance signal, then an independent adversarial reviewer re-runs it and attempts falsification.",
+      "Per group: the full gate subset for the touched area.",
+      "Whole plan: the independent completeness verdict + make check + make test + regen; then CI green for the pushed SHA."
+    ]
+  },
+  "supersession": {
+    "supersededBy": {
+      "artifactId": "art-4789e322ab839d19640762e6cb755b7f",
+      "runId": "run-1a67020cb2a9bb01e02a2283c7a67ce7",
+      "schema": "csm-plan/1",
+      "digest": "sha256:a0f521544c8bedd57eb6aaf500c5a266dbbda7a22a359fa2dff6e3ec169b5f35"
+    },
+    "supersededAt": "2026-09-27T23:40:00Z",
+    "reason": "Its remaining tasks were executed under the remaining-work continuous-run plan (T001-T011), which is complete; this driver plan is retained for history only."
+  }
+}
