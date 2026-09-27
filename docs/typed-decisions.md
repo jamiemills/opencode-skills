@@ -148,9 +148,9 @@ Jev output is advisory/apply input only. The following surfaces are
   `csm-orchestrate-decision-gate/1` class (`csm-orchestrate/schemas/decision-gate.schema.json`),
   which owns evidence only and carries no acceptance authority.
 
-Jev must **never emit** these unregistered enforcement ids (they are emitted only
-by the deterministic skills/recovery, and none is registered in
-`schemas/registry.json`):
+Jev must **never emit** these enforcement ids (they are emitted only by the
+deterministic skills/recovery; they are registered in `schemas/registry.json`
+but remain code-constructed only, never Jev-authored):
 
 - `csm-evaluator-receipt/1`
 - `csm-plan-evaluator-receipt/1`

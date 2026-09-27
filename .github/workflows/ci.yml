@@ -89,6 +89,8 @@ jobs:
         run: make lint
       - name: Validate repository contracts
         run: make check
+      - name: Verify generated mirrors are fresh
+        run: make regen-check
       - name: Validate package and payload index
         run: make test-package-index
       - name: Run deterministic suites

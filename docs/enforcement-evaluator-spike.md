@@ -160,7 +160,7 @@ terminate); `2` = work remains (the loop must continue or recover); a JSON parse
 failure throws (`1`) and therefore also blocks termination — fail-closed.
 
 **Where it lands.** The loop tasks promote this prototype to
-`node scripts/loop-guard.mjs --record <path>` with identical semantics; the inline
+`node csm-build/lib/loop-guard.mjs --record <path> --plan <plan>` with identical semantics; the inline
 form above is the runnable prototype verified by
 `tests/enforcement-evaluator-spike.test.mjs`. Each covered loop calls it every
 cycle: csm-plan over its own plan record, csm-build over its build-state record,

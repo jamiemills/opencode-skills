@@ -148,6 +148,16 @@ export async function verifyFresh({ root: rootDir = root } = {}) {
 }
 
 async function main() {
+  if (process.argv.includes("--check")) {
+    const { ok, issues } = await verifyFresh();
+    if (!ok) {
+      console.error("regen: FAIL — generated artifacts are stale:");
+      for (const issue of issues) console.error(`  - ${issue}`);
+      process.exit(1);
+    }
+    console.log("regen: OK — generated mirrors are fresh");
+    return;
+  }
   const completed = runRegen();
   const { ok, issues } = await verifyFresh();
   if (!ok) {

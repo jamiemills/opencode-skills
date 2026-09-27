@@ -41,7 +41,7 @@ These are cross-cutting surfaces every adapter migration must preserve.
   recovery codes at `lib/durable-json/index.mjs:12-19`; writes default to mode `0o600` with
   `0o700` parent dirs (`lib/durable-json/index.mjs:96-106`) and JSONL appends `0o600`
   (`lib/durable-json/index.mjs:128-131`). Classification: **immutable invariant**.
-- **Schema registry** — `schemas/registry.json` (57 entries, `revisionPolicy: immutable`,
+- **Schema registry** — `schemas/registry.json` (109 entries, `revisionPolicy: immutable`,
   `unknownRevisionPolicy: reject`, per-entry `unknownFieldPolicy: reject`). This is the closest
   existing thing to a suite-wide config mechanism and is the registration point T002-T005 must
   extend. Classification: **immutable invariant**.
@@ -53,9 +53,11 @@ These are cross-cutting surfaces every adapter migration must preserve.
   `scripts/`). Names are recorded here; values must never appear in any artifact (enforced by
   `tests/config-baseline/inventory.test.mjs`). Classification: **host-owned secrets, not config**.
 
-**Confirmed:** no suite-wide configuration loader, no `.csm-skills.json`, and no
-`$XDG_CONFIG_HOME/csm/skills.json` consumer exists today. The only config surfaces are CLI
-flags, per-run JSON contracts/schemas, one legacy upload config file, and csm-browse env overrides.
+**Corrected:** a config resolver exists — `scripts/lib/trace-config.mjs` (via
+`lib/config/index.mjs`) reads `<repo>/.csm-skills.json` and
+`$XDG_CONFIG_HOME/csm/skills.json` to locate the shared trace log. The other config
+surfaces are CLI flags, per-run JSON contracts/schemas, one legacy upload config
+file, and csm-browse env overrides.
 
 ## csm-autoresearch
 
@@ -227,7 +229,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 
 ### Defaults and magic values
 
-- Scan limits `DEFAULT_LIMITS = { maxFiles: 2000, maxBytes: 2_000_000, maxFileBytes: 1_000_000 }` — `csm-ddd/lib/ddd/extract.mjs:13-16`, merged with caller overrides at `:310` (**host ceiling**; CLI can only shrink via positive ints).
+- Scan limits `DEFAULT_LIMITS = { maxFiles: 2000, maxBytes: 2_000_000, maxFileBytes: 1_000_000 }` — `csm-ddd/lib/ddd/extract.mjs:13-16`, merged with caller overrides at `:310` (**skill default**, not a host ceiling: the CLI accepts any positive int and `csm-ddd-config/1` permits up to its schema `maximum` — 5000 files / 10000000 bytes — so a caller may widen the default within that bound).
 - Artifact path template `.agents/ddd/<date>-<slug>-<runId>-ddd-{report,graph}.json` — `csm-ddd/lib/ddd/pipeline.mjs:164-174`; runId charset guard `:167-168`.
 - Publication sidecar files `.ddd-publication.json`, `.ddd-publication.lock`, `.ddd-publication.recovery.lock`, `.ddd-generations/` — `csm-ddd/lib/ddd/pipeline.mjs:176-186` (**skill-owned behavior**; lock/pointer semantics are **immutable invariant**).
 - Output paths must be absolute and contained under the analyzed root — `csm-ddd/lib/ddd/pipeline.mjs:188-199` (**immutable invariant**).
@@ -621,7 +623,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 - csm-browse's digest-pinned image and hardening constants are security-critical; classifying any of them as configurable — even narrow-only — needs an explicit host-ceiling policy in T005, not just a schema.
 - The csm-scan cwd-default write (`./NORMS.json`) can surprise operators running from a repo root; a future default must remain a no-config-compatible behavior change decision, not an adapter side effect.
 - csm-orchestrate's `maxAttempts = 2` retry default interacts with at-least-once effect semantics; any configurable budget must remain subordinate to idempotency/authority rules (T006).
-- The 57-entry schema registry is the de-facto central contract; adding 14 skill namespaces multiplies registry surface and drift risk (mitigated by existing bootstrap parity gates).
+- The 109-entry schema registry is the de-facto central contract; adding 14 skill namespaces multiplies registry surface and drift risk (mitigated by existing bootstrap parity gates).
 
 ## Suite configuration resolver (T002)
 
@@ -696,15 +698,15 @@ nothing invokes them yet.
   at the adapter (the resolver deliberately passes unknown keys through for
   other skills to reject in their own namespaces).
 
-| Skill               | Schema id                    | Settings (defaults)                                        | Boundary                                                                                    |
-| ------------------- | ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `csm-grill`         | `csm-grill-config/1`         | `verbosity` ("normal")                                     | Presentation only; no approach/decision/lifecycle authority.                                |
-| `csm-plan`          | `csm-plan-config/1`          | `verbosity` ("normal"), `batchSize` 1-20 (5)               | Planning preferences only; no sandbox/activation/lifecycle authority.                       |
-| `csm-deep-research` | `csm-deep-research-config/1` | `defaultTier` ("STANDARD"), `defaultSourceMode` ("hybrid") | Triage defaults only, still per-run overridable; no browse/verb/citation authority.         |
-| `csm-ddd`           | `csm-ddd-config/1`           | `maxFiles` 1-5000 (2000), `maxBytes` 1-10000000 (2000000)  | Narrow-only scan caps mirroring `DEFAULT_LIMITS`; no path/artifact/pointer authority.       |
-| `csm-review`        | `csm-review-config/1`        | `verbosity` ("normal")                                     | Presentation only; severity/evidence vocabulary stays skill-owned.                          |
-| `csm-review-python` | `csm-review-python-config/1` | `mode` "static" \| "tool-assisted" ("static")              | Bounded analysis mode; never executes target code; doctrine content not configurable.       |
-| `csm-scan`          | `csm-scan-config/1`          | `maxRetries` 0-5 (2), `outputFormat` ("json", enum pinned) | `outputFormat` accepts only `json` — config cannot broaden the effective NORMS write scope. |
+| Skill               | Schema id                    | Settings (defaults)                                        | Boundary                                                                                                                                   |
+| ------------------- | ---------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `csm-grill`         | `csm-grill-config/1`         | `verbosity` ("normal")                                     | Presentation only; no approach/decision/lifecycle authority.                                                                               |
+| `csm-plan`          | `csm-plan-config/1`          | `verbosity` ("normal"), `batchSize` 1-20 (5)               | Planning preferences only; no sandbox/activation/lifecycle authority.                                                                      |
+| `csm-deep-research` | `csm-deep-research-config/1` | `defaultTier` ("STANDARD"), `defaultSourceMode` ("hybrid") | Triage defaults only, still per-run overridable; no browse/verb/citation authority.                                                        |
+| `csm-ddd`           | `csm-ddd-config/1`           | `maxFiles` 1-5000 (2000), `maxBytes` 1-10000000 (2000000)  | Scan caps defaulting to `DEFAULT_LIMITS`, overridable up to the schema `maximum` (not a host ceiling); no path/artifact/pointer authority. |
+| `csm-review`        | `csm-review-config/1`        | `verbosity` ("normal")                                     | Presentation only; severity/evidence vocabulary stays skill-owned.                                                                         |
+| `csm-review-python` | `csm-review-python-config/1` | `mode` "static" \| "tool-assisted" ("static")              | Bounded analysis mode; never executes target code; doctrine content not configurable.                                                      |
+| `csm-scan`          | `csm-scan-config/1`          | `maxRetries` 0-5 (2), `outputFormat` ("json", enum pinned) | `outputFormat` accepts only `json` — config cannot broaden the effective NORMS write scope.                                                |
 
 - **Authority boundary (negative contract)** — no namespace schema contains
   `credentials`, `lifecycle`, `writeScope`, or any capability/destination

@@ -177,12 +177,13 @@ frozen `/1` contract.
 
 A commit is the point where in-loop work becomes shared, so csm-build at
 `CHECKPOINT` and csm-plan at `SAVE` must run `make precommit` before any
-authorized commit. `precommit` mirrors the fast CI gates in order — `make fmt`,
-`node scripts/regen.mjs`, `node scripts/check-suite.mjs`,
+authorized commit. `precommit` exercises the fast CI gates in order — `make fmt`,
+`make regen-check`, `node scripts/check-suite.mjs`,
 `pnpm exec oxlint --deny-warnings`, then the core worktree/trace/state unit
-suites — so a cycle that lands green locally lands green in CI. The full
-`make test` stays CI-only; `precommit` is the bounded, fast subset the loop can
-afford every cycle.
+suites — so the fast gate is exercised before the commit. The full `make test`
+stays CI-only; `precommit` is the bounded, fast subset the loop can afford every
+cycle. `make ci-mirror` runs the full Repository-gates sequence (including
+`make test`) for use outside the per-cycle loop.
 
 ## 5. Rollout
 
