@@ -8,7 +8,7 @@
   },
   "entries": [
     {
-      "schema": "csm-envelope",
+      "schema": "csm-approach",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
@@ -22,44 +22,149 @@
       "adapter": null
     },
     {
-      "schema": "csm-journal-event",
+      "schema": "csm-autoresearch-artifact-descriptor",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-diagnostics",
+      "schema": "csm-autoresearch-config",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-projection",
+      "schema": "csm-autoresearch-contract",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-progress",
+      "schema": "csm-autoresearch-docker-sandbox-attestation",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-plan",
+      "schema": "csm-autoresearch-docker-sandbox-policy",
       "producerRevision": 1,
-      "consumerRevision": 2,
+      "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-plan",
-      "producerRevision": 2,
-      "consumerRevision": 2,
+      "schema": "csm-autoresearch-envelope",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-evaluator-request",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-evaluator-response",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-ledger-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-llm-adapter",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-policy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-autoresearch-report",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-bdd-tdd-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-bdd-tdd-package",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-browse-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-browse-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-browse-evidence",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-browse-session",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-build-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-build-output",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-build-state",
+      "producerRevision": 1,
+      "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
@@ -78,140 +183,28 @@
       "adapter": null
     },
     {
-      "schema": "csm-review-findings",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-review-findings",
-      "producerRevision": 2,
-      "consumerRevision": 2,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-invocation",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-invocation-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-approval",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-approval-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-evidence",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-evidence-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-requirement",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-requirement-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-receipt",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-receipt-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-phase",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-phase-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-cursor",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "incompatible",
-      "adapter": "orchestrate-cursor-1-to-2"
-    },
-    {
-      "schema": "csm-orchestrate-telemetry-event",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-capabilities",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-worker-projection",
+      "schema": "csm-ddd-config",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-egress-policy",
+      "schema": "csm-ddd-graph",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-egress-event",
+      "schema": "csm-ddd-pair",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-docker-worker-policy",
-      "producerRevision": 1,
-      "consumerRevision": 1,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-docker-worker-policy",
-      "producerRevision": 1,
-      "consumerRevision": 2,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-worker-attestation",
-      "producerRevision": 1,
-      "consumerRevision": 1,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-decision-gate",
-      "producerRevision": 1,
-      "consumerRevision": 1,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-prototype-gate",
-      "producerRevision": 1,
-      "consumerRevision": 1,
-      "status": "compatible",
-      "adapter": null
-    },
-    {
-      "schema": "csm-orchestrate-perf-baseline",
+      "schema": "csm-ddd-report",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
@@ -225,6 +218,160 @@
       "adapter": null
     },
     {
+      "schema": "csm-deep-research-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-diagnostics",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-digest-taxonomy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-doctrine-findings",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-envelope",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-evaluator-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-final-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-grill-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-journal-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-make-tests-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-make-tests-ledger",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-make-tests-verification",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-norms",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-adversarial-review",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-adversarial-review",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-approval",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-approval",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-approval-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-approval",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-attestation",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-orchestrate-capabilities",
       "producerRevision": 2,
       "consumerRevision": 3,
@@ -232,9 +379,352 @@
       "adapter": null
     },
     {
+      "schema": "csm-orchestrate-capabilities",
+      "producerRevision": 3,
+      "consumerRevision": 3,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-child-attempt",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-cursor",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-cursor",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-cursor-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-cursor",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-decision-gate",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-docker-worker-policy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-docker-worker-policy",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-docker-worker-policy",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-egress-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-egress-policy",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-evidence",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-evidence",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-evidence-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-evidence",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-final-review",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-final-review",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-gate",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-invocation",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-invocation",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-invocation-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-invocation",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-perf-baseline",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-phase",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-phase",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-phase-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-phase",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-prototype-gate",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-receipt-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-receipt",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-remainder",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-replay",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-request",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-orchestrate-request",
       "producerRevision": 1,
       "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-request",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-requirement",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-requirement",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "incompatible",
+      "adapter": "orchestrate-requirement-1-to-2"
+    },
+    {
+      "schema": "csm-orchestrate-requirement",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-run-evaluation",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-skill-executor",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-supersession",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-telemetry-event",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-telemetry-event",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-telemetry-event",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-trace",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-validator",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-orchestrate-worker-attestation",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-plan",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-plan",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-plan",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-plan-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
@@ -253,7 +743,35 @@
       "adapter": null
     },
     {
-      "schema": "csm-evaluator-receipt",
+      "schema": "csm-progress",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-projection",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-render-model",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-render-profile",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-research",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
@@ -267,21 +785,91 @@
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-supersession",
+      "schema": "csm-review-config",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-remainder",
+      "schema": "csm-review-findings",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",
       "adapter": null
     },
     {
-      "schema": "csm-orchestrate-run-evaluation",
+      "schema": "csm-review-findings",
+      "producerRevision": 1,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-review-findings",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-review-python-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-review-receipt",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-scan-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-skill-progress",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-skills-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-test-package",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-upload-config",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-upload-publication",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-worker-projection",
       "producerRevision": 1,
       "consumerRevision": 1,
       "status": "compatible",

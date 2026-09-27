@@ -2351,8 +2351,8 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "24c8823aa7cfdd010d5d6d3620e777966f0ba16fd969b71f3553b2d6e6ccc600",
-        "bytes": 7378,
+        "sha256": "7a4489c4ac85321cfdc01a232ff98c6ffdacd7a61764eb8e1580927b32a5d127",
+        "bytes": 21280,
         "mode": "0644"
       },
       {
@@ -2447,8 +2447,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "d468e092663dfc2e31345804af2ba24b750a33ba1f6090515f4217a7b85b9a0b",
-        "bytes": 34648,
+        "sha256": "60640c16bffa0c2fd9098a61d2f7497f95ffd4a42da3ce60d1e8c241fb4ec2e7",
+        "bytes": 36383,
         "mode": "0644"
       },
       {
