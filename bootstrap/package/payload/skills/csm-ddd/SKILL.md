@@ -45,7 +45,7 @@ pipeline). Words such as "refactor", "extract", or "implement" in the user's
 brief describe future work that belongs to other skills; this analyzer records
 candidate slices and ordering only.
 
-The analyzer is isolated from every other skill's internals. The only
+The analyzer is isolated from every other skill's internals. Its secret redactor uses a vendored copy of csm-scan's token-family matcher (`csm-ddd/lib/ddd/token-families.mjs`), kept byte-identical to `csm-scan/lib/scan/shared/token-families.mjs` by a drift-guard test so the isolation holds without a cross-skill import. The only
 scan-derived input it accepts is a visible NORMS.md file; raw csm-scan output,
 internal models, and evidence stores are out of bounds.
 

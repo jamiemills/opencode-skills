@@ -1,9 +1,6 @@
 "use strict";
 
-import {
-  SECRET_TOKEN_FAMILIES,
-  spanMatcher,
-} from "../../../csm-scan/lib/scan/shared/token-families.mjs";
+import { SECRET_TOKEN_FAMILIES, spanMatcher } from "./token-families.mjs";
 
 const ABSOLUTE_PATH_RE = /(?:[A-Za-z]:\\[^\s"'`,;)\]]+|(?<![A-Za-z0-9/])\/(?!\/)[^\s"'`,;)\]]+)/g;
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;

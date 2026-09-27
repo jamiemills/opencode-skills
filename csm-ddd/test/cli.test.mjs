@@ -1,8 +1,17 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -13,6 +22,7 @@ import { renderReport } from "../lib/ddd/render.mjs";
 import { publishArtifacts } from "../scripts/ddd.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = () => fileURLToPath(new URL("../../", import.meta.url));
 const fixtureRepo = join(here, "fixtures", "repos", "sample-repo");
 const scriptPath = join(here, "..", "scripts", "ddd.mjs");
 const questionFile = join(here, "fixtures", "question-file.json");
@@ -363,4 +373,35 @@ test("schema-invalid analysis aborts before writeArtifacts leaving zero bytes at
   assert.equal(existsSync(outReport), false);
   assert.equal(existsSync(outGraph), false);
   assert.equal(existsSync(outDir), false);
+});
+
+test("--help exits 0 and prints usage", () => {
+  const result = spawnSync(process.execPath, ["csm-ddd/scripts/ddd.mjs", "--help"], {
+    cwd: repoRoot(),
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /usage: node csm-ddd\/scripts\/ddd\.mjs/);
+});
+
+test("a relative --repo resolves its DEFAULT artifact paths instead of failing", () => {
+  const rel = `.tmp-ddd-rel-${process.pid}`;
+  const dir = join(repoRoot(), rel);
+  try {
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(join(dir, "src", "a.py"), "def f():\n    return 1\n");
+    // No --out flags: this exercises defaultArtifactPaths (the original bug).
+    const result = spawnSync(
+      process.execPath,
+      ["csm-ddd/scripts/ddd.mjs", "--repo", rel, "--non-interactive"],
+      { cwd: repoRoot(), encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(
+      existsSync(join(dir, ".agents", "ddd")),
+      "default artifacts must be written for a relative --repo",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

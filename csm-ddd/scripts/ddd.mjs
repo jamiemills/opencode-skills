@@ -1,6 +1,7 @@
 "use strict";
 
 import process from "node:process";
+import { resolve } from "node:path";
 import {
   analyzeRepository,
   defaultArtifactPaths,
@@ -15,16 +16,16 @@ import {
   validateReportEnvelope,
 } from "../lib/ddd/validate.mjs";
 
-function usage() {
-  process.stderr.write(
+function usage(stream = process.stderr) {
+  stream.write(
     [
       "usage: node csm-ddd/scripts/ddd.mjs --repo ROOT [options]",
       "",
       "options:",
       "  --repo ROOT            target repository (required)",
       "  --norms PATH           explicit NORMS.json path (NORMS.md is history-only)",
-      "  --out-report PATH      JSON report output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.json)",
-      "  --out-graph PATH       graph output path (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-graph.json)",
+      "  --out-report PATH      absolute JSON report path inside ROOT (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-report.json)",
+      "  --out-graph PATH       absolute graph path inside ROOT (default: ROOT/.agents/ddd/<date>-<slug>-<runId>-ddd-graph.json)",
       "  --question-file PATH   JSON file with an answers array for deterministic replay",
       "  --non-interactive      never prompt; unresolved questions become disclosed gaps",
       "  --fail-on-gaps         exit 3 when unresolved gaps remain (default: disclose and exit 0)",
@@ -64,6 +65,10 @@ async function main(argv) {
       case "--question-file":
         opts.questionFilePath = requireValue(argv, ++i, arg);
         break;
+      case "--help":
+      case "-h":
+        usage(process.stdout);
+        return 0;
       case "--non-interactive":
         opts.nonInteractive = true;
         break;
@@ -90,6 +95,9 @@ async function main(argv) {
     usage();
     return 2;
   }
+  // Accept a relative --repo: resolve it once so the default artifact paths
+  // (and the analysis root) are absolute.
+  opts.repo = resolve(opts.repo);
 
   const analysis = await analyzeRepository({ ...opts, root: opts.repo });
   const defaults = defaultArtifactPaths(opts.repo, analysis.runId);

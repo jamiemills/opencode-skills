@@ -48,8 +48,8 @@
       },
       {
         "path": "payload/skills/csm-ddd/SKILL.md",
-        "sha256": "d7e725b76ee59490832c6be534dda5ca2cdd537dcf2fe1dc11c02fc931a4caaa",
-        "bytes": 12171,
+        "sha256": "10fa027731937386051dc294141a233700ea298c66b4232f8182fb98ec433bac",
+        "bytes": 12431,
         "mode": "0644"
       },
       {
@@ -566,8 +566,8 @@
       },
       {
         "path": "payload/skills/csm-ddd/lib/ddd/redact.mjs",
-        "sha256": "b4309be881133ab1ea8766e6daf9b247bae3a4cc037583589f29b2bea9f1891c",
-        "bytes": 3113,
+        "sha256": "f06338e4b8434aaf0a8f89d82854456b7004abf8488133a88f4f130e24699720",
+        "bytes": 3076,
         "mode": "0644"
       },
       {
@@ -580,6 +580,12 @@
         "path": "payload/skills/csm-ddd/lib/ddd/synthesize.mjs",
         "sha256": "9a53eeb2cd8b3705577b9c518cb490c6d18206051e5d0eb78ccbb4b44ba381c4",
         "bytes": 9911,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/skills/csm-ddd/lib/ddd/token-families.mjs",
+        "sha256": "4b5dfbb694bdaa9341507d209ea76864ab692e65eee9d548005f30a60ffc9d26",
+        "bytes": 3138,
         "mode": "0644"
       },
       {
@@ -620,8 +626,8 @@
       },
       {
         "path": "payload/skills/csm-ddd/scripts/ddd.mjs",
-        "sha256": "1b5f24a260bfb6b1d6f2ea3d1a66b8412c304038721108c1bc81a27ca9621838",
-        "bytes": 6191,
+        "sha256": "b3d292aa6bb9fb4b0469c1cb7f30aab7c70e1fc6b6166ba0949a433b7157bf06",
+        "bytes": 6512,
         "mode": "0644"
       },
       {
@@ -776,7 +782,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "7dd943c3d6698b6efc055e13e16072aa40e09ffe6528761d955c336fa91e19b3",
+        "sha256": "2fa48a62f4757d044e31f92266c3dc0163a5369c24dc6dd78e51eb024038326b",
         "bytes": 26286,
         "mode": "0644"
       },
