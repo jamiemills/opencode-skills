@@ -368,8 +368,8 @@
       },
       {
         "path": "payload/skills/csm-browse/lib/ports.mjs",
-        "sha256": "b077aa2e13ae9a8271675d14c77c935eda11ff9e52bd3fb733b125d415ca2766",
-        "bytes": 8501,
+        "sha256": "1145a3987f784c98239d6cc70adf6296963d9609f621a0d52446fe6fcc007ad7",
+        "bytes": 8728,
         "mode": "0644"
       },
       {

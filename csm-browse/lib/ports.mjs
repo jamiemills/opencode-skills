@@ -204,6 +204,12 @@ function hostPortFree(port) {
   });
 }
 
+// DI seam: production binds 127.0.0.1:<port>; tests replace `isFree` so the
+// allocator never binds a real host socket (hermetic unit tests).
+export const hostPortProbe = {
+  isFree: (port) => hostPortFree(port),
+};
+
 // Pre-T001 sessions left container-side TCP-LISTEN socats that forward their
 // pub port to the OLD session's internal port. A NEW session can own that
 // same internal port, so a stale socat would relay to the new chromium
@@ -226,7 +232,7 @@ export async function allocate(container) {
     const internalFree = await execLayer.isPortFree(container, internal);
     if (!internalFree) continue;
 
-    const publicFree = await hostPortFree(pub);
+    const publicFree = await hostPortProbe.isFree(pub);
     if (!publicFree) continue;
 
     if (await containerHasStaleSocat(container, pub)) continue;

@@ -4,15 +4,15 @@ import { writeFileSync } from "node:fs";
 import { writeFile, readFile, mkdir, rm, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
 import { createServer as netServer } from "node:net";
+import { spawn } from "node:child_process";
 import { freshSessionsRoot, removeRoot, backage, patchKill } from "./helpers/env.mjs";
 
 const root = await freshSessionsRoot("csm-browse-ports-");
 const ports = await import("../../lib/ports.mjs");
 const { acquirePortLock, releasePortLock, allocate, breakStaleLock } = ports;
 const { SESSIONS_ROOT } = await import("../../lib/constants.mjs");
-const { setExecLayerForTests } = await import("./helpers/exec-layer.mjs");
+const { setExecLayerForTests, setHostPortProbeForTests } = await import("./helpers/exec-layer.mjs");
 
 after(async () => {
   await removeRoot(root);
@@ -116,15 +116,29 @@ function stubLayer({ isPortFree, pgrep } = {}) {
       return pgrep ? pgrep(pattern) : [];
     },
   });
+  setHostPortProbeForTests(() => true);
   return calls;
 }
 
 afterEach(async () => {
   setExecLayerForTests();
+  setHostPortProbeForTests();
   const entries = await readdir(root).catch(() => []);
   for (const e of entries) {
     if (e.startsWith("alloc-")) await rm(join(root, e), { recursive: true, force: true });
   }
+});
+
+test("the real host probe reports a bound ephemeral port busy", async () => {
+  // Exercises the DEFAULT probe (no stub) on an ephemeral loopback port, so no
+  // fixed host port is assumed and the real bind path stays covered.
+  setHostPortProbeForTests();
+  const held = netServer();
+  await new Promise((res) => held.listen(0, "127.0.0.1", res));
+  const port = held.address().port;
+  assert.equal(await ports.hostPortProbe.isFree(port), false);
+  await new Promise((res) => held.close(res));
+  assert.equal(await ports.hostPortProbe.isFree(port), true);
 });
 
 test("allocate returns a distinct in-range port pair per claim", async () => {
@@ -168,23 +182,20 @@ test("allocate skips pairs whose internal port is busy in the container", async 
 });
 
 test("allocate skips pairs whose public port is busy on the host", async () => {
-  // The CDP gate binds 127.0.0.1:<public> on the HOST, so a live listener
-  // there (a real bind — no Docker) must be skipped. Busying 9225 skips the
-  // (9224, 9225) pair; the next free pair is (9225, 9226).
+  // The CDP gate binds 127.0.0.1:<public> on the HOST, so a busy public port
+  // must be skipped. Hermetic: the host probe is stubbed, so no real socket is
+  // bound. A busy 9225 skips the (9224, 9225) pair; the next free pair is
+  // (9225, 9226).
   stubLayer();
-  const busy = netServer();
-  await new Promise((res) => busy.listen(9225, "127.0.0.1", res));
-  try {
-    const pair = await allocate("chromium-vnc");
-    assert.equal(pair.internal, 9225);
-    assert.equal(pair.public, 9226);
-  } finally {
-    await new Promise((res) => busy.close(res));
-  }
+  setHostPortProbeForTests((p) => p !== 9225);
+  const pair = await allocate("chromium-vnc");
+  assert.equal(pair.internal, 9225);
+  assert.equal(pair.public, 9226);
 });
 
 test("allocate skips pairs whose public port is held by a stale container TCP-LISTEN socat", async () => {
   const calls = { isPortFree: [], pgrep: [] };
+  setHostPortProbeForTests(() => true);
   setExecLayerForTests({
     isPortFree: async (c, p) => {
       calls.isPortFree.push(p);
