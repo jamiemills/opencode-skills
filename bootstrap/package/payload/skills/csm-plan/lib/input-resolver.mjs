@@ -11,7 +11,11 @@ const INPUTS = Object.freeze({
   plan: { schema: "csm-plan/1", schemas: ["csm-plan/1", "csm-plan/2"], owner: "csm-plan" },
   approach: { schema: "csm-approach/1", owner: "csm-grill" },
   research: { schema: "csm-research/1", owner: "csm-deep-research" },
-  review: { schema: "csm-review-findings/1", owner: "csm-review" },
+  review: {
+    schema: "csm-review-findings/1",
+    schemas: ["csm-review-findings/1", "csm-review-findings/2"],
+    owner: "csm-review",
+  },
   doctrine: { schema: "csm-doctrine-findings/1", owner: "csm-review-python" },
   norms: { schema: "csm-norms/1", owner: "csm-scan" },
   ddd: { schema: "csm-ddd-graph/1", owner: "csm-ddd" },
