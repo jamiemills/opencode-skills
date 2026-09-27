@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-decision/2",
+  "title": "Typed decision record (rev 2, trust-aware)",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "schemaRevision", "criteria", "answer"],
+  "properties": {
+    "schema": {
+      "const": "csm-decision/2"
+    },
+    "schemaRevision": {
+      "const": 2
+    },
+    "criteria": {
+      "type": "array"
+    },
+    "answer": {},
+    "trustLevel": {
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "escalated": {
+      "type": "boolean"
+    },
+    "escalationReason": {
+      "type": ["string", "null"]
+    },
+    "modelSnapshot": {
+      "type": ["string", "null"]
+    },
+    "promptVersion": {
+      "type": ["string", "null"]
+    }
+  }
+}

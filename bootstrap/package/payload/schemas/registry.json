@@ -257,6 +257,33 @@
       "schemaContentDigest": "sha256:72d63b73a09604a5f1fb898bc2d7904f262b6342b881cc2a9a0f2aec6370c8d8"
     },
     {
+      "id": "csm-decision-calibration/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/csm-calibration.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:b3edcde160629922548b394db17786a5656a1c810b37f08fec24a1b4c315f4ea"
+    },
+    {
+      "id": "csm-decision-corpus/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/decision-corpus.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:13cdd433da59e4861d10335c06b978b16848290da1be2855ddde78ddc3e226d8"
+    },
+    {
+      "id": "csm-decision-trust/1",
+      "revision": 1,
+      "schemaPath": "csm-orchestrate/schemas/decision-trust.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:d5b9bfd61504b3aa4951cb0795bf47ca05adcf8f76262965f518a1b01e2bc881"
+    },
+    {
       "id": "csm-decision/1",
       "revision": 1,
       "schemaPath": "csm-orchestrate/schemas/csm-decision.schema.json",
@@ -264,6 +291,15 @@
       "immutable": true,
       "unknownFieldPolicy": "reject",
       "schemaContentDigest": "sha256:9616516fb7c452808a9680ac754bd8db0c8b5ed56d63a7e26a545f63b0baa1fd"
+    },
+    {
+      "id": "csm-decision/2",
+      "revision": 2,
+      "schemaPath": "csm-orchestrate/schemas/csm-decision.v2.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:b8fc1accd7708d0f2977ac9a9609c1fc63a461176565b6a072a0b260eadfc45e"
     },
     {
       "id": "csm-deep-research-config/1",

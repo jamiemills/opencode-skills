@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-decision-trust/1",
+  "title": "Decision trust promotion record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "schemaRevision",
+    "promotionId",
+    "pointId",
+    "trustLevel",
+    "ceiling",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "csm-decision-trust/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "promotionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pointId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "string"
+    },
+    "trustLevel": {
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "ceiling": {
+      "enum": ["non-safety", "safety", "authority"]
+    },
+    "reversible": {
+      "type": "boolean"
+    },
+    "status": {
+      "enum": ["promote", "hold", "kill"]
+    },
+    "approvedBy": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "string"
+    }
+  }
+}

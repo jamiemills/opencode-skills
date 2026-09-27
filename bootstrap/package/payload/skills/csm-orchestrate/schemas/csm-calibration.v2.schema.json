@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-decision-calibration/2",
+  "title": "Threshold-aware calibration record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "schemaRevision", "verdict"],
+  "properties": {
+    "schema": {
+      "const": "csm-decision-calibration/2"
+    },
+    "schemaRevision": {
+      "const": 2
+    },
+    "pointId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corpusDigest": {
+      "type": "string"
+    },
+    "thresholds": {
+      "type": "object"
+    },
+    "reliability": {
+      "type": "object"
+    },
+    "coverage": {
+      "type": "number"
+    },
+    "verdict": {
+      "enum": ["promote", "hold", "kill"]
+    }
+  }
+}

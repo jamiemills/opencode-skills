@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-decision-corpus/1",
+  "title": "Human-labelled calibration corpus",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "schemaRevision", "corpusId", "pointId", "items"],
+  "properties": {
+    "schema": {
+      "const": "csm-decision-corpus/1"
+    },
+    "schemaRevision": {
+      "const": 1
+    },
+    "corpusId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pointId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "annotators": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "contentDigest": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1
+    }
+  }
+}

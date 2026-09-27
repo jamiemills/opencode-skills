@@ -254,3 +254,23 @@ these roles is built and shows measured agreement strong enough to justify a
 separate, explicit gate decision. Source:
 `.agents/research/2026-09-19-jev-quality-checks-*.json` (claim
 `claim-accuracy-unmeasured`; unverified claim U1).
+
+## 10. Trust ladder (T005)
+
+Trust is a per-configuration property, never global, and is bounded by the
+point's safety class. The ladder is `L0` (off) → `L1` (shadow) → `L2`
+(advisory) → `L3` (Jev-first with deterministic fallback) → `L4` (authoritative,
+but only for a **reversible non-safety apply**). `L5` — authority over any
+acceptance, security, or completion surface — is **refused by construction**:
+`csm-orchestrate/lib/decision-adapter/trust.mjs` `assertTrustPromotion` refuses
+any level outside `L0..L4` and any `L4` whose safety ceiling is not `non-safety`
+or whose action is not reversible. An omitted ceiling fails closed (treated as
+the most restrictive class).
+
+The classifier-consumption pipe is the **bare label**: `labelOf(advice)` returns
+only a discrete scalar label (`choice`/`noul`/string/number), never a probability
+vector, provider identity, or confidence. The deterministic harness consumes that
+bare label; the advisory object never enters a digest, receipt, gate, closure, or
+acceptance input (`boundary-guard.mjs` remains the tripwire). The additive records
+are `csm-decision/2`, `csm-decision-trust/1`, `csm-decision-corpus/1`, and
+`csm-decision-calibration/2`, all registered in `schemas/registry.json`.

@@ -218,6 +218,34 @@
       "adapter": null
     },
     {
+      "schema": "csm-decision",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-decision-calibration",
+      "producerRevision": 2,
+      "consumerRevision": 2,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-decision-corpus",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
+      "schema": "csm-decision-trust",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-deep-research-config",
       "producerRevision": 1,
       "consumerRevision": 1,

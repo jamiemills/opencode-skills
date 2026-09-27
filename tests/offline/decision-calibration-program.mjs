@@ -153,12 +153,17 @@ export function runCalibrationProgram({
   });
   consumedDigests.add(key);
   const metrics = computeMetrics(observations);
+  const outcome = verdict(metrics, threshold);
   return {
     schema: PROGRAM_SCHEMA,
+    schemaRevision: 2,
+    pointId: corpus.pointId ?? "cross-domain",
+    verdict: outcome.status,
     profile,
     corpusKey: key,
     split: corpus.split,
     metrics,
-    ...verdict(metrics, threshold),
+    status: outcome.status,
+    checks: outcome.checks,
   };
 }
