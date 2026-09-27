@@ -158,6 +158,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
 - `2026-09-26-completion-ledger.json` — 2026-09-26 — reconciliation of the system-remediation plan (36/36 complete) — status: reference
 
+- `2026-09-27-remaining-work-final-report.md` — 2026-09-27 — final report for the remaining-work continuous-run plan (16/16) and base plan (36/36); independent 2-reviewer verdict + CI green — status: reference
 ## reviews/
 
 - `2026-08-15-skills-review.md` — 2026-08-15 — full adversarial review of all 8 skills (findings F-001..F-077) — status: remediated by `plans/2026-08-16-skills-remediation-csm.md`

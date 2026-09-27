@@ -1,1 +1,1264 @@
-{"acceptanceCriteria":[{"evidence":"make precommit + node scripts/check-suite.mjs exit 0.","id":"AC1","statement":"node scripts/check-suite.mjs exits 0 and all new focused tests pass."},{"evidence":"tests/orchestrate-docker-worker-credentials.test.mjs passes with a -e secret container.","id":"AC2","statement":"The Docker credentialsNone control reads real Config.Env and can fail."},{"evidence":"tests/orchestrate-egress-*.test.mjs pass.","id":"AC3","statement":"Egress path allowlist resists double-encoding; every decision is audited; buffers are bounded."},{"evidence":"tests/check-suite-metadata-drift.test.mjs and tests/corpus-gate-completeness.test.mjs pass.","id":"AC4","statement":"Payload metadata drift and the full durable corpus are gated."},{"evidence":"tests/offline/decision-provider-contract.test.mjs, decision-live-parity, decision-service, decision-trust-schemas pass.","id":"AC5","statement":"Jev sends valid state+instructions, has a live parity test, a shared service, and a trust ladder capped below acceptance authority."}],"applicability":null,"artifactId":"art-192c2c8dfd527634b2e007b23c99eb48","assumptionsAndDecisions":[{"decision":"Combine the two research findings into one plan rather than two, because the Jev program depends on the contract fix and shares the registry/gate surfaces.","rationale":"Avoids duplicated registry/corpus/gate tasks and orders Jev work after the enabling fixes."},{"decision":"Keep every Jev point advisory or non-safety apply.","rationale":"The never-Jev boundary and prior doctrine; L5 is refused by construction."},{"decision":"Use new focused test files as acceptance signals.","rationale":"They prove the specific fix and are independently validatable."}],"completionReview":null,"control":{"activeTasks":[],"blockers":[],"commits":"disabled","currentState":"NOT_STARTED","cycle":0,"lastCheckpoint":"none","lastModelRun":"","nextTransition":"On a future explicit csm-build invocation, NOT_STARTED -> RECOVER","resume":{"instruction":"re-read control, latest journal, recovery notes, requirements, and working-tree diff"},"status":"ready"},"critiqueResolution":[],"currentStateEvidence":{"observations":["Two schema-valid research findings underpin this plan: the validated audit and the Jev deep-embedding finding.","Repo gates at HEAD: check-suite OK; validate-corpus-v2 94/0; payload drift 0; regen verifyFresh ok.","Live Jev probes (2026-09-26): state/instructions missing cause HTTP 400; batched mixed questions return typed answers."]},"design":{"approach":"Grouped, dependency-ordered tasks with non-overlapping write ownership per parallel group; security and gate fixes precede the Jev service; trust schemas come last and only after registry coverage.","summary":"Fix enabling defects first (security, gates, registry, contracts), then build the Jev program on top of a repaired provider and a gated corpus, and close with one aggregate acceptance gate."},"digest":"sha256:8f92e4d5825e9accc5bdf60753b87746171d53bc534e85b761ac198705cc2b85","discoveredRequirements":[{"requirement":"The 6 production schema ids and the missing compatibility pairs must be registered before trust-schema work.","source":"audit claim-n-registry-gaps, claim-n-compat-matrix"},{"requirement":"The provider contract must be repaired before any embedding or parity test.","source":"jev claim-j-blocker"}],"executionGraph":{"criticalPath":"T001/T002 -> T003 -> T004; T001 -> T005; T006/T007 -> T008; T023 -> T025 -> T027; T023 -> T029; ... -> T030","parallelGroups":{"G1":["T001","T002","T005"],"G10":["T025","T026","T027"],"G11":["T028","T029"],"G12":["T030"],"G13":["T031","T032","T033","T034","T035","T036"],"G2":["T003","T004"],"G3":["T006","T007"],"G4":["T008"],"G5":["T009","T010","T011","T012"],"G6":["T013","T014","T015"],"G7":["T016","T017","T018"],"G8":["T019","T020","T021","T022"],"G9":["T023","T024"]}},"goal":{"constraints":["Jev stays optional and off by default; absent/disabled/failing behavior is byte-identical to today.","Every acceptance, security, completion, closure, receipt, digest, cursor, isolation, and commit decision stays deterministic and never-Jev.","Each task has one positive runnable acceptance signal; no disjunctive or deferral signals.","Tasks remain pending; this planning invocation authorizes no implementation."],"deliverables":["Security fixes: Docker credentialsNone, egress encoding/audit/bounds, bypass run-lease.","Gate and corpus completeness: payload metadata drift, full corpus gating, registry/compat coverage.","Contract reconciliation across csm-scan, csm-review, csm-review-python, csm-upload, csm-bdd-tdd, csm-deep-research, csm-plan.","Enforcement honesty and doc consistency.","Jev program: contract repair, live parity, shared decision service, new safe points, coverage/budget/telemetry, calibration program, trust-ladder schemas.","A final aggregate acceptance gate.","Additional adversarial findings: trace evidence substrate, csm-browse packaging/portability/hermetic tests, producer descriptor lockstep, hardcoded-path removal, drop-capture fail-closed, csm-build /1 evaluator decision, CI canary hardening."],"exclusions":["Implementing any of these tasks during this planning invocation.","Promoting Jev to any acceptance/security/completion gate (L5 refused).","Changing frozen /1 schemas beyond additive dual-accept."],"goal":"Remediate every validated defect from the adversarial system audit AND embed Jev deeply as an optional, excessive-where-viable classifier, as one executable plan."},"inputs":[{"artifactId":"art-csm-system-audit-validated-20260926","digest":"sha256:5f91a0a263fcb41c43ae44dac17df0c587af49e6e6998b43be242652282c7124","owner":"csm-deep-research","path":".agents/research/2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json","schema":"csm-research/1"},{"artifactId":"art-jev-deep-embedding-20260926","digest":"sha256:2bfb7d2631f04c162628f67ced02170874a9cec0b11cc8974d2beee7348b4f9d","owner":"csm-deep-research","path":".agents/research/2026-09-26-jev-deep-embedding-run-jev-embed-20260926t153000z-2b8e6f4a9c1d-research.json","schema":"csm-research/1"}],"journal":[{"cycle":0,"evidence":"User asked to combine the validated audit finding and the Jev deep-embedding finding into one csm plan.","nextState":"DISCOVER","sequence":0,"tasks":[],"timestamp":"2026-09-26T16:20:00Z","transition":"INTAKE -> DISCOVER"},{"cycle":0,"evidence":"Both findings read; repo gates and Jev contract re-verified at HEAD.","nextState":"RESEARCH","sequence":1,"tasks":[],"timestamp":"2026-09-26T16:25:00Z","transition":"DISCOVER -> RESEARCH"},{"cycle":0,"evidence":"30 atomic tasks grouped into 12 parallel groups with dependencies and single positive acceptance signals.","nextState":"DRAFT","sequence":2,"tasks":[],"timestamp":"2026-09-26T16:32:00Z","transition":"RESEARCH -> DRAFT"},{"cycle":0,"evidence":"Each task has a runnable signal, risk, anti-scope, owned scope, dependency, and recovery note; no disjunctive signals.","nextState":"VERIFY","sequence":3,"tasks":[],"timestamp":"2026-09-26T16:40:00Z","transition":"DRAFT -> VERIFY"},{"cycle":0,"evidence":"validatePlan returned valid=true; all tasks pending; no implementation performed.","nextState":"NOT_STARTED","sequence":4,"tasks":[],"timestamp":"2026-09-26T16:45:00Z","transition":"VERIFY -> NOT_STARTED"},{"cycle":0,"evidence":"User audit of coverage found 7 validated adversarial findings omitted; added T031-T036 and extended T017/T029; revalidated.","nextState":"NOT_STARTED","sequence":5,"tasks":[],"timestamp":"2026-09-26T17:05:00Z","transition":"VERIFY -> NOT_STARTED"}],"planId":"system-remediation-jev-embedding","projection":{"legacyMarkdownStatus":"history-only","profile":"csm-plan-human/1"},"provenance":{"producedAt":"2026-09-26T16:45:00Z","producer":"csm-plan","producerVersion":"csm-plan/1","sourceDigests":["sha256:5f91a0a263fcb41c43ae44dac17df0c587af49e6e6998b43be242652282c7124","sha256:2bfb7d2631f04c162628f67ced02170874a9cec0b11cc8974d2beee7348b4f9d"]},"rdRecord":[{"answer":"Yes; HTTP 400 without either (probed).","question":"Does the live Jev API require state and instructions?","status":"resolved"}],"risksAndRecovery":{"recovery":"Each task is independently revertible; the plan is resumable from control + journal + per-task recovery notes.","risks":[{"mitigation":"Focused tests plus fail-closed defaults; revert per task.","risk":"Security fixes regress isolation or egress availability."},{"mitigation":"T023 precedes T024-T029; dependencies encode it.","risk":"Jev work is attempted before the contract fix."},{"mitigation":"T029 depends on T008; registry ownership serialized.","risk":"Registry edits collide across groups."},{"mitigation":"L5 refused by schema; boundary-guard invariance test.","risk":"Trust elevation erodes the never-Jev boundary."}]},"runId":"run-e8fe9191c456eda30472041398b4e9fc","schema":"csm-plan/1","schemaRevision":1,"status":"ready","tasks":[{"acceptanceEvidence":"parseInspect reads entry.Config.Env; a real `docker run -e SECRET` inspect parses credentialsNone=false; the corrected fixture lives at tests/orchestrate-docker-worker-provider.test.mjs.","acceptanceSignal":"`node --test tests/orchestrate-docker-worker-credentials.test.mjs` exits 0.","actions":["Change parseInspect in csm-orchestrate/lib/docker-worker-provider.mjs to read entry.Config?.Env (not entry.HostConfig.Env) for the env/credentialsNone control.","Correct the fixture in tests/orchestrate-docker-worker-provider.test.mjs so Env lives under Config, matching real docker inspect.","Add tests/orchestrate-docker-worker-credentials.test.mjs that runs a container with -e CSM_SECRET_MARKER=leaked (skip when Docker unavailable), inspects it, and asserts credentialsNone === false; also assert a clean container reports true."],"dependsOn":[],"notInScope":"changing the isolation gate or other provider controls","ordinal":1,"ownedScope":"csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-docker-worker-provider.test.mjs; tests/orchestrate-docker-worker-credentials.test.mjs","parallelGroup":"G1","recoveryNote":"Revert the parseInspect change; the fixture and test revert with it.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm real `docker inspect` emits env at Config.Env and that a -e secret is visible there.","status":"pending","taskId":"T001","title":"Fix Docker sandbox credentialsNone attestation","validation":["node --test tests/orchestrate-docker-worker-provider.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"evaluateEgress denies /allowed/%252e%252e/admin and any residual %2e/%5c; the exploit repro from the finding now returns denied.","acceptanceSignal":"`node --test tests/orchestrate-egress-path-encoding.test.mjs` exits 0.","actions":["In csm-orchestrate/lib/egress-broker.mjs, decode to a fixed point (or reject any residual %2e/%5c/%2f) before the pathPrefix check; keep the wildcard-escape denial intact.","Add tests/orchestrate-egress-path-encoding.test.mjs covering /allowed/ok allowed, /allowed/%2e%2e/admin denied, /allowed/%252e%252e/admin denied, and double-encoded multi-segment forms denied."],"dependsOn":[],"notInScope":"changing the allowlist schema or credential injection","ordinal":2,"ownedScope":"csm-orchestrate/lib/egress-broker.mjs; tests/orchestrate-egress-path-encoding.test.mjs","parallelGroup":"G1","recoveryNote":"Revert the decode change.","repairAttempts":0,"risk":"high","spikeCandidate":"Determine whether upstreams may decode again, and the exact residual-encoding set to reject.","status":"pending","taskId":"T002","title":"Harden egress pathPrefix against double URL-encoding","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"A ledger row is written for allowed, denied, and errored decisions; malformed relay input and forward errors produce a response instead of a hang.","acceptanceSignal":"`node --test tests/orchestrate-egress-audit.test.mjs` exits 0.","actions":["In egress-broker.mjs, ensure the allowed-forward error path records an egress.decision row (including partial-send) before returning; do not swallow the error without a response.","Write a response on malformed relay input instead of returning silently.","Add tests/orchestrate-egress-audit.test.mjs injecting a throwing forward and malformed input, asserting one ledger row per decision and a socket response."],"dependsOn":["T002"],"notInScope":"rewriting the broker transport","ordinal":3,"ownedScope":"csm-orchestrate/lib/egress-broker.mjs; tests/orchestrate-egress-audit.test.mjs","parallelGroup":"G2","recoveryNote":"Revert the broker edits.","repairAttempts":0,"risk":"high","spikeCandidate":"Prove a thrown forward on an allowed request currently writes no ledger row and produces no response.","status":"pending","taskId":"T003","title":"Audit every egress decision and never hang the relay","validation":["node --test tests/orchestrate-egress-bounds.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Relay/wrapper buffers have hard caps; an over-budget upstream response is rejected; the relay default bind is loopback unless policy opens it.","acceptanceSignal":"`node --test tests/orchestrate-egress-bounds.test.mjs` exits 0.","actions":["Cap the egress-broker relay buffer and connection list; cap docker-worker stdout/stderr capture and HTTP forward body; enforce the matched rule maxBytes on the RESPONSE, not only pre-forward.","Default the relay bind host to loopback unless a policy entry opens a wider interface.","Add tests/orchestrate-egress-bounds.test.mjs asserting a no-newline flood is cut off, an oversized upstream response is rejected, and the default bind is loopback."],"dependsOn":["T003"],"notInScope":"changing egress policy semantics","ordinal":4,"ownedScope":"csm-orchestrate/lib/egress-broker.mjs; csm-orchestrate/lib/verified-sandbox-runtime.mjs; csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-egress-bounds.test.mjs","parallelGroup":"G2","recoveryNote":"Revert the caps and bind default.","repairAttempts":0,"risk":"high","spikeCandidate":"Measure realistic upstream/worker output sizes to pick non-breaking caps.","status":"pending","taskId":"T004","title":"Bound egress buffers and enforce response limits","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Two concurrent --plan/--request runs on one artifact: one wins the lease, the other fails closed; a re-run does not reuse a dirty worktree.","acceptanceSignal":"`node --test tests/orchestrate-bypass-lease.test.mjs` exits 0.","actions":["In scripts/run-orchestrator.mjs realModeBypass, acquire acquireRunLease before dispatch and release after, mirroring realMode.","In scripts/lib/agent-session-executor.mjs ensureWorktree, reject or reset a pre-existing dirty worktree and bind it to the current runId/attempt.","Add tests/orchestrate-bypass-lease.test.mjs covering concurrent acquisition and dirty-worktree rejection."],"dependsOn":[],"notInScope":"changing the agent-session executor's public API","ordinal":5,"ownedScope":"scripts/run-orchestrator.mjs; scripts/lib/agent-session-executor.mjs; tests/orchestrate-bypass-lease.test.mjs","parallelGroup":"G1","recoveryNote":"Revert the lease and worktree checks.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm the lease API and worktree reuse behavior under CSM_AGENT_SESSION_EXEC=1.","status":"pending","taskId":"T005","title":"Fence the bypass route with a run lease and a clean worktree","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Mutating a metadata-mapped source (e.g. lib/render-html/index.mjs) makes the gate fail; the committed tree is fresh.","acceptanceSignal":"`node --test tests/check-suite-metadata-drift.test.mjs` exits 0.","actions":["Include mapping.metadata in scripts/check-suite.mjs buildPayloadSrcMap (or invoke scripts/regen.mjs verifyFresh from check-suite) so payload/lib/** and payload/schemas/** are compared.","Run regen verifyFresh in the pre-commit hook and CI so metadata drift fails locally.","Add tests/check-suite-metadata-drift.test.mjs that mutates a metadata source in a temp copy and asserts the gate reports drift."],"dependsOn":[],"notInScope":"changing the pack mapping allowlist","ordinal":6,"ownedScope":"scripts/check-suite.mjs; scripts/regen.mjs; .lefthook.yml; .github/workflows/ci.yml; tests/check-suite-metadata-drift.test.mjs","parallelGroup":"G3","recoveryNote":"Revert the gate change; restore the mutated source.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm check-suite currently ignores mapping.metadata (reproduce with a temp mutation).","status":"pending","taskId":"T006","title":"Close the payload-drift blind spot for metadata-mapped files","validation":["node scripts/regen.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":".agents/builds, research, reviews, approaches, and decisions JSON are validated; the 256-error builds record is repaired; config-inventory no longer claims builds is validated.","acceptanceSignal":"`node --test tests/corpus-gate-completeness.test.mjs` exits 0.","actions":["Extend scripts/validate-corpus-v2.mjs (or add a validator) to enumerate and schema-validate .agents/builds, research, reviews, approaches, and decisions canonical JSON.","Repair .agents/builds/2026-08-28-all-skills-config-production-assurance-build.json to satisfy csm-build-state/1, or retire it with a recorded decision.","Correct docs/config-inventory.md:208 which falsely claims .agents/builds is validated.","Add tests/corpus-gate-completeness.test.mjs asserting each class is checked and the offending records validate."],"dependsOn":[],"notInScope":"rewriting the plans/build-state /2 contract","ordinal":7,"ownedScope":"scripts/validate-corpus-v2.mjs; .agents/builds/*.json; docs/config-inventory.md; tests/corpus-gate-completeness.test.mjs","parallelGroup":"G3","recoveryNote":"Revert the validator and restore the record from git.","repairAttempts":0,"risk":"high","spikeCandidate":"Determine the correct disposition of the 256-error builds record (repair vs retire).","status":"pending","taskId":"T007","title":"Gate the full durable corpus and repair the invalid build record","validation":["node scripts/validate-corpus-v2.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The 6 production $id schemas are registered; negotiate no longer throws for the missing pairs; a coverage test enumerates registry vs matrix.","acceptanceSignal":"`node --test tests/schema-registry-coverage.test.mjs` exits 0.","actions":["Register in schemas/registry.json: csm-orchestrate-child-attempt/1, csm-orchestrate-skill-executor/1, csm-autoresearch-docker-sandbox-attestation/1, csm-autoresearch-docker-sandbox-policy/1, csm-final-receipt/1 (leave csm-trace/1, csm-skill-manifest/1, csm-verification-status/1 intentionally unregistered and documented).","Add schemas/compatibility-matrix.json entries for csm-orchestrate-adversarial-review 1->2, csm-orchestrate-final-review 1->2, and the missing same-revision pairs enumerated by the finding.","Add tests/schema-registry-coverage.test.mjs asserting every multi-revision base has a matrix entry and every registered schemaPath exists with matching $id."],"dependsOn":[],"notInScope":"changing frozen /1 schemas","ordinal":8,"ownedScope":"schemas/registry.json; schemas/compatibility-matrix.json; csm-orchestrate/schemas/*.json; csm-autoresearch/schemas/*.json; tests/schema-registry-coverage.test.mjs","parallelGroup":"G4","recoveryNote":"Revert registry/matrix edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Enumerate all multi-revision bases without a matrix entry.","status":"pending","taskId":"T008","title":"Register production schemas and complete the compatibility matrix","validation":["node scripts/check-suite.mjs","node --test tests/compatibility.test.mjs"]},{"acceptanceEvidence":"SKILL.md and scripts/lib/contracts.mjs match scan.mjs/norms-producer.json (NORMS.json authority); a contract test asserts agreement.","acceptanceSignal":"`node --test tests/scan-norms-path-contract.test.mjs` exits 0.","actions":["Correct csm-scan/SKILL.md and scripts/lib/contracts.mjs:319 to describe the NORMS.json authority (or implement the .agents/norms path in scan.mjs) so the documented artifact is the one produced.","Add tests/scan-norms-path-contract.test.mjs asserting SKILL/contract/descriptor/CLI agree."],"dependsOn":[],"notInScope":"changing the csm-norms/1 schema","ordinal":9,"ownedScope":"csm-scan/SKILL.md; scripts/lib/contracts.mjs; csm-scan/scripts/scan.mjs; tests/scan-norms-path-contract.test.mjs","parallelGroup":"G5","recoveryNote":"Revert the doc/contract edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide canonical location: keep NORMS.json (descriptor+test) or move the CLI to .agents/norms.","status":"pending","taskId":"T009","title":"Align csm-scan norms path across SKILL, contract, and CLI","validation":["node --test tests/norms-json-contract.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The documented corroboration bump (E3->high, E4->medium) validates; E1 records constructed per SKILL pass validation; a contract test pins both.","acceptanceSignal":"`node --test tests/csm-review-finding-contract.test.mjs` exits 0.","actions":["Either implement the SKILL's sole confidence-raise exception in csm-review/lib/findings-validator.mjs, or remove the exception from csm-review/SKILL.md and the schema; choose one and make code, schema, and SKILL agree.","Add verification.redacted to the SKILL's E1 field list (or make it optional) so a documented-shape record validates.","Add tests/csm-review-finding-contract.test.mjs asserting the bump and E1 shape behave as documented."],"dependsOn":[],"notInScope":"changing the /1 frozen schema","ordinal":10,"ownedScope":"csm-review/lib/findings-validator.mjs; csm-review/SKILL.md; csm-review/schemas/csm-review-findings.v2.schema.json; tests/csm-review-finding-contract.test.mjs","parallelGroup":"G5","recoveryNote":"Revert validator/SKILL edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide whether the corroboration bump is doctrinally desirable or should be removed.","status":"pending","taskId":"T010","title":"Reconcile csm-review finding contract (corroboration bump, E1 redacted)","validation":["node --test tests/review-json-contract.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"A record using the documented C/R/W/E/F/Nit scale validates (via an added enum or a documented mapping); SKILL and schema agree.","acceptanceSignal":"`node --test tests/python-review-severity-contract.test.mjs` exits 0.","actions":["Either extend csm-review-python/schemas/csm-doctrine-findings.schema.json severity enum to include C/R/W/E/F/Nit, or add an explicit mapping in the SKILL from C/R/W/E/F/Nit to critical/high/medium/low/info and update the SKILL.","Add tests/python-review-severity-contract.test.mjs asserting every documented severity validates."],"dependsOn":[],"notInScope":"changing the csm-doctrine-findings/1 revision semantics","ordinal":11,"ownedScope":"csm-review-python/schemas/csm-doctrine-findings.schema.json; csm-review-python/SKILL.md; tests/python-review-severity-contract.test.mjs","parallelGroup":"G5","recoveryNote":"Revert the schema/SKILL edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide enum-extension vs mapping (schema immutability policy).","status":"pending","taskId":"T011","title":"Align csm-review-python severity scale with its schema","validation":["node --test tests/review-json-contract.test.mjs"]},{"acceptanceEvidence":"A csm-upload run writes .agents/upload/<date>-<run-id>-publication.json with the declared shape, or the SKILL/README/contract no longer claim it.","acceptanceSignal":"`node --test tests/upload-publication-receipt.test.mjs` exits 0.","actions":["Implement the .agents/upload/<date>-<run-id>-publication.json writer in csm-upload/scripts/upload.mjs (wiring lib/publication.mjs), or remove the authoritative-receipt claim from SKILL.md, README.md, and scripts/lib/contracts.mjs.","Add tests/upload-publication-receipt.test.mjs asserting the receipt is written on the CLI path and validates."],"dependsOn":[],"notInScope":"changing the upload security scan","ordinal":12,"ownedScope":"csm-upload/scripts/upload.mjs; csm-upload/lib/publication.mjs; csm-upload/SKILL.md; scripts/lib/contracts.mjs; tests/upload-publication-receipt.test.mjs","parallelGroup":"G5","recoveryNote":"Revert the writer or the doc edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Determine the intended receipt schema and whether the CLI or the orchestrate handler owns it.","status":"pending","taskId":"T012","title":"Make the csm-upload publication receipt real","validation":["node --test tests/upload.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Either createBddPackage is wired into the documented pipeline and specs/<goal-slug>/package.json validates, or the SKILL no longer promises it.","acceptanceSignal":"`node --test tests/bdd-package-contract.test.mjs` exits 0.","actions":["Either wire csm-bdd-tdd/lib/package.mjs createBddPackage into SPEC/VALIDATE and validate against package.schema.json, or remove the package.json product claim from csm-bdd-tdd/SKILL.md.","Add tests/bdd-package-contract.test.mjs asserting the documented product exists and validates."],"dependsOn":[],"notInScope":"changing the bdd Markdown pipeline stages","ordinal":13,"ownedScope":"csm-bdd-tdd/SKILL.md; csm-bdd-tdd/lib/package.mjs; tests/bdd-package-contract.test.mjs","parallelGroup":"G6","recoveryNote":"Revert the SKILL/lib edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm whether csm-build consumes package.json today.","status":"pending","taskId":"T013","title":"Make csm-bdd-tdd produce or stop claiming package.json","validation":["node --test tests/bdd-json-package.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The SKILL state machine documents the recovery/checkpoint states it references (or the references are removed); the marker and schema id are reconciled.","acceptanceSignal":"`node --test tests/deep-research-contract.test.mjs` exits 0.","actions":["Reconcile csm-deep-research/SKILL.md Core Rules (BLOCKED->RECOVER->VALIDATE, REVIEW->CHECKPOINT) with the documented state machine, or add the states.","Reconcile the `format: csm-deep-research/1` marker with the csm-research/1 schema id (one name or an explicit mapping).","Add tests/deep-research-contract.test.mjs asserting SKILL states are within the machine and the marker maps to the schema."],"dependsOn":[],"notInScope":"changing the csm-research/1 schema","ordinal":14,"ownedScope":"csm-deep-research/SKILL.md; csm-deep-research/lib/research.mjs; tests/deep-research-contract.test.mjs","parallelGroup":"G6","recoveryNote":"Revert the SKILL edit.","repairAttempts":0,"risk":"low","spikeCandidate":"Decide whether to add BLOCKED/RECOVER/VALIDATE to the machine or drop them from prose.","status":"pending","taskId":"T014","title":"Fix csm-deep-research states and the finding marker","validation":["node --test tests/clean-corpus.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"csm-plan's input resolver accepts csm-review-findings/2 (dual-accept with /1); the review->grill consumer adapter matches.","acceptanceSignal":"`node --test tests/plan-review-input.test.mjs` exits 0.","actions":["Add csm-review-findings/2 to csm-plan/lib/input-resolver.mjs and lib/consumer-adapters/index.mjs (dual-accept /1 and /2) with the correct revision handling.","Add tests/plan-review-input.test.mjs asserting both revisions resolve and an unknown revision fails closed."],"dependsOn":[],"notInScope":"changing the csm-review-findings/1 schema","ordinal":15,"ownedScope":"csm-plan/lib/input-resolver.mjs; lib/consumer-adapters/index.mjs; tests/plan-review-input.test.mjs","parallelGroup":"G6","recoveryNote":"Revert the resolver edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm which revision csm-review emits by default before dual-accepting.","status":"pending","taskId":"T015","title":"Let csm-plan consume the current review revision","validation":["node --test tests/plan-lineage.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"assertCanSaveVerified is enforced by a production save path, or the SKILL and enforcement doc no longer claim a receipt gate.","acceptanceSignal":"`node --test tests/csm-review-loop-closure-wiring.test.mjs` exits 0.","actions":["Either call assertCanSaveVerified/createEvaluatorReceipt from the csm-review save path and require a receipt for VERIFIED, or amend csm-review/SKILL.md and docs/enforcement-model.md to state the deterministic guard is the sole gate.","Add tests/csm-review-loop-closure-wiring.test.mjs asserting the chosen behavior (a missing receipt blocks a VERIFIED save, or the doc agreement)."],"dependsOn":[],"notInScope":"changing the csm-review-findings schema","ordinal":16,"ownedScope":"csm-review/lib/loop-closure.mjs; csm-review/SKILL.md; docs/enforcement-model.md; tests/csm-review-loop-closure-wiring.test.mjs","parallelGroup":"G7","recoveryNote":"Revert the wiring or the doc edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide whether review closure needs the receipt or only the deterministic guard.","status":"pending","taskId":"T016","title":"Wire csm-review's binding receipt or remove the claim","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"make precommit runs the full fast gate (including regen and the enforcement/suite-tooling suites); CI runs regen; a parity test asserts the target sets agree.","acceptanceSignal":"`node --test tests/precommit-parity.test.mjs` exits 0.","actions":["Extend Makefile precommit to include regen and the suites CI requires (test-enforcement, test-suite-tooling, test-orchestrate, test-policy, test-hooks, test-contracts).","Add make regen (verifyFresh) to the CI gates job so metadata drift fails CI.","Add tests/precommit-parity.test.mjs asserting precommit's target set covers CI's fast gate.","Harden the node24-canary job: make it blocking (or remove the decorative continue-on-error), pin pnpm to the repo version, and align its action SHAs with the rest of ci.yml."],"dependsOn":["T016","T007"],"notInScope":"adding heavyweight suites to precommit","ordinal":17,"ownedScope":"Makefile; .github/workflows/ci.yml; docs/enforcement-model.md; tests/precommit-parity.test.mjs","parallelGroup":"G7","recoveryNote":"Revert Makefile/CI edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Measure precommit runtime to keep it a fast subset.","status":"pending","taskId":"T017","title":"Make precommit a real CI mirror and run regen in CI","validation":["node scripts/check-suite.mjs","node scripts/regen.mjs"]},{"acceptanceEvidence":"config-inventory registry count is 104; the false '.csm-skills.json consumer' statement is corrected; enforcement-evaluator-spike names a real script; .PHONY lists all documented test targets; the typed-decisions 'unregistered ids' line is corrected.","acceptanceSignal":"`node --test tests/docs-consistency.test.mjs` exits 0.","actions":["Correct docs/config-inventory.md (registry 57 -> 104; the '.csm-skills.json/$XDG_CONFIG_HOME' statement; the csm-ddd 'host ceiling' claim).","Fix docs/enforcement-evaluator-spike.md to name the real loop-guard (csm-build/lib/loop-guard.mjs) instead of scripts/loop-guard.mjs.","Add test-osv-audit and test-progress-tracker to Makefile .PHONY.","Correct docs/typed-decisions.md:151-152 (the 6 enforcement ids are now registered).","Add tests/docs-consistency.test.mjs asserting these facts against the files."],"dependsOn":["T007","T017"],"notInScope":"rewriting docs wholesale","ordinal":18,"ownedScope":"docs/config-inventory.md; docs/enforcement-evaluator-spike.md; docs/typed-decisions.md; Makefile; tests/docs-consistency.test.mjs","parallelGroup":"G7","recoveryNote":"Revert the doc edits.","repairAttempts":0,"risk":"low","spikeCandidate":"Grep for other stale counts before finalizing.","status":"pending","taskId":"T018","title":"Fix documented-vs-code drift in repo docs","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Relative --repo works; --help exits 0; csm-ddd no longer imports csm-scan internals contrary to its SKILL.","acceptanceSignal":"`node --test csm-ddd/test/cli.test.mjs` exits 0.","actions":["Resolve --repo to an absolute path in defaultArtifactPaths (csm-ddd/lib/ddd/pipeline.mjs) so relative repos work.","Add a --help case to csm-ddd/scripts/ddd.mjs (exit 0).","Vendor the token-family matcher into csm-ddd/lib/ddd (or document/relax the isolation claim in csm-ddd/SKILL.md) so the cross-skill import is not a contract violation.","Extend csm-ddd/test/cli.test.mjs to cover relative repo and --help."],"dependsOn":[],"notInScope":"changing the DDD graph/report schemas","ordinal":19,"ownedScope":"csm-ddd/scripts/ddd.mjs; csm-ddd/lib/ddd/pipeline.mjs; csm-ddd/lib/ddd/redact.mjs; csm-ddd/SKILL.md; csm-ddd/test/cli.test.mjs","parallelGroup":"G8","recoveryNote":"Revert the CLI/lib edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide vendoring vs documenting the csm-scan dependency.","status":"pending","taskId":"T019","title":"Fix the csm-ddd CLI and its isolation contract","validation":["node --test csm-ddd/test/contracts.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"writeApproachArtifact mkdirs the parent and writes on a fresh repo; it is either used or removed.","acceptanceSignal":"`node --test csm-grill/test/approach-writer.test.mjs` exits 0.","actions":["Add mkdir(recursive:true) before the wx write in csm-grill/lib/approach.mjs writeApproachArtifact, or remove the dead writer.","Add csm-grill/test/approach-writer.test.mjs asserting a fresh-directory write succeeds or the API is absent."],"dependsOn":[],"notInScope":"changing the csm-approach/1 schema","ordinal":20,"ownedScope":"csm-grill/lib/approach.mjs; csm-grill/test/approach-writer.test.mjs","parallelGroup":"G8","recoveryNote":"Revert the writer edit.","repairAttempts":0,"risk":"low","spikeCandidate":"Confirm whether any caller intends to use writeApproachArtifact.","status":"pending","taskId":"T020","title":"Make the csm-grill writer create its own directory","validation":["node --test tests/approach-json-contract.test.mjs"]},{"acceptanceEvidence":"The live-mode guard either enforces its stated requirements or is simplified; no unreachable condition remains.","acceptanceSignal":"`node --test csm-autoresearch/test/llm-mode.test.mjs` exits 0.","actions":["In csm-autoresearch/lib/llm/index.mjs, either implement the DEF-EVAL/egress/credentials check with a reachable effect or collapse the dead branch; keep fail-closed.","Add csm-autoresearch/test/llm-mode.test.mjs pinning the intended behavior."],"dependsOn":[],"notInScope":"shipping a live transport","ordinal":21,"ownedScope":"csm-autoresearch/lib/llm/index.mjs; csm-autoresearch/test/llm-mode.test.mjs","parallelGroup":"G8","recoveryNote":"Revert the branch change.","repairAttempts":0,"risk":"low","spikeCandidate":"Confirm no live transport is intended to ship.","status":"pending","taskId":"T021","title":"Remove the unreachable branch in csm-autoresearch live mode","validation":["node --test csm-autoresearch/test/llm.test.mjs"]},{"acceptanceEvidence":"A fixture-keyring signature is not reported as production trust; validateEnvelope consults production_use (or the packaged bin refuses non-production keyrings).","acceptanceSignal":"`node --test tests/bootstrap-trust-root.test.mjs` exits 0.","actions":["In bootstrap/package/bin/csm-skills-bootstrap.js, fail closed or clearly mark trustLevel when the keyring is the test fixture (environment test-fixture-only / production_use false).","Add tests/bootstrap-trust-root.test.mjs asserting a fixture-signed envelope is not trustLevel 'signature-verified' for production, and a production keyring path is required."],"dependsOn":[],"notInScope":"key rotation / publication execution","ordinal":22,"ownedScope":"bootstrap/package/bin/csm-skills-bootstrap.js; bootstrap/keyring.json; tests/bootstrap-trust-root.test.mjs","parallelGroup":"G8","recoveryNote":"Revert the validator edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm the envelope trust fields consumers read.","status":"pending","taskId":"T022","title":"Harden the bootstrap trust root","validation":["node --test tests/protocol/trust-policy.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Every request sends a non-empty state and per-question instructions; a point without instructions is rejected at construction; the live API accepts the shipped shape.","acceptanceSignal":"`node --test tests/offline/decision-provider-contract.test.mjs` exits 0.","actions":["In csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs (and vercel.mjs) always send a non-null state; in question-protocol.mjs require non-empty instructions per question.","Reject at construction any decision point whose question lacks instructions (points.mjs/validateDecisionPoint), and add instructions to the 12 points that lack them.","Add tests/offline/decision-provider-contract.test.mjs asserting state is non-null, instructions are present for every point, and a missing one fails closed."],"dependsOn":[],"notInScope":"changing the fail-open or redaction behavior","ordinal":23,"ownedScope":"csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs; .../providers/vercel.mjs; .../question-protocol.mjs; .../points.mjs; csm-orchestrate/decision-points.json; tests/offline/decision-provider-contract.test.mjs","parallelGroup":"G9","recoveryNote":"Revert the provider edits.","repairAttempts":0,"risk":"high","spikeCandidate":"Confirm the exact live-required state/instructions constraints (already probed: 400 without).","status":"pending","taskId":"T023","title":"Repair the Jev provider contract (state + instructions)","validation":["node --test tests/offline/decision-question-protocol.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The parity test sends one real request through the shipped descriptor and fails on any 4xx; it is skipped when the key is absent and enforced when the opt-in env is set.","acceptanceSignal":"`CSM_DECISION_LIVE_PARITY=1 node --test tests/offline/decision-live-parity.test.mjs` exits 0.","actions":["Add tests/offline/decision-live-parity.test.mjs that (with CSM_DECISION_LIVE_PARITY=1 and a resolvable key) sends one minimal question through the real buildRequest and asserts HTTP 200; without the opt-in it skips.","Wire the parity test into the required adapter gate so it runs in the opt-in CI job."],"dependsOn":["T023"],"notInScope":"making the live call required by default","ordinal":24,"ownedScope":"tests/offline/decision-live-parity.test.mjs; scripts/adapter-required-tests.mjs","parallelGroup":"G9","recoveryNote":"Remove the test; no runtime change.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm the CI opt-in env name and key injection for the adapter gate.","status":"pending","taskId":"T024","title":"Add a live-vs-mock parity test for the provider","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"One adapter/service is built per run and available to skill libs and to the prose-only consult CLI; absent service = byte-identical behavior.","acceptanceSignal":"`node --test tests/orchestrate-decision-service.test.mjs` exits 0.","actions":["Add csm-orchestrate/lib/decision-adapter/service.mjs (consult/prefetch/stats/budget) and build it once in scripts/run-orchestrator.mjs next to resolveDecisionAdapter.","Thread decisionService through the executor invocation seam so skill libs can call it; add a direct-invocation entry to consult.mjs mirroring cli.mjs.","Add host/run/task config layers that can only narrow, all default OFF.","Add tests/orchestrate-decision-service.test.mjs asserting off-by-default byte-identity, advisory-only output, and redaction."],"dependsOn":["T023","T005"],"notInScope":"making Jev a required dependency","ordinal":25,"ownedScope":"csm-orchestrate/lib/decision-adapter/service.mjs; .../consult.mjs; scripts/run-orchestrator.mjs; csm-orchestrate/lib/skill-executor-handlers.mjs; tests/orchestrate-decision-service.test.mjs","parallelGroup":"G10","recoveryNote":"Revert the service and wiring.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm the executor invocation seam can carry the service without touching gates.","status":"pending","taskId":"T025","title":"Add a shared run-scoped decision service and direct consult entry","validation":["node --test tests/orchestrate-decision-adapter.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The new points (all advisory or non-safety apply) validate in points.mjs and decision-points.json lockstep; conditional-skill-ranking has a live consumer.","acceptanceSignal":"`node --test tests/orchestrate-decision-points-expanded.test.mjs` exits 0.","actions":["Add advisory/apply non-safety points: csm-deep-research-triage, build-repair-classification, make-tests-triage, csm-review-scale, plan-scale, make-tests-survivor-triage, plan-remediation-resolution, build-integrate-choice, grill-clarification-ranking, make-tests-surface-ranking, python-review-bucket, deep-research-verify-claim.","Wire conditional-skill-ranking to a live consumer (or remove it).","Keep points.mjs and decision-points.json in lockstep including the question spec.","Add tests/orchestrate-decision-points-expanded.test.mjs asserting every point validates, none is safety+apply, and id/instructions lockstep holds."],"dependsOn":["T023"],"notInScope":"making any safety/authority point apply","ordinal":26,"ownedScope":"csm-orchestrate/lib/decision-adapter/points.mjs; csm-orchestrate/decision-points.json; tests/orchestrate-decision-points-expanded.test.mjs","parallelGroup":"G10","recoveryNote":"Revert the point additions.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm each new point's safetyClass and deterministic fallback.","status":"pending","taskId":"T026","title":"Add the high-value safe decision points and wire the dormant one","validation":["node --test tests/orchestrate-decision-adapter.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Coverage profiles (off/shadow/wide/excessive) drive one batched call per state; a run-level budget guard degrades advisory-first and never pauses; per-decision telemetry records cost/latency/failures.","acceptanceSignal":"`node --test tests/orchestrate-decision-budget.test.mjs` exits 0.","actions":["Add coverage profiles and a run-level budget guard (NORMAL->THROTTLED->SHADOW_ONLY->OFF) to csm-orchestrate/lib/decision-adapter/index.mjs; drop low-value advisory points first; never set PAUSED.","Lower the default state cap to the documented token budget and add windowing; add prefetch + bounded concurrency + cache-by-stateDigest.","Record per-decision telemetry (point, mode, latency, tokens, cost, applied, baselineAgreement, failure) and expose it in stats() and the run sidecar.","Add tests/orchestrate-decision-budget.test.mjs asserting tiering, caps, cache reuse, and telemetry rows."],"dependsOn":["T025"],"notInScope":"changing fail-open/breaker to be weaker","ordinal":27,"ownedScope":"csm-orchestrate/lib/decision-adapter/index.mjs; .../artifact.mjs; tests/orchestrate-decision-budget.test.mjs","parallelGroup":"G10","recoveryNote":"Revert the adapter edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Measure real batch latency/cost to calibrate the budget guard.","status":"pending","taskId":"T027","title":"Add coverage profiles, budget guard, and decision telemetry","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"A corpus container and a threshold-aware calibration harness exist and produce promote/hold/kill with pre-registered thresholds; the classifier path cannot read humanLabels.","acceptanceSignal":"`node --test tests/offline/decision-calibration-program.test.mjs` exits 0.","actions":["Extend tests/offline/decision-calibration-harness.mjs into a real program: per-domain corpora, blind annotations, IAA, per-class precision/recall/coverage, ECE, dangerous-error metric, and a pre-registered promote/hold/kill verdict.","Ensure the corpus labels are not readable by the classifier path (redaction denylist) and add anti-rubber-stamp checks (decoys, burn-after-use).","Add tests/offline/decision-calibration-program.test.mjs asserting the harness computes each metric and refuses a promotion without the required evidence."],"dependsOn":["T023"],"notInScope":"claiming measured accuracy without a real held-out corpus","ordinal":28,"ownedScope":"tests/offline/decision-calibration-harness.mjs; tests/offline/decision-calibration-program.test.mjs","parallelGroup":"G11","recoveryNote":"Revert the harness edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide corpus domains and minimum n; identify annotators.","status":"pending","taskId":"T028","title":"Stand up the Jev calibration program scaffolding","validation":["node --test tests/offline/decision-calibration-harness.test.mjs"]},{"acceptanceEvidence":"csm-decision/2, csm-decision-trust/1, csm-decision-corpus/1, csm-decision-calibration/2, and capabilities/4 are registered and reject unknown revisions; L5 is refused; the boundary guard is unchanged.","acceptanceSignal":"`node --test tests/foundation/decision-trust-schemas.test.mjs` exits 0.","actions":["Add and register the additive schemas (decision/2 trustLevel/escalated/modelSnapshot; decision-trust/1; decision-corpus/1; calibration/2 thresholds; capabilities/4) under the frozen-/1 dual-revision policy.","Implement the bare-label pipe (labelOf/policy harness-owned) and keep boundary-guard semantics; refuse any trust record with ceiling safety/authority (L5).","Update docs/typed-decisions.md and docs/enforcement-model.md for the ladder and promotion requirements.","Add tests/foundation/decision-trust-schemas.test.mjs asserting registration, unknown-revision rejection, L5 refusal, and boundary-guard invariance.","Document the Jev enterprise trust caveats (no SLA, $50 liability cap, no self-hosting, unstable rate limits, alpha route, pin+expire the model snapshot) in docs/typed-decisions-runbook.md."],"dependsOn":["T023","T008"],"notInScope":"weakening the never-Jev boundary or frozen /1 schemas","ordinal":29,"ownedScope":"schemas/registry.json; csm-orchestrate/schemas/decision.v2.schema.json; .../decision-trust.schema.json; .../decision-corpus.schema.json; .../decision-calibration.v2.schema.json; .../capabilities.v4.schema.json; csm-orchestrate/lib/decision-adapter/boundary-guard.mjs; docs/typed-decisions.md; docs/enforcement-model.md; tests/foundation/decision-trust-schemas.test.mjs","parallelGroup":"G11","recoveryNote":"Revert the schema additions.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm registry dual-revision policy and the exact L5-refusal invariant.","status":"pending","taskId":"T029","title":"Add the trust-ladder schemas and preserve the never-Jev boundary","validation":["node --test tests/compatibility.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"All new tests pass; corpus, payload parity, trace verification, and checkout hygiene are green; every audit and Jev finding is remediated or explicitly deferred with a recorded decision.","acceptanceSignal":"`node scripts/check-suite.mjs` exits 0.","actions":["Run the full fast gate (make precommit) plus the new focused suites; resolve any remaining drift.","Run node scripts/validate-corpus-v2.mjs, node scripts/regen.mjs (verifyFresh), node scripts/verify-traces.mjs, and node scripts/check-checkout-hygiene.mjs.","Record the final remediation status per audit and Jev finding in the completion review."],"dependsOn":["T001","T002","T003","T004","T005","T006","T007","T008","T009","T010","T011","T012","T013","T014","T015","T016","T017","T018","T019","T020","T021","T022","T023","T024","T025","T026","T027","T028","T029","T031","T032","T033","T034","T035","T036"],"notInScope":"changing production code during acceptance","ordinal":30,"ownedScope":"tests/acceptance/ (aggregate harness); .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json (completion review field)","parallelGroup":"G12","recoveryNote":"No source change; re-run the gate.","repairAttempts":0,"risk":"high","spikeCandidate":"None; this is the deterministic aggregate gate.","status":"pending","taskId":"T030","title":"Final conformance and end-to-end acceptance","validation":["make test","node scripts/regen.mjs","node scripts/verify-traces.mjs","node scripts/check-checkout-hygiene.mjs"]},{"acceptanceEvidence":"Trace records are retained/labelled so production runs are distinguishable from fixtures, and a coverage check fails when a completed run emits no trace.","acceptanceSignal":"`node --test tests/trace-evidence-substrate.test.mjs` exits 0.","actions":["Add a retention/rotation or documented growth policy to scripts/lib/trace-log.mjs so older production traces are not lost.","Label fixture vs production runs (e.g. a run-class field) and have scripts/verify-traces.mjs report production coverage, not just total lines.","Ensure production orchestrator/driver runs emit traces and add a check that a completed run with no trace fails.","Add tests/trace-evidence-substrate.test.mjs asserting retention, labelling, and the zero-trace failure."],"dependsOn":[],"notInScope":"changing the trace record schema","ordinal":31,"ownedScope":"scripts/lib/trace-log.mjs; scripts/verify-traces.mjs; docs/action-traces-and-cleanup.md; tests/trace-evidence-substrate.test.mjs","parallelGroup":"G13","recoveryNote":"Revert trace-log/verify-traces edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide the retention window and the fixture/production discriminator.","status":"pending","taskId":"T031","title":"Make the trace substrate usable evidence for a multi-week review","validation":["node scripts/verify-traces.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"The packaged csm-browse is runnable-or-explicitly-guidance-only; no hardcoded $HOME paths remain in its SKILL; port unit tests do not depend on real host binds or fixed ports.","acceptanceSignal":"`node --test tests/browse-packaging.test.mjs` exits 0.","actions":["Add csm-browse scripts/ (and package.json/lockfile as needed) to the bootstrap mapping so the packaged skill matches its SKILL, OR mark the mirrored SKILL guidance-only and remove the script references.","Replace the 16 hardcoded $HOME/.config/opencode/skills paths in csm-browse/SKILL.md with skill-root-relative references.","Make csm-browse/tests/unit/ports.test.mjs hermetic: stub the host bind probe and stop asserting fixed ports 9224/9225.","Add tests/browse-packaging.test.mjs asserting payload/description agreement, no hardcoded path literal, and hermetic ports."],"dependsOn":[],"notInScope":"changing the browse CDP verbs or security scan","ordinal":32,"ownedScope":"scripts/pack-bootstrap.mjs; bootstrap/payload-index.json; csm-browse/SKILL.md; csm-browse/tests/unit/ports.test.mjs; tests/browse-packaging.test.mjs","parallelGroup":"G13","recoveryNote":"Revert pack mapping and test edits.","repairAttempts":0,"risk":"medium","spikeCandidate":"Decide pack-scripts vs guidance-only for browse.","status":"pending","taskId":"T032","title":"Fix csm-browse packaging, portability, and hermetic tests","validation":["node --test csm-browse/tests/unit/ports.test.mjs","node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Every producer descriptor carries the format header and its schema/canonicalPath agrees with the owning SKILL; a lockstep test enumerates them.","acceptanceSignal":"`node --test tests/producer-descriptor-contract.test.mjs` exits 0.","actions":["Add `format: csm-producer-descriptor/1` to csm-deep-research/research-producer.json and csm-scan/norms-producer.json.","Reconcile csm-scan/norms-producer.json and csm-review/producer.json with their SKILLs (delegating path/revision to T009/T015).","Add tests/producer-descriptor-contract.test.mjs asserting every producer file has the header and agrees with its SKILL's declared artifact."],"dependsOn":["T009","T015"],"notInScope":"changing artifact schemas","ordinal":33,"ownedScope":"csm-*/producer.json; csm-deep-research/research-producer.json; csm-scan/norms-producer.json; tests/producer-descriptor-contract.test.mjs","parallelGroup":"G13","recoveryNote":"Revert descriptor edits.","repairAttempts":0,"risk":"low","spikeCandidate":"Enumerate all producer files and their declared paths.","status":"pending","taskId":"T033","title":"Make producer descriptors lockstep with their SKILLs","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"No SKILL.md contains the literal $HOME/.config/opencode/skills; references are skill-root-relative.","acceptanceSignal":"`node --test tests/no-hardcoded-skill-paths.test.mjs` exits 0.","actions":["Replace the 6 hardcoded paths in csm-upload/SKILL.md and the 1 in csm-deep-research/SKILL.md with skill-root-relative references.","Add tests/no-hardcoded-skill-paths.test.mjs that greps all csm-*/SKILL.md (source and payload) for the literal and fails on any hit."],"dependsOn":["T012","T014"],"notInScope":"rewriting skill guidance","ordinal":34,"ownedScope":"csm-upload/SKILL.md; csm-deep-research/SKILL.md; tests/no-hardcoded-skill-paths.test.mjs","parallelGroup":"G13","recoveryNote":"Revert the doc edits.","repairAttempts":0,"risk":"low","spikeCandidate":"Confirm the canonical relative form for sibling-skill invocations.","status":"pending","taskId":"T034","title":"Replace remaining hardcoded install-prefix paths","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"When dropCapture.required and mid-run capture degrades, the run fails closed or records a required-degradation; the discarded degraded flag is consumed.","acceptanceSignal":"`node --test tests/orchestrate-drop-capture.test.mjs` exits 0.","actions":["In csm-orchestrate/lib/verified-sandbox-runtime.mjs, consume collectDropsWithRetry's degraded result and fail closed when requireDropCapture is set.","Add tests/orchestrate-drop-capture.test.mjs injecting a mid-run capture reader death and asserting the closed behavior."],"dependsOn":["T004"],"notInScope":"changing provision-time drop-capture","ordinal":35,"ownedScope":"csm-orchestrate/lib/verified-sandbox-runtime.mjs; csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-drop-capture.test.mjs","parallelGroup":"G13","recoveryNote":"Revert runtime edit.","repairAttempts":0,"risk":"medium","spikeCandidate":"Confirm degraded flag semantics and requireDropCapture plumbing.","status":"pending","taskId":"T035","title":"Fail closed on mid-run drop-capture degradation when required","validation":["node scripts/check-suite.mjs"]},{"acceptanceEvidence":"Either /1 builds require the evaluator receipt or csm-build/SKILL.md and docs/enforcement-model.md state guard-only /1; a test pins the chosen behavior.","acceptanceSignal":"`node --test tests/csm-build-evaluator-revision.test.mjs` exits 0.","actions":["Decide whether the evaluator receipt is required for csm-build-state/1; if yes, set requireEvaluator for /1; if no, document guard-only /1 honestly in csm-build/SKILL.md and docs/enforcement-model.md.","Add tests/csm-build-evaluator-revision.test.mjs asserting the chosen behavior."],"dependsOn":["T016"],"notInScope":"changing the /2 receipt requirement","ordinal":36,"ownedScope":"csm-build/lib/state.mjs; csm-build/SKILL.md; docs/enforcement-model.md; tests/csm-build-evaluator-revision.test.mjs","parallelGroup":"G13","recoveryNote":"Revert state/SKILL edits.","repairAttempts":0,"risk":"low","spikeCandidate":"Confirm whether default builds emit /1 or /2.","status":"pending","taskId":"T036","title":"Resolve the csm-build /1 evaluator requirement","validation":["node scripts/check-suite.mjs"]}],"verificationStrategy":{"tiers":["Tier 1: per-task focused test (the acceptance signal).","Tier 2: affected suite (node --test of the owning skill/suite).","Tier 3: aggregate gate (make precommit; check-suite; corpus; regen; traces; hygiene)."]}}
+{
+  "acceptanceCriteria": [
+    {
+      "evidence": "make precommit + node scripts/check-suite.mjs exit 0.",
+      "id": "AC1",
+      "statement": "node scripts/check-suite.mjs exits 0 and all new focused tests pass."
+    },
+    {
+      "evidence": "tests/orchestrate-docker-worker-credentials.test.mjs passes with a -e secret container.",
+      "id": "AC2",
+      "statement": "The Docker credentialsNone control reads real Config.Env and can fail."
+    },
+    {
+      "evidence": "tests/orchestrate-egress-*.test.mjs pass.",
+      "id": "AC3",
+      "statement": "Egress path allowlist resists double-encoding; every decision is audited; buffers are bounded."
+    },
+    {
+      "evidence": "tests/check-suite-metadata-drift.test.mjs and tests/corpus-gate-completeness.test.mjs pass.",
+      "id": "AC4",
+      "statement": "Payload metadata drift and the full durable corpus are gated."
+    },
+    {
+      "evidence": "tests/offline/decision-provider-contract.test.mjs, decision-live-parity, decision-service, decision-trust-schemas pass.",
+      "id": "AC5",
+      "statement": "Jev sends valid state+instructions, has a live parity test, a shared service, and a trust ladder capped below acceptance authority."
+    }
+  ],
+  "applicability": null,
+  "artifactId": "art-192c2c8dfd527634b2e007b23c99eb48",
+  "assumptionsAndDecisions": [
+    {
+      "decision": "Combine the two research findings into one plan rather than two, because the Jev program depends on the contract fix and shares the registry/gate surfaces.",
+      "rationale": "Avoids duplicated registry/corpus/gate tasks and orders Jev work after the enabling fixes."
+    },
+    {
+      "decision": "Keep every Jev point advisory or non-safety apply.",
+      "rationale": "The never-Jev boundary and prior doctrine; L5 is refused by construction."
+    },
+    {
+      "decision": "Use new focused test files as acceptance signals.",
+      "rationale": "They prove the specific fix and are independently validatable."
+    }
+  ],
+  "completionReview": null,
+  "control": {
+    "activeTasks": [],
+    "blockers": [],
+    "commits": "disabled",
+    "currentState": "COMPLETE",
+    "cycle": 0,
+    "lastCheckpoint": "none",
+    "lastModelRun": "",
+    "nextTransition": "none (terminal)",
+    "resume": {
+      "instruction": "re-read control, latest journal, recovery notes, requirements, and working-tree diff"
+    },
+    "status": "complete"
+  },
+  "critiqueResolution": [],
+  "currentStateEvidence": {
+    "observations": [
+      "Two schema-valid research findings underpin this plan: the validated audit and the Jev deep-embedding finding.",
+      "Repo gates at HEAD: check-suite OK; validate-corpus-v2 94/0; payload drift 0; regen verifyFresh ok.",
+      "Live Jev probes (2026-09-26): state/instructions missing cause HTTP 400; batched mixed questions return typed answers."
+    ]
+  },
+  "design": {
+    "approach": "Grouped, dependency-ordered tasks with non-overlapping write ownership per parallel group; security and gate fixes precede the Jev service; trust schemas come last and only after registry coverage.",
+    "summary": "Fix enabling defects first (security, gates, registry, contracts), then build the Jev program on top of a repaired provider and a gated corpus, and close with one aggregate acceptance gate."
+  },
+  "digest": "sha256:8f92e4d5825e9accc5bdf60753b87746171d53bc534e85b761ac198705cc2b85",
+  "discoveredRequirements": [
+    {
+      "requirement": "The 6 production schema ids and the missing compatibility pairs must be registered before trust-schema work.",
+      "source": "audit claim-n-registry-gaps, claim-n-compat-matrix"
+    },
+    {
+      "requirement": "The provider contract must be repaired before any embedding or parity test.",
+      "source": "jev claim-j-blocker"
+    }
+  ],
+  "executionGraph": {
+    "criticalPath": "T001/T002 -> T003 -> T004; T001 -> T005; T006/T007 -> T008; T023 -> T025 -> T027; T023 -> T029; ... -> T030",
+    "parallelGroups": {
+      "G1": [
+        "T001",
+        "T002",
+        "T005"
+      ],
+      "G10": [
+        "T025",
+        "T026",
+        "T027"
+      ],
+      "G11": [
+        "T028",
+        "T029"
+      ],
+      "G12": [
+        "T030"
+      ],
+      "G13": [
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036"
+      ],
+      "G2": [
+        "T003",
+        "T004"
+      ],
+      "G3": [
+        "T006",
+        "T007"
+      ],
+      "G4": [
+        "T008"
+      ],
+      "G5": [
+        "T009",
+        "T010",
+        "T011",
+        "T012"
+      ],
+      "G6": [
+        "T013",
+        "T014",
+        "T015"
+      ],
+      "G7": [
+        "T016",
+        "T017",
+        "T018"
+      ],
+      "G8": [
+        "T019",
+        "T020",
+        "T021",
+        "T022"
+      ],
+      "G9": [
+        "T023",
+        "T024"
+      ]
+    }
+  },
+  "goal": {
+    "constraints": [
+      "Jev stays optional and off by default; absent/disabled/failing behavior is byte-identical to today.",
+      "Every acceptance, security, completion, closure, receipt, digest, cursor, isolation, and commit decision stays deterministic and never-Jev.",
+      "Each task has one positive runnable acceptance signal; no disjunctive or deferral signals.",
+      "Tasks remain pending; this planning invocation authorizes no implementation."
+    ],
+    "deliverables": [
+      "Security fixes: Docker credentialsNone, egress encoding/audit/bounds, bypass run-lease.",
+      "Gate and corpus completeness: payload metadata drift, full corpus gating, registry/compat coverage.",
+      "Contract reconciliation across csm-scan, csm-review, csm-review-python, csm-upload, csm-bdd-tdd, csm-deep-research, csm-plan.",
+      "Enforcement honesty and doc consistency.",
+      "Jev program: contract repair, live parity, shared decision service, new safe points, coverage/budget/telemetry, calibration program, trust-ladder schemas.",
+      "A final aggregate acceptance gate.",
+      "Additional adversarial findings: trace evidence substrate, csm-browse packaging/portability/hermetic tests, producer descriptor lockstep, hardcoded-path removal, drop-capture fail-closed, csm-build /1 evaluator decision, CI canary hardening."
+    ],
+    "exclusions": [
+      "Implementing any of these tasks during this planning invocation.",
+      "Promoting Jev to any acceptance/security/completion gate (L5 refused).",
+      "Changing frozen /1 schemas beyond additive dual-accept."
+    ],
+    "goal": "Remediate every validated defect from the adversarial system audit AND embed Jev deeply as an optional, excessive-where-viable classifier, as one executable plan."
+  },
+  "inputs": [
+    {
+      "artifactId": "art-csm-system-audit-validated-20260926",
+      "digest": "sha256:5f91a0a263fcb41c43ae44dac17df0c587af49e6e6998b43be242652282c7124",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json",
+      "schema": "csm-research/1"
+    },
+    {
+      "artifactId": "art-jev-deep-embedding-20260926",
+      "digest": "sha256:2bfb7d2631f04c162628f67ced02170874a9cec0b11cc8974d2beee7348b4f9d",
+      "owner": "csm-deep-research",
+      "path": ".agents/research/2026-09-26-jev-deep-embedding-run-jev-embed-20260926t153000z-2b8e6f4a9c1d-research.json",
+      "schema": "csm-research/1"
+    }
+  ],
+  "journal": [
+    {
+      "cycle": 0,
+      "evidence": "User asked to combine the validated audit finding and the Jev deep-embedding finding into one csm plan.",
+      "nextState": "DISCOVER",
+      "sequence": 0,
+      "tasks": [],
+      "timestamp": "2026-09-26T16:20:00Z",
+      "transition": "INTAKE -> DISCOVER"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Both findings read; repo gates and Jev contract re-verified at HEAD.",
+      "nextState": "RESEARCH",
+      "sequence": 1,
+      "tasks": [],
+      "timestamp": "2026-09-26T16:25:00Z",
+      "transition": "DISCOVER -> RESEARCH"
+    },
+    {
+      "cycle": 0,
+      "evidence": "30 atomic tasks grouped into 12 parallel groups with dependencies and single positive acceptance signals.",
+      "nextState": "DRAFT",
+      "sequence": 2,
+      "tasks": [],
+      "timestamp": "2026-09-26T16:32:00Z",
+      "transition": "RESEARCH -> DRAFT"
+    },
+    {
+      "cycle": 0,
+      "evidence": "Each task has a runnable signal, risk, anti-scope, owned scope, dependency, and recovery note; no disjunctive signals.",
+      "nextState": "VERIFY",
+      "sequence": 3,
+      "tasks": [],
+      "timestamp": "2026-09-26T16:40:00Z",
+      "transition": "DRAFT -> VERIFY"
+    },
+    {
+      "cycle": 0,
+      "evidence": "validatePlan returned valid=true; all tasks pending; no implementation performed.",
+      "nextState": "NOT_STARTED",
+      "sequence": 4,
+      "tasks": [],
+      "timestamp": "2026-09-26T16:45:00Z",
+      "transition": "VERIFY -> NOT_STARTED"
+    },
+    {
+      "cycle": 0,
+      "evidence": "User audit of coverage found 7 validated adversarial findings omitted; added T031-T036 and extended T017/T029; revalidated.",
+      "nextState": "NOT_STARTED",
+      "sequence": 5,
+      "tasks": [],
+      "timestamp": "2026-09-26T17:05:00Z",
+      "transition": "VERIFY -> NOT_STARTED"
+    },
+    {
+      "cycle": 0,
+      "evidence": "All tasks complete; independent completion verdict recorded (2 reviewers); CI green.",
+      "nextState": "COMPLETE",
+      "sequence": 6,
+      "tasks": [],
+      "timestamp": "2026-09-27T23:20:00Z",
+      "transition": "NOT_STARTED -> COMPLETE"
+    }
+  ],
+  "planId": "system-remediation-jev-embedding",
+  "projection": {
+    "legacyMarkdownStatus": "history-only",
+    "profile": "csm-plan-human/1"
+  },
+  "provenance": {
+    "producedAt": "2026-09-26T16:45:00Z",
+    "producer": "csm-plan",
+    "producerVersion": "csm-plan/1",
+    "sourceDigests": [
+      "sha256:5f91a0a263fcb41c43ae44dac17df0c587af49e6e6998b43be242652282c7124",
+      "sha256:2bfb7d2631f04c162628f67ced02170874a9cec0b11cc8974d2beee7348b4f9d"
+    ]
+  },
+  "rdRecord": [
+    {
+      "answer": "Yes; HTTP 400 without either (probed).",
+      "question": "Does the live Jev API require state and instructions?",
+      "status": "resolved"
+    }
+  ],
+  "risksAndRecovery": {
+    "recovery": "Each task is independently revertible; the plan is resumable from control + journal + per-task recovery notes.",
+    "risks": [
+      {
+        "mitigation": "Focused tests plus fail-closed defaults; revert per task.",
+        "risk": "Security fixes regress isolation or egress availability."
+      },
+      {
+        "mitigation": "T023 precedes T024-T029; dependencies encode it.",
+        "risk": "Jev work is attempted before the contract fix."
+      },
+      {
+        "mitigation": "T029 depends on T008; registry ownership serialized.",
+        "risk": "Registry edits collide across groups."
+      },
+      {
+        "mitigation": "L5 refused by schema; boundary-guard invariance test.",
+        "risk": "Trust elevation erodes the never-Jev boundary."
+      }
+    ]
+  },
+  "runId": "run-e8fe9191c456eda30472041398b4e9fc",
+  "schema": "csm-plan/1",
+  "schemaRevision": 1,
+  "status": "complete",
+  "tasks": [
+    {
+      "acceptanceEvidence": "parseInspect reads entry.Config.Env; a real `docker run -e SECRET` inspect parses credentialsNone=false; the corrected fixture lives at tests/orchestrate-docker-worker-provider.test.mjs.",
+      "acceptanceSignal": "`node --test tests/orchestrate-docker-worker-credentials.test.mjs` exits 0.",
+      "actions": [
+        "Change parseInspect in csm-orchestrate/lib/docker-worker-provider.mjs to read entry.Config?.Env (not entry.HostConfig.Env) for the env/credentialsNone control.",
+        "Correct the fixture in tests/orchestrate-docker-worker-provider.test.mjs so Env lives under Config, matching real docker inspect.",
+        "Add tests/orchestrate-docker-worker-credentials.test.mjs that runs a container with -e CSM_SECRET_MARKER=leaked (skip when Docker unavailable), inspects it, and asserts credentialsNone === false; also assert a clean container reports true."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the isolation gate or other provider controls",
+      "ordinal": 1,
+      "ownedScope": "csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-docker-worker-provider.test.mjs; tests/orchestrate-docker-worker-credentials.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "Revert the parseInspect change; the fixture and test revert with it.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm real `docker inspect` emits env at Config.Env and that a -e secret is visible there.",
+      "status": "completed",
+      "taskId": "T001",
+      "title": "Fix Docker sandbox credentialsNone attestation",
+      "validation": [
+        "node --test tests/orchestrate-docker-worker-provider.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "evaluateEgress denies /allowed/%252e%252e/admin and any residual %2e/%5c; the exploit repro from the finding now returns denied.",
+      "acceptanceSignal": "`node --test tests/orchestrate-egress-path-encoding.test.mjs` exits 0.",
+      "actions": [
+        "In csm-orchestrate/lib/egress-broker.mjs, decode to a fixed point (or reject any residual %2e/%5c/%2f) before the pathPrefix check; keep the wildcard-escape denial intact.",
+        "Add tests/orchestrate-egress-path-encoding.test.mjs covering /allowed/ok allowed, /allowed/%2e%2e/admin denied, /allowed/%252e%252e/admin denied, and double-encoded multi-segment forms denied."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the allowlist schema or credential injection",
+      "ordinal": 2,
+      "ownedScope": "csm-orchestrate/lib/egress-broker.mjs; tests/orchestrate-egress-path-encoding.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "Revert the decode change.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Determine whether upstreams may decode again, and the exact residual-encoding set to reject.",
+      "status": "completed",
+      "taskId": "T002",
+      "title": "Harden egress pathPrefix against double URL-encoding",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A ledger row is written for allowed, denied, and errored decisions; malformed relay input and forward errors produce a response instead of a hang.",
+      "acceptanceSignal": "`node --test tests/orchestrate-egress-audit.test.mjs` exits 0.",
+      "actions": [
+        "In egress-broker.mjs, ensure the allowed-forward error path records an egress.decision row (including partial-send) before returning; do not swallow the error without a response.",
+        "Write a response on malformed relay input instead of returning silently.",
+        "Add tests/orchestrate-egress-audit.test.mjs injecting a throwing forward and malformed input, asserting one ledger row per decision and a socket response."
+      ],
+      "dependsOn": [
+        "T002"
+      ],
+      "notInScope": "rewriting the broker transport",
+      "ordinal": 3,
+      "ownedScope": "csm-orchestrate/lib/egress-broker.mjs; tests/orchestrate-egress-audit.test.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "Revert the broker edits.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Prove a thrown forward on an allowed request currently writes no ledger row and produces no response.",
+      "status": "completed",
+      "taskId": "T003",
+      "title": "Audit every egress decision and never hang the relay",
+      "validation": [
+        "node --test tests/orchestrate-egress-bounds.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Relay/wrapper buffers have hard caps; an over-budget upstream response is rejected; the relay default bind is loopback unless policy opens it.",
+      "acceptanceSignal": "`node --test tests/orchestrate-egress-bounds.test.mjs` exits 0.",
+      "actions": [
+        "Cap the egress-broker relay buffer and connection list; cap docker-worker stdout/stderr capture and HTTP forward body; enforce the matched rule maxBytes on the RESPONSE, not only pre-forward.",
+        "Default the relay bind host to loopback unless a policy entry opens a wider interface.",
+        "Add tests/orchestrate-egress-bounds.test.mjs asserting a no-newline flood is cut off, an oversized upstream response is rejected, and the default bind is loopback."
+      ],
+      "dependsOn": [
+        "T003"
+      ],
+      "notInScope": "changing egress policy semantics",
+      "ordinal": 4,
+      "ownedScope": "csm-orchestrate/lib/egress-broker.mjs; csm-orchestrate/lib/verified-sandbox-runtime.mjs; csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-egress-bounds.test.mjs",
+      "parallelGroup": "G2",
+      "recoveryNote": "Revert the caps and bind default.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Measure realistic upstream/worker output sizes to pick non-breaking caps.",
+      "status": "completed",
+      "taskId": "T004",
+      "title": "Bound egress buffers and enforce response limits",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Two concurrent --plan/--request runs on one artifact: one wins the lease, the other fails closed; a re-run does not reuse a dirty worktree.",
+      "acceptanceSignal": "`node --test tests/orchestrate-bypass-lease.test.mjs` exits 0.",
+      "actions": [
+        "In scripts/run-orchestrator.mjs realModeBypass, acquire acquireRunLease before dispatch and release after, mirroring realMode.",
+        "In scripts/lib/agent-session-executor.mjs ensureWorktree, reject or reset a pre-existing dirty worktree and bind it to the current runId/attempt.",
+        "Add tests/orchestrate-bypass-lease.test.mjs covering concurrent acquisition and dirty-worktree rejection."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the agent-session executor's public API",
+      "ordinal": 5,
+      "ownedScope": "scripts/run-orchestrator.mjs; scripts/lib/agent-session-executor.mjs; tests/orchestrate-bypass-lease.test.mjs",
+      "parallelGroup": "G1",
+      "recoveryNote": "Revert the lease and worktree checks.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the lease API and worktree reuse behavior under CSM_AGENT_SESSION_EXEC=1.",
+      "status": "completed",
+      "taskId": "T005",
+      "title": "Fence the bypass route with a run lease and a clean worktree",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Mutating a metadata-mapped source (e.g. lib/render-html/index.mjs) makes the gate fail; the committed tree is fresh.",
+      "acceptanceSignal": "`node --test tests/check-suite-metadata-drift.test.mjs` exits 0.",
+      "actions": [
+        "Include mapping.metadata in scripts/check-suite.mjs buildPayloadSrcMap (or invoke scripts/regen.mjs verifyFresh from check-suite) so payload/lib/** and payload/schemas/** are compared.",
+        "Run regen verifyFresh in the pre-commit hook and CI so metadata drift fails locally.",
+        "Add tests/check-suite-metadata-drift.test.mjs that mutates a metadata source in a temp copy and asserts the gate reports drift."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the pack mapping allowlist",
+      "ordinal": 6,
+      "ownedScope": "scripts/check-suite.mjs; scripts/regen.mjs; .lefthook.yml; .github/workflows/ci.yml; tests/check-suite-metadata-drift.test.mjs",
+      "parallelGroup": "G3",
+      "recoveryNote": "Revert the gate change; restore the mutated source.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm check-suite currently ignores mapping.metadata (reproduce with a temp mutation).",
+      "status": "completed",
+      "taskId": "T006",
+      "title": "Close the payload-drift blind spot for metadata-mapped files",
+      "validation": [
+        "node scripts/regen.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": ".agents/builds, research, reviews, approaches, and decisions JSON are validated; the 256-error builds record is repaired; config-inventory no longer claims builds is validated.",
+      "acceptanceSignal": "`node --test tests/corpus-gate-completeness.test.mjs` exits 0.",
+      "actions": [
+        "Extend scripts/validate-corpus-v2.mjs (or add a validator) to enumerate and schema-validate .agents/builds, research, reviews, approaches, and decisions canonical JSON.",
+        "Repair .agents/builds/2026-08-28-all-skills-config-production-assurance-build.json to satisfy csm-build-state/1, or retire it with a recorded decision.",
+        "Correct docs/config-inventory.md:208 which falsely claims .agents/builds is validated.",
+        "Add tests/corpus-gate-completeness.test.mjs asserting each class is checked and the offending records validate."
+      ],
+      "dependsOn": [],
+      "notInScope": "rewriting the plans/build-state /2 contract",
+      "ordinal": 7,
+      "ownedScope": "scripts/validate-corpus-v2.mjs; .agents/builds/*.json; docs/config-inventory.md; tests/corpus-gate-completeness.test.mjs",
+      "parallelGroup": "G3",
+      "recoveryNote": "Revert the validator and restore the record from git.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Determine the correct disposition of the 256-error builds record (repair vs retire).",
+      "status": "completed",
+      "taskId": "T007",
+      "title": "Gate the full durable corpus and repair the invalid build record",
+      "validation": [
+        "node scripts/validate-corpus-v2.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The 6 production $id schemas are registered; negotiate no longer throws for the missing pairs; a coverage test enumerates registry vs matrix.",
+      "acceptanceSignal": "`node --test tests/schema-registry-coverage.test.mjs` exits 0.",
+      "actions": [
+        "Register in schemas/registry.json: csm-orchestrate-child-attempt/1, csm-orchestrate-skill-executor/1, csm-autoresearch-docker-sandbox-attestation/1, csm-autoresearch-docker-sandbox-policy/1, csm-final-receipt/1 (leave csm-trace/1, csm-skill-manifest/1, csm-verification-status/1 intentionally unregistered and documented).",
+        "Add schemas/compatibility-matrix.json entries for csm-orchestrate-adversarial-review 1->2, csm-orchestrate-final-review 1->2, and the missing same-revision pairs enumerated by the finding.",
+        "Add tests/schema-registry-coverage.test.mjs asserting every multi-revision base has a matrix entry and every registered schemaPath exists with matching $id."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing frozen /1 schemas",
+      "ordinal": 8,
+      "ownedScope": "schemas/registry.json; schemas/compatibility-matrix.json; csm-orchestrate/schemas/*.json; csm-autoresearch/schemas/*.json; tests/schema-registry-coverage.test.mjs",
+      "parallelGroup": "G4",
+      "recoveryNote": "Revert registry/matrix edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Enumerate all multi-revision bases without a matrix entry.",
+      "status": "completed",
+      "taskId": "T008",
+      "title": "Register production schemas and complete the compatibility matrix",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node --test tests/compatibility.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "SKILL.md and scripts/lib/contracts.mjs match scan.mjs/norms-producer.json (NORMS.json authority); a contract test asserts agreement.",
+      "acceptanceSignal": "`node --test tests/scan-norms-path-contract.test.mjs` exits 0.",
+      "actions": [
+        "Correct csm-scan/SKILL.md and scripts/lib/contracts.mjs:319 to describe the NORMS.json authority (or implement the .agents/norms path in scan.mjs) so the documented artifact is the one produced.",
+        "Add tests/scan-norms-path-contract.test.mjs asserting SKILL/contract/descriptor/CLI agree."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-norms/1 schema",
+      "ordinal": 9,
+      "ownedScope": "csm-scan/SKILL.md; scripts/lib/contracts.mjs; csm-scan/scripts/scan.mjs; tests/scan-norms-path-contract.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "Revert the doc/contract edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide canonical location: keep NORMS.json (descriptor+test) or move the CLI to .agents/norms.",
+      "status": "completed",
+      "taskId": "T009",
+      "title": "Align csm-scan norms path across SKILL, contract, and CLI",
+      "validation": [
+        "node --test tests/norms-json-contract.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The documented corroboration bump (E3->high, E4->medium) validates; E1 records constructed per SKILL pass validation; a contract test pins both.",
+      "acceptanceSignal": "`node --test tests/csm-review-finding-contract.test.mjs` exits 0.",
+      "actions": [
+        "Either implement the SKILL's sole confidence-raise exception in csm-review/lib/findings-validator.mjs, or remove the exception from csm-review/SKILL.md and the schema; choose one and make code, schema, and SKILL agree.",
+        "Add verification.redacted to the SKILL's E1 field list (or make it optional) so a documented-shape record validates.",
+        "Add tests/csm-review-finding-contract.test.mjs asserting the bump and E1 shape behave as documented."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the /1 frozen schema",
+      "ordinal": 10,
+      "ownedScope": "csm-review/lib/findings-validator.mjs; csm-review/SKILL.md; csm-review/schemas/csm-review-findings.v2.schema.json; tests/csm-review-finding-contract.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "Revert validator/SKILL edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide whether the corroboration bump is doctrinally desirable or should be removed.",
+      "status": "completed",
+      "taskId": "T010",
+      "title": "Reconcile csm-review finding contract (corroboration bump, E1 redacted)",
+      "validation": [
+        "node --test tests/review-json-contract.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A record using the documented C/R/W/E/F/Nit scale validates (via an added enum or a documented mapping); SKILL and schema agree.",
+      "acceptanceSignal": "`node --test tests/python-review-severity-contract.test.mjs` exits 0.",
+      "actions": [
+        "Either extend csm-review-python/schemas/csm-doctrine-findings.schema.json severity enum to include C/R/W/E/F/Nit, or add an explicit mapping in the SKILL from C/R/W/E/F/Nit to critical/high/medium/low/info and update the SKILL.",
+        "Add tests/python-review-severity-contract.test.mjs asserting every documented severity validates."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-doctrine-findings/1 revision semantics",
+      "ordinal": 11,
+      "ownedScope": "csm-review-python/schemas/csm-doctrine-findings.schema.json; csm-review-python/SKILL.md; tests/python-review-severity-contract.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "Revert the schema/SKILL edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide enum-extension vs mapping (schema immutability policy).",
+      "status": "completed",
+      "taskId": "T011",
+      "title": "Align csm-review-python severity scale with its schema",
+      "validation": [
+        "node --test tests/review-json-contract.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A csm-upload run writes .agents/upload/<date>-<run-id>-publication.json with the declared shape, or the SKILL/README/contract no longer claim it.",
+      "acceptanceSignal": "`node --test tests/upload-publication-receipt.test.mjs` exits 0.",
+      "actions": [
+        "Implement the .agents/upload/<date>-<run-id>-publication.json writer in csm-upload/scripts/upload.mjs (wiring lib/publication.mjs), or remove the authoritative-receipt claim from SKILL.md, README.md, and scripts/lib/contracts.mjs.",
+        "Add tests/upload-publication-receipt.test.mjs asserting the receipt is written on the CLI path and validates."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the upload security scan",
+      "ordinal": 12,
+      "ownedScope": "csm-upload/scripts/upload.mjs; csm-upload/lib/publication.mjs; csm-upload/SKILL.md; scripts/lib/contracts.mjs; tests/upload-publication-receipt.test.mjs",
+      "parallelGroup": "G5",
+      "recoveryNote": "Revert the writer or the doc edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Determine the intended receipt schema and whether the CLI or the orchestrate handler owns it.",
+      "status": "completed",
+      "taskId": "T012",
+      "title": "Make the csm-upload publication receipt real",
+      "validation": [
+        "node --test tests/upload.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Either createBddPackage is wired into the documented pipeline and specs/<goal-slug>/package.json validates, or the SKILL no longer promises it.",
+      "acceptanceSignal": "`node --test tests/bdd-package-contract.test.mjs` exits 0.",
+      "actions": [
+        "Either wire csm-bdd-tdd/lib/package.mjs createBddPackage into SPEC/VALIDATE and validate against package.schema.json, or remove the package.json product claim from csm-bdd-tdd/SKILL.md.",
+        "Add tests/bdd-package-contract.test.mjs asserting the documented product exists and validates."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the bdd Markdown pipeline stages",
+      "ordinal": 13,
+      "ownedScope": "csm-bdd-tdd/SKILL.md; csm-bdd-tdd/lib/package.mjs; tests/bdd-package-contract.test.mjs",
+      "parallelGroup": "G6",
+      "recoveryNote": "Revert the SKILL/lib edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm whether csm-build consumes package.json today.",
+      "status": "completed",
+      "taskId": "T013",
+      "title": "Make csm-bdd-tdd produce or stop claiming package.json",
+      "validation": [
+        "node --test tests/bdd-json-package.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The SKILL state machine documents the recovery/checkpoint states it references (or the references are removed); the marker and schema id are reconciled.",
+      "acceptanceSignal": "`node --test tests/deep-research-contract.test.mjs` exits 0.",
+      "actions": [
+        "Reconcile csm-deep-research/SKILL.md Core Rules (BLOCKED->RECOVER->VALIDATE, REVIEW->CHECKPOINT) with the documented state machine, or add the states.",
+        "Reconcile the `format: csm-deep-research/1` marker with the csm-research/1 schema id (one name or an explicit mapping).",
+        "Add tests/deep-research-contract.test.mjs asserting SKILL states are within the machine and the marker maps to the schema."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-research/1 schema",
+      "ordinal": 14,
+      "ownedScope": "csm-deep-research/SKILL.md; csm-deep-research/lib/research.mjs; tests/deep-research-contract.test.mjs",
+      "parallelGroup": "G6",
+      "recoveryNote": "Revert the SKILL edit.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Decide whether to add BLOCKED/RECOVER/VALIDATE to the machine or drop them from prose.",
+      "status": "completed",
+      "taskId": "T014",
+      "title": "Fix csm-deep-research states and the finding marker",
+      "validation": [
+        "node --test tests/clean-corpus.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "csm-plan's input resolver accepts csm-review-findings/2 (dual-accept with /1); the review->grill consumer adapter matches.",
+      "acceptanceSignal": "`node --test tests/plan-review-input.test.mjs` exits 0.",
+      "actions": [
+        "Add csm-review-findings/2 to csm-plan/lib/input-resolver.mjs and lib/consumer-adapters/index.mjs (dual-accept /1 and /2) with the correct revision handling.",
+        "Add tests/plan-review-input.test.mjs asserting both revisions resolve and an unknown revision fails closed."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-review-findings/1 schema",
+      "ordinal": 15,
+      "ownedScope": "csm-plan/lib/input-resolver.mjs; lib/consumer-adapters/index.mjs; tests/plan-review-input.test.mjs",
+      "parallelGroup": "G6",
+      "recoveryNote": "Revert the resolver edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm which revision csm-review emits by default before dual-accepting.",
+      "status": "completed",
+      "taskId": "T015",
+      "title": "Let csm-plan consume the current review revision",
+      "validation": [
+        "node --test tests/plan-lineage.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "assertCanSaveVerified is enforced by a production save path, or the SKILL and enforcement doc no longer claim a receipt gate.",
+      "acceptanceSignal": "`node --test tests/csm-review-loop-closure-wiring.test.mjs` exits 0.",
+      "actions": [
+        "Either call assertCanSaveVerified/createEvaluatorReceipt from the csm-review save path and require a receipt for VERIFIED, or amend csm-review/SKILL.md and docs/enforcement-model.md to state the deterministic guard is the sole gate.",
+        "Add tests/csm-review-loop-closure-wiring.test.mjs asserting the chosen behavior (a missing receipt blocks a VERIFIED save, or the doc agreement)."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-review-findings schema",
+      "ordinal": 16,
+      "ownedScope": "csm-review/lib/loop-closure.mjs; csm-review/SKILL.md; docs/enforcement-model.md; tests/csm-review-loop-closure-wiring.test.mjs",
+      "parallelGroup": "G7",
+      "recoveryNote": "Revert the wiring or the doc edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide whether review closure needs the receipt or only the deterministic guard.",
+      "status": "completed",
+      "taskId": "T016",
+      "title": "Wire csm-review's binding receipt or remove the claim",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "make precommit runs the full fast gate (including regen and the enforcement/suite-tooling suites); CI runs regen; a parity test asserts the target sets agree.",
+      "acceptanceSignal": "`node --test tests/precommit-parity.test.mjs` exits 0.",
+      "actions": [
+        "Extend Makefile precommit to include regen and the suites CI requires (test-enforcement, test-suite-tooling, test-orchestrate, test-policy, test-hooks, test-contracts).",
+        "Add make regen (verifyFresh) to the CI gates job so metadata drift fails CI.",
+        "Add tests/precommit-parity.test.mjs asserting precommit's target set covers CI's fast gate.",
+        "Harden the node24-canary job: make it blocking (or remove the decorative continue-on-error), pin pnpm to the repo version, and align its action SHAs with the rest of ci.yml."
+      ],
+      "dependsOn": [
+        "T016",
+        "T007"
+      ],
+      "notInScope": "adding heavyweight suites to precommit",
+      "ordinal": 17,
+      "ownedScope": "Makefile; .github/workflows/ci.yml; docs/enforcement-model.md; tests/precommit-parity.test.mjs",
+      "parallelGroup": "G7",
+      "recoveryNote": "Revert Makefile/CI edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Measure precommit runtime to keep it a fast subset.",
+      "status": "completed",
+      "taskId": "T017",
+      "title": "Make precommit a real CI mirror and run regen in CI",
+      "validation": [
+        "node scripts/check-suite.mjs",
+        "node scripts/regen.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "config-inventory registry count is 104; the false '.csm-skills.json consumer' statement is corrected; enforcement-evaluator-spike names a real script; .PHONY lists all documented test targets; the typed-decisions 'unregistered ids' line is corrected.",
+      "acceptanceSignal": "`node --test tests/docs-consistency.test.mjs` exits 0.",
+      "actions": [
+        "Correct docs/config-inventory.md (registry 57 -> 104; the '.csm-skills.json/$XDG_CONFIG_HOME' statement; the csm-ddd 'host ceiling' claim).",
+        "Fix docs/enforcement-evaluator-spike.md to name the real loop-guard (csm-build/lib/loop-guard.mjs) instead of scripts/loop-guard.mjs.",
+        "Add test-osv-audit and test-progress-tracker to Makefile .PHONY.",
+        "Correct docs/typed-decisions.md:151-152 (the 6 enforcement ids are now registered).",
+        "Add tests/docs-consistency.test.mjs asserting these facts against the files."
+      ],
+      "dependsOn": [
+        "T007",
+        "T017"
+      ],
+      "notInScope": "rewriting docs wholesale",
+      "ordinal": 18,
+      "ownedScope": "docs/config-inventory.md; docs/enforcement-evaluator-spike.md; docs/typed-decisions.md; Makefile; tests/docs-consistency.test.mjs",
+      "parallelGroup": "G7",
+      "recoveryNote": "Revert the doc edits.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Grep for other stale counts before finalizing.",
+      "status": "completed",
+      "taskId": "T018",
+      "title": "Fix documented-vs-code drift in repo docs",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Relative --repo works; --help exits 0; csm-ddd no longer imports csm-scan internals contrary to its SKILL.",
+      "acceptanceSignal": "`node --test csm-ddd/test/cli.test.mjs` exits 0.",
+      "actions": [
+        "Resolve --repo to an absolute path in defaultArtifactPaths (csm-ddd/lib/ddd/pipeline.mjs) so relative repos work.",
+        "Add a --help case to csm-ddd/scripts/ddd.mjs (exit 0).",
+        "Vendor the token-family matcher into csm-ddd/lib/ddd (or document/relax the isolation claim in csm-ddd/SKILL.md) so the cross-skill import is not a contract violation.",
+        "Extend csm-ddd/test/cli.test.mjs to cover relative repo and --help."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the DDD graph/report schemas",
+      "ordinal": 19,
+      "ownedScope": "csm-ddd/scripts/ddd.mjs; csm-ddd/lib/ddd/pipeline.mjs; csm-ddd/lib/ddd/redact.mjs; csm-ddd/SKILL.md; csm-ddd/test/cli.test.mjs",
+      "parallelGroup": "G8",
+      "recoveryNote": "Revert the CLI/lib edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide vendoring vs documenting the csm-scan dependency.",
+      "status": "completed",
+      "taskId": "T019",
+      "title": "Fix the csm-ddd CLI and its isolation contract",
+      "validation": [
+        "node --test csm-ddd/test/contracts.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "writeApproachArtifact mkdirs the parent and writes on a fresh repo; it is either used or removed.",
+      "acceptanceSignal": "`node --test csm-grill/test/approach-writer.test.mjs` exits 0.",
+      "actions": [
+        "Add mkdir(recursive:true) before the wx write in csm-grill/lib/approach.mjs writeApproachArtifact, or remove the dead writer.",
+        "Add csm-grill/test/approach-writer.test.mjs asserting a fresh-directory write succeeds or the API is absent."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the csm-approach/1 schema",
+      "ordinal": 20,
+      "ownedScope": "csm-grill/lib/approach.mjs; csm-grill/test/approach-writer.test.mjs",
+      "parallelGroup": "G8",
+      "recoveryNote": "Revert the writer edit.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Confirm whether any caller intends to use writeApproachArtifact.",
+      "status": "completed",
+      "taskId": "T020",
+      "title": "Make the csm-grill writer create its own directory",
+      "validation": [
+        "node --test tests/approach-json-contract.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The live-mode guard either enforces its stated requirements or is simplified; no unreachable condition remains.",
+      "acceptanceSignal": "`node --test csm-autoresearch/test/llm-mode.test.mjs` exits 0.",
+      "actions": [
+        "In csm-autoresearch/lib/llm/index.mjs, either implement the DEF-EVAL/egress/credentials check with a reachable effect or collapse the dead branch; keep fail-closed.",
+        "Add csm-autoresearch/test/llm-mode.test.mjs pinning the intended behavior."
+      ],
+      "dependsOn": [],
+      "notInScope": "shipping a live transport",
+      "ordinal": 21,
+      "ownedScope": "csm-autoresearch/lib/llm/index.mjs; csm-autoresearch/test/llm-mode.test.mjs",
+      "parallelGroup": "G8",
+      "recoveryNote": "Revert the branch change.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Confirm no live transport is intended to ship.",
+      "status": "completed",
+      "taskId": "T021",
+      "title": "Remove the unreachable branch in csm-autoresearch live mode",
+      "validation": [
+        "node --test csm-autoresearch/test/llm.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A fixture-keyring signature is not reported as production trust; validateEnvelope consults production_use (or the packaged bin refuses non-production keyrings).",
+      "acceptanceSignal": "`node --test tests/bootstrap-trust-root.test.mjs` exits 0.",
+      "actions": [
+        "In bootstrap/package/bin/csm-skills-bootstrap.js, fail closed or clearly mark trustLevel when the keyring is the test fixture (environment test-fixture-only / production_use false).",
+        "Add tests/bootstrap-trust-root.test.mjs asserting a fixture-signed envelope is not trustLevel 'signature-verified' for production, and a production keyring path is required."
+      ],
+      "dependsOn": [],
+      "notInScope": "key rotation / publication execution",
+      "ordinal": 22,
+      "ownedScope": "bootstrap/package/bin/csm-skills-bootstrap.js; bootstrap/keyring.json; tests/bootstrap-trust-root.test.mjs",
+      "parallelGroup": "G8",
+      "recoveryNote": "Revert the validator edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm the envelope trust fields consumers read.",
+      "status": "completed",
+      "taskId": "T022",
+      "title": "Harden the bootstrap trust root",
+      "validation": [
+        "node --test tests/protocol/trust-policy.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Every request sends a non-empty state and per-question instructions; a point without instructions is rejected at construction; the live API accepts the shipped shape.",
+      "acceptanceSignal": "`node --test tests/offline/decision-provider-contract.test.mjs` exits 0.",
+      "actions": [
+        "In csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs (and vercel.mjs) always send a non-null state; in question-protocol.mjs require non-empty instructions per question.",
+        "Reject at construction any decision point whose question lacks instructions (points.mjs/validateDecisionPoint), and add instructions to the 12 points that lack them.",
+        "Add tests/offline/decision-provider-contract.test.mjs asserting state is non-null, instructions are present for every point, and a missing one fails closed."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the fail-open or redaction behavior",
+      "ordinal": 23,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/providers/openrouter.mjs; .../providers/vercel.mjs; .../question-protocol.mjs; .../points.mjs; csm-orchestrate/decision-points.json; tests/offline/decision-provider-contract.test.mjs",
+      "parallelGroup": "G9",
+      "recoveryNote": "Revert the provider edits.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "Confirm the exact live-required state/instructions constraints (already probed: 400 without).",
+      "status": "completed",
+      "taskId": "T023",
+      "title": "Repair the Jev provider contract (state + instructions)",
+      "validation": [
+        "node --test tests/offline/decision-question-protocol.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The parity test sends one real request through the shipped descriptor and fails on any 4xx; it is skipped when the key is absent and enforced when the opt-in env is set.",
+      "acceptanceSignal": "`CSM_DECISION_LIVE_PARITY=1 node --test tests/offline/decision-live-parity.test.mjs` exits 0.",
+      "actions": [
+        "Add tests/offline/decision-live-parity.test.mjs that (with CSM_DECISION_LIVE_PARITY=1 and a resolvable key) sends one minimal question through the real buildRequest and asserts HTTP 200; without the opt-in it skips.",
+        "Wire the parity test into the required adapter gate so it runs in the opt-in CI job."
+      ],
+      "dependsOn": [
+        "T023"
+      ],
+      "notInScope": "making the live call required by default",
+      "ordinal": 24,
+      "ownedScope": "tests/offline/decision-live-parity.test.mjs; scripts/adapter-required-tests.mjs",
+      "parallelGroup": "G9",
+      "recoveryNote": "Remove the test; no runtime change.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm the CI opt-in env name and key injection for the adapter gate.",
+      "status": "completed",
+      "taskId": "T024",
+      "title": "Add a live-vs-mock parity test for the provider",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "One adapter/service is built per run and available to skill libs and to the prose-only consult CLI; absent service = byte-identical behavior.",
+      "acceptanceSignal": "`node --test tests/orchestrate-decision-service.test.mjs` exits 0.",
+      "actions": [
+        "Add csm-orchestrate/lib/decision-adapter/service.mjs (consult/prefetch/stats/budget) and build it once in scripts/run-orchestrator.mjs next to resolveDecisionAdapter.",
+        "Thread decisionService through the executor invocation seam so skill libs can call it; add a direct-invocation entry to consult.mjs mirroring cli.mjs.",
+        "Add host/run/task config layers that can only narrow, all default OFF.",
+        "Add tests/orchestrate-decision-service.test.mjs asserting off-by-default byte-identity, advisory-only output, and redaction."
+      ],
+      "dependsOn": [
+        "T023",
+        "T005"
+      ],
+      "notInScope": "making Jev a required dependency",
+      "ordinal": 25,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/service.mjs; .../consult.mjs; scripts/run-orchestrator.mjs; csm-orchestrate/lib/skill-executor-handlers.mjs; tests/orchestrate-decision-service.test.mjs",
+      "parallelGroup": "G10",
+      "recoveryNote": "Revert the service and wiring.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm the executor invocation seam can carry the service without touching gates.",
+      "status": "completed",
+      "taskId": "T025",
+      "title": "Add a shared run-scoped decision service and direct consult entry",
+      "validation": [
+        "node --test tests/orchestrate-decision-adapter.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The new points (all advisory or non-safety apply) validate in points.mjs and decision-points.json lockstep; conditional-skill-ranking has a live consumer.",
+      "acceptanceSignal": "`node --test tests/orchestrate-decision-points-expanded.test.mjs` exits 0.",
+      "actions": [
+        "Add advisory/apply non-safety points: csm-deep-research-triage, build-repair-classification, make-tests-triage, csm-review-scale, plan-scale, make-tests-survivor-triage, plan-remediation-resolution, build-integrate-choice, grill-clarification-ranking, make-tests-surface-ranking, python-review-bucket, deep-research-verify-claim.",
+        "Wire conditional-skill-ranking to a live consumer (or remove it).",
+        "Keep points.mjs and decision-points.json in lockstep including the question spec.",
+        "Add tests/orchestrate-decision-points-expanded.test.mjs asserting every point validates, none is safety+apply, and id/instructions lockstep holds."
+      ],
+      "dependsOn": [
+        "T023"
+      ],
+      "notInScope": "making any safety/authority point apply",
+      "ordinal": 26,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/points.mjs; csm-orchestrate/decision-points.json; tests/orchestrate-decision-points-expanded.test.mjs",
+      "parallelGroup": "G10",
+      "recoveryNote": "Revert the point additions.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm each new point's safetyClass and deterministic fallback.",
+      "status": "completed",
+      "taskId": "T026",
+      "title": "Add the high-value safe decision points and wire the dormant one",
+      "validation": [
+        "node --test tests/orchestrate-decision-adapter.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Coverage profiles (off/shadow/wide/excessive) drive one batched call per state; a run-level budget guard degrades advisory-first and never pauses; per-decision telemetry records cost/latency/failures.",
+      "acceptanceSignal": "`node --test tests/orchestrate-decision-budget.test.mjs` exits 0.",
+      "actions": [
+        "Add coverage profiles and a run-level budget guard (NORMAL->THROTTLED->SHADOW_ONLY->OFF) to csm-orchestrate/lib/decision-adapter/index.mjs; drop low-value advisory points first; never set PAUSED.",
+        "Lower the default state cap to the documented token budget and add windowing; add prefetch + bounded concurrency + cache-by-stateDigest.",
+        "Record per-decision telemetry (point, mode, latency, tokens, cost, applied, baselineAgreement, failure) and expose it in stats() and the run sidecar.",
+        "Add tests/orchestrate-decision-budget.test.mjs asserting tiering, caps, cache reuse, and telemetry rows."
+      ],
+      "dependsOn": [
+        "T025"
+      ],
+      "notInScope": "changing fail-open/breaker to be weaker",
+      "ordinal": 27,
+      "ownedScope": "csm-orchestrate/lib/decision-adapter/index.mjs; .../artifact.mjs; tests/orchestrate-decision-budget.test.mjs",
+      "parallelGroup": "G10",
+      "recoveryNote": "Revert the adapter edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Measure real batch latency/cost to calibrate the budget guard.",
+      "status": "completed",
+      "taskId": "T027",
+      "title": "Add coverage profiles, budget guard, and decision telemetry",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "A corpus container and a threshold-aware calibration harness exist and produce promote/hold/kill with pre-registered thresholds; the classifier path cannot read humanLabels.",
+      "acceptanceSignal": "`node --test tests/offline/decision-calibration-program.test.mjs` exits 0.",
+      "actions": [
+        "Extend tests/offline/decision-calibration-harness.mjs into a real program: per-domain corpora, blind annotations, IAA, per-class precision/recall/coverage, ECE, dangerous-error metric, and a pre-registered promote/hold/kill verdict.",
+        "Ensure the corpus labels are not readable by the classifier path (redaction denylist) and add anti-rubber-stamp checks (decoys, burn-after-use).",
+        "Add tests/offline/decision-calibration-program.test.mjs asserting the harness computes each metric and refuses a promotion without the required evidence."
+      ],
+      "dependsOn": [
+        "T023"
+      ],
+      "notInScope": "claiming measured accuracy without a real held-out corpus",
+      "ordinal": 28,
+      "ownedScope": "tests/offline/decision-calibration-harness.mjs; tests/offline/decision-calibration-program.test.mjs",
+      "parallelGroup": "G11",
+      "recoveryNote": "Revert the harness edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide corpus domains and minimum n; identify annotators.",
+      "status": "completed",
+      "taskId": "T028",
+      "title": "Stand up the Jev calibration program scaffolding",
+      "validation": [
+        "node --test tests/offline/decision-calibration-harness.test.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "csm-decision/2, csm-decision-trust/1, csm-decision-corpus/1, csm-decision-calibration/2, and capabilities/4 are registered and reject unknown revisions; L5 is refused; the boundary guard is unchanged.",
+      "acceptanceSignal": "`node --test tests/foundation/decision-trust-schemas.test.mjs` exits 0.",
+      "actions": [
+        "Add and register the additive schemas (decision/2 trustLevel/escalated/modelSnapshot; decision-trust/1; decision-corpus/1; calibration/2 thresholds; capabilities/4) under the frozen-/1 dual-revision policy.",
+        "Implement the bare-label pipe (labelOf/policy harness-owned) and keep boundary-guard semantics; refuse any trust record with ceiling safety/authority (L5).",
+        "Update docs/typed-decisions.md and docs/enforcement-model.md for the ladder and promotion requirements.",
+        "Add tests/foundation/decision-trust-schemas.test.mjs asserting registration, unknown-revision rejection, L5 refusal, and boundary-guard invariance.",
+        "Document the Jev enterprise trust caveats (no SLA, $50 liability cap, no self-hosting, unstable rate limits, alpha route, pin+expire the model snapshot) in docs/typed-decisions-runbook.md."
+      ],
+      "dependsOn": [
+        "T023",
+        "T008"
+      ],
+      "notInScope": "weakening the never-Jev boundary or frozen /1 schemas",
+      "ordinal": 29,
+      "ownedScope": "schemas/registry.json; csm-orchestrate/schemas/decision.v2.schema.json; .../decision-trust.schema.json; .../decision-corpus.schema.json; .../decision-calibration.v2.schema.json; .../capabilities.v4.schema.json; csm-orchestrate/lib/decision-adapter/boundary-guard.mjs; docs/typed-decisions.md; docs/enforcement-model.md; tests/foundation/decision-trust-schemas.test.mjs",
+      "parallelGroup": "G11",
+      "recoveryNote": "Revert the schema additions.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm registry dual-revision policy and the exact L5-refusal invariant.",
+      "status": "completed",
+      "taskId": "T029",
+      "title": "Add the trust-ladder schemas and preserve the never-Jev boundary",
+      "validation": [
+        "node --test tests/compatibility.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "All new tests pass; corpus, payload parity, trace verification, and checkout hygiene are green; every audit and Jev finding is remediated or explicitly deferred with a recorded decision.",
+      "acceptanceSignal": "`node scripts/check-suite.mjs` exits 0.",
+      "actions": [
+        "Run the full fast gate (make precommit) plus the new focused suites; resolve any remaining drift.",
+        "Run node scripts/validate-corpus-v2.mjs, node scripts/regen.mjs (verifyFresh), node scripts/verify-traces.mjs, and node scripts/check-checkout-hygiene.mjs.",
+        "Record the final remediation status per audit and Jev finding in the completion review."
+      ],
+      "dependsOn": [
+        "T001",
+        "T002",
+        "T003",
+        "T004",
+        "T005",
+        "T006",
+        "T007",
+        "T008",
+        "T009",
+        "T010",
+        "T011",
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T019",
+        "T020",
+        "T021",
+        "T022",
+        "T023",
+        "T024",
+        "T025",
+        "T026",
+        "T027",
+        "T028",
+        "T029",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035",
+        "T036"
+      ],
+      "notInScope": "changing production code during acceptance",
+      "ordinal": 30,
+      "ownedScope": "tests/acceptance/ (aggregate harness); .agents/plans/2026-09-26-system-remediation-jev-embedding-csm.json (completion review field)",
+      "parallelGroup": "G12",
+      "recoveryNote": "No source change; re-run the gate.",
+      "repairAttempts": 0,
+      "risk": "high",
+      "spikeCandidate": "None; this is the deterministic aggregate gate.",
+      "status": "completed",
+      "taskId": "T030",
+      "title": "Final conformance and end-to-end acceptance",
+      "validation": [
+        "make test",
+        "node scripts/regen.mjs",
+        "node scripts/verify-traces.mjs",
+        "node scripts/check-checkout-hygiene.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Trace records are retained/labelled so production runs are distinguishable from fixtures, and a coverage check fails when a completed run emits no trace.",
+      "acceptanceSignal": "`node --test tests/trace-evidence-substrate.test.mjs` exits 0.",
+      "actions": [
+        "Add a retention/rotation or documented growth policy to scripts/lib/trace-log.mjs so older production traces are not lost.",
+        "Label fixture vs production runs (e.g. a run-class field) and have scripts/verify-traces.mjs report production coverage, not just total lines.",
+        "Ensure production orchestrator/driver runs emit traces and add a check that a completed run with no trace fails.",
+        "Add tests/trace-evidence-substrate.test.mjs asserting retention, labelling, and the zero-trace failure."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the trace record schema",
+      "ordinal": 31,
+      "ownedScope": "scripts/lib/trace-log.mjs; scripts/verify-traces.mjs; docs/action-traces-and-cleanup.md; tests/trace-evidence-substrate.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert trace-log/verify-traces edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide the retention window and the fixture/production discriminator.",
+      "status": "completed",
+      "taskId": "T031",
+      "title": "Make the trace substrate usable evidence for a multi-week review",
+      "validation": [
+        "node scripts/verify-traces.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "The packaged csm-browse is runnable-or-explicitly-guidance-only; no hardcoded $HOME paths remain in its SKILL; port unit tests do not depend on real host binds or fixed ports.",
+      "acceptanceSignal": "`node --test tests/browse-packaging.test.mjs` exits 0.",
+      "actions": [
+        "Add csm-browse scripts/ (and package.json/lockfile as needed) to the bootstrap mapping so the packaged skill matches its SKILL, OR mark the mirrored SKILL guidance-only and remove the script references.",
+        "Replace the 16 hardcoded $HOME/.config/opencode/skills paths in csm-browse/SKILL.md with skill-root-relative references.",
+        "Make csm-browse/tests/unit/ports.test.mjs hermetic: stub the host bind probe and stop asserting fixed ports 9224/9225.",
+        "Add tests/browse-packaging.test.mjs asserting payload/description agreement, no hardcoded path literal, and hermetic ports."
+      ],
+      "dependsOn": [],
+      "notInScope": "changing the browse CDP verbs or security scan",
+      "ordinal": 32,
+      "ownedScope": "scripts/pack-bootstrap.mjs; bootstrap/payload-index.json; csm-browse/SKILL.md; csm-browse/tests/unit/ports.test.mjs; tests/browse-packaging.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert pack mapping and test edits.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Decide pack-scripts vs guidance-only for browse.",
+      "status": "completed",
+      "taskId": "T032",
+      "title": "Fix csm-browse packaging, portability, and hermetic tests",
+      "validation": [
+        "node --test csm-browse/tests/unit/ports.test.mjs",
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Every producer descriptor carries the format header and its schema/canonicalPath agrees with the owning SKILL; a lockstep test enumerates them.",
+      "acceptanceSignal": "`node --test tests/producer-descriptor-contract.test.mjs` exits 0.",
+      "actions": [
+        "Add `format: csm-producer-descriptor/1` to csm-deep-research/research-producer.json and csm-scan/norms-producer.json.",
+        "Reconcile csm-scan/norms-producer.json and csm-review/producer.json with their SKILLs (delegating path/revision to T009/T015).",
+        "Add tests/producer-descriptor-contract.test.mjs asserting every producer file has the header and agrees with its SKILL's declared artifact."
+      ],
+      "dependsOn": [
+        "T009",
+        "T015"
+      ],
+      "notInScope": "changing artifact schemas",
+      "ordinal": 33,
+      "ownedScope": "csm-*/producer.json; csm-deep-research/research-producer.json; csm-scan/norms-producer.json; tests/producer-descriptor-contract.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert descriptor edits.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Enumerate all producer files and their declared paths.",
+      "status": "completed",
+      "taskId": "T033",
+      "title": "Make producer descriptors lockstep with their SKILLs",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "No SKILL.md contains the literal $HOME/.config/opencode/skills; references are skill-root-relative.",
+      "acceptanceSignal": "`node --test tests/no-hardcoded-skill-paths.test.mjs` exits 0.",
+      "actions": [
+        "Replace the 6 hardcoded paths in csm-upload/SKILL.md and the 1 in csm-deep-research/SKILL.md with skill-root-relative references.",
+        "Add tests/no-hardcoded-skill-paths.test.mjs that greps all csm-*/SKILL.md (source and payload) for the literal and fails on any hit."
+      ],
+      "dependsOn": [
+        "T012",
+        "T014"
+      ],
+      "notInScope": "rewriting skill guidance",
+      "ordinal": 34,
+      "ownedScope": "csm-upload/SKILL.md; csm-deep-research/SKILL.md; tests/no-hardcoded-skill-paths.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert the doc edits.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Confirm the canonical relative form for sibling-skill invocations.",
+      "status": "completed",
+      "taskId": "T034",
+      "title": "Replace remaining hardcoded install-prefix paths",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "When dropCapture.required and mid-run capture degrades, the run fails closed or records a required-degradation; the discarded degraded flag is consumed.",
+      "acceptanceSignal": "`node --test tests/orchestrate-drop-capture.test.mjs` exits 0.",
+      "actions": [
+        "In csm-orchestrate/lib/verified-sandbox-runtime.mjs, consume collectDropsWithRetry's degraded result and fail closed when requireDropCapture is set.",
+        "Add tests/orchestrate-drop-capture.test.mjs injecting a mid-run capture reader death and asserting the closed behavior."
+      ],
+      "dependsOn": [
+        "T004"
+      ],
+      "notInScope": "changing provision-time drop-capture",
+      "ordinal": 35,
+      "ownedScope": "csm-orchestrate/lib/verified-sandbox-runtime.mjs; csm-orchestrate/lib/docker-worker-provider.mjs; tests/orchestrate-drop-capture.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert runtime edit.",
+      "repairAttempts": 0,
+      "risk": "medium",
+      "spikeCandidate": "Confirm degraded flag semantics and requireDropCapture plumbing.",
+      "status": "completed",
+      "taskId": "T035",
+      "title": "Fail closed on mid-run drop-capture degradation when required",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    },
+    {
+      "acceptanceEvidence": "Either /1 builds require the evaluator receipt or csm-build/SKILL.md and docs/enforcement-model.md state guard-only /1; a test pins the chosen behavior.",
+      "acceptanceSignal": "`node --test tests/csm-build-evaluator-revision.test.mjs` exits 0.",
+      "actions": [
+        "Decide whether the evaluator receipt is required for csm-build-state/1; if yes, set requireEvaluator for /1; if no, document guard-only /1 honestly in csm-build/SKILL.md and docs/enforcement-model.md.",
+        "Add tests/csm-build-evaluator-revision.test.mjs asserting the chosen behavior."
+      ],
+      "dependsOn": [
+        "T016"
+      ],
+      "notInScope": "changing the /2 receipt requirement",
+      "ordinal": 36,
+      "ownedScope": "csm-build/lib/state.mjs; csm-build/SKILL.md; docs/enforcement-model.md; tests/csm-build-evaluator-revision.test.mjs",
+      "parallelGroup": "G13",
+      "recoveryNote": "Revert state/SKILL edits.",
+      "repairAttempts": 0,
+      "risk": "low",
+      "spikeCandidate": "Confirm whether default builds emit /1 or /2.",
+      "status": "completed",
+      "taskId": "T036",
+      "title": "Resolve the csm-build /1 evaluator requirement",
+      "validation": [
+        "node scripts/check-suite.mjs"
+      ]
+    }
+  ],
+  "verificationStrategy": {
+    "tiers": [
+      "Tier 1: per-task focused test (the acceptance signal).",
+      "Tier 2: affected suite (node --test of the owning skill/suite).",
+      "Tier 3: aggregate gate (make precommit; check-suite; corpus; regen; traces; hygiene)."
+    ]
+  }
+}
