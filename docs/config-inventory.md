@@ -510,7 +510,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 ### Defaults and magic values
 
 - CLI defaults: repos = `[cwd]`, out = `<cwd>/NORMS.json` — `csm-scan/scripts/scan.mjs:86-87` (**no-config baseline**; **user setting candidate** via `--out`).
-- Skill-canonical artifact path `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json` — `csm-scan/SKILL.md:44` (**skill-owned behavior**; see Collisions below).
+- Skill-canonical artifact path `NORMS.json` (or the `--out` path, resolved against the cwd) — `csm-scan/SKILL.md:48` (**skill-owned behavior**; see Collisions below).
 - Atomic write mode `0o600`, `quarantine: false` — `csm-scan/lib/scan/write.mjs:21`; canonical output must be a `.json` path — `:33-35` (**immutable invariant**).
 - Version resolution order package.json -> git hash -> `"csm-scan"` — `csm-scan/scripts/scan.mjs:140-142`.
 - Verbose trace file name `.csm-scan-debug-<pid>-<time>.log` next to `--out` or OS temp dir — `csm-scan/scripts/scan.mjs:147` (**host ceiling**: unredacted local-only artifact, gitignored).
@@ -525,7 +525,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 
 ### Output paths and artifacts
 
-- One authoritative JSON norms artifact at `--out` (default `./NORMS.json`; skill convention `.agents/norms/...`); `NORMS.md` is a disposable projection — `csm-scan/SKILL.md:44`. Unwritable `--out` fails with exit 1 — `csm-scan/SKILL.md:210`.
+- One authoritative JSON norms artifact at `--out` (default `./NORMS.json`); `NORMS.md` is a disposable projection — `csm-scan/SKILL.md:48`. Unwritable `--out` fails with exit 1 — `csm-scan/SKILL.md:210`.
 
 ### Side effects
 
@@ -586,11 +586,11 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 
 ## Ownership collisions and no-config baseline summary
 
-1. **csm-scan effective writes**: the CLI default writes `./NORMS.json` in the cwd
-   (`csm-scan/scripts/scan.mjs:87`) while the skill contract names
-   `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json` (`csm-scan/SKILL.md:44`). The
+1. **csm-scan effective writes**: the CLI default writes `./NORMS.json` (or the `--out`
+   path) in the cwd (`csm-scan/scripts/scan.mjs:87`) and the skill contract names the same
+   `NORMS.json` (or `--out`) authority (`csm-scan/SKILL.md:48`), so the two agree. The
    effective write location is operator-chosen; downstream consumers must resolve via the
-   registry/envelope, never assume either path. A future config namespace must not broaden the
+   registry/envelope, never assume the path. A future config namespace must not broaden the
    single-write discipline.
 2. **csm-upload legacy config**: `~/.agents/csm-upload.json` predates the suite envelope and
    collides with the future `csm-upload` namespace; the plan requires explicit collision

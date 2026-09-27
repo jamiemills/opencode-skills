@@ -58,9 +58,12 @@ test("intentionally non-resumable skills say so explicitly", async () => {
 test("deep research persists a cursor and constrains every research role by source mode", async () => {
   const content = await skill("csm-deep-research");
   const normalized = content.replace(/\s+/g, " ");
-  assert.match(content, /BLOCKED -> RECOVER -> VALIDATE/);
-  assert.match(content, /REVIEW -> CHECKPOINT/);
   assert.match(normalized, /Control.*durable cursor/);
+  assert.ok(
+    !content.includes("BLOCKED -> RECOVER -> VALIDATE"),
+    "the deep-research pipeline has no RECOVER/VALIDATE states",
+  );
+  assert.match(content, /VERIFY -> SAVED/);
   for (const role of [
     "Researchers",
     "challengers",

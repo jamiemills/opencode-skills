@@ -1,6 +1,6 @@
 ---
 name: csm-scan
-description: Analyze repos for patterns, conventions, and norms. Never runs commands, installs, or writes beyond NORMS.md — read-only.
+description: Analyze repos for patterns, conventions, and norms. Never runs commands, installs, or writes beyond its single NORMS.json (or --out) artifact — read-only.
 ---
 
 # CSM Scan
@@ -45,7 +45,7 @@ Run first — before any scan, test, or analysis command or other sections. Not 
 ## Interface
 
 - Consumes: repository path(s), strictly read-only
-- Produces: one authoritative JSON norms artifact at `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`, validated by `csm-scan/schemas/csm-norms.schema.json`; `NORMS.md` is a disposable projection or legacy history
+- Produces: one authoritative JSON norms artifact at `NORMS.json` (or the `--out` path), validated by `csm-scan/schemas/csm-norms.schema.json`; `NORMS.md` is a disposable projection or legacy history
 - Hands off: the registered JSON norms artifact is consumed by csm-plan, csm-bdd-tdd, csm-build, and csm-review; Markdown projections and legacy history are never machine inputs
 - Never invokes: csm-bdd-tdd, csm-browse, csm-build, csm-grill, csm-plan, csm-review, csm-upload, csm-make-tests, csm-review-python, csm-ddd, csm-autoresearch
 
@@ -178,7 +178,7 @@ Identical immutable inputs, a fixed clock, the same plugin set, and the same rep
 ## Constraints (non-negotiable)
 
 - **Read-only**: Never modifies scanned repos — only the broker's registered `rg`/Git read-only argv forms execute; target commands and shell execution are absent
-- **Single authoritative output**: Publish exactly one final `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`, validated by `csm-scan/schemas/csm-norms.schema.json`; use a same-directory temporary file plus rename for atomic publication and remove it on failure.
+- **Single authoritative output**: Publish exactly one final `NORMS.json` (or the `--out` path), validated by `csm-scan/schemas/csm-norms.schema.json`; use a same-directory temporary file plus rename for atomic publication and remove it on failure.
 - **Zero npm dependencies**: Node.js built-ins only (`node:fs`, `node:path`, `node:child_process`)
 - **No installs, no builds**: Never installs dependencies or runs build commands in scanned repos
 - **Deterministic**: Fixed inputs produce byte-identical output
@@ -203,9 +203,9 @@ Enrichment metadata records factual detection coverage and the observed, inferre
 node scripts/scan.mjs [--repos <path>...] [--out <path>] [--verbose]
 ```
 
-- **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the authoritative JSON report is written to `.agents/norms/` at the repository root.
+- **Zero-argument default** — with no `--repos`, the current working directory is scanned; with no `--out`, the authoritative JSON report is written to `NORMS.json` in the current working directory.
 - `--repos <path>...` — one or more repository paths to scan (default: current working directory).
-- `--out <path>` — authoritative JSON output file (default: `.agents/norms/<date>-<repo-slug>-<run-id>-norms.json`).
+- `--out <path>` — authoritative JSON output file (default: `NORMS.json` in the current working directory).
 - `--verbose` — write an unredacted local diagnostic trace (reporter lines + per-stage durations) to a per-run-unique `.csm-scan-debug-<pid>-<time>.log` next to `--out` (or the OS temp dir) — never to stdout. The trace is gitignored and never part of the report; delete it after debugging.
 - `--help` — print the full usage text and exit 0.
 - `--version` — print the version (package.json `version`, else the git commit hash, else `csm-scan`) and exit 0.

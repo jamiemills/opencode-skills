@@ -316,7 +316,7 @@ const INTERFACES = {
   "csm-scan": {
     entryConditions: ["repository target", "scan or conventions-analysis request"],
     consumes: ["committed repository declarations"],
-    produces: ["authoritative JSON norms at .agents/norms/<date>-<repo-slug>-<run-id>-norms.json"],
+    produces: ["authoritative JSON norms at NORMS.json (or the --out path)"],
     handoff: [
       "optional registered JSON norms input to csm-plan, csm-bdd-tdd, csm-build, or csm-review; NORMS.md is projection/history only",
     ],

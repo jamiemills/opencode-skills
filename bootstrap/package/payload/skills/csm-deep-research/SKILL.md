@@ -41,7 +41,7 @@ The 9-part skeleton is fixed so that structure is never negotiable even when dep
 
 Proportionality also applies to cost and ceremony. A one-line question answered by a single authoritative spec must not spin up a 6-researcher panel; an architecture-defining question must not be answered from the first search result. Triage exists precisely to match the run's machinery to the question's stakes. When in doubt between tiers, choose the higher tier only if the question's answer plausibly changes a decision; otherwise STANDARD is the safe default and QUICK is for trivia.
 
-The corpus location is part of the contract. Findings land under `.agents/research/` at the invocation's git root, named with the immutable run ID, and carry the `format: csm-deep-research/1` marker as their first line so the corpus checks and future consumers can validate the shape at a glance. A finding that survives the pipeline is the run's primary artifact; a run may additionally produce declared run artifacts — machine-readable deliverables requested in the invocation or surfaced by the evidence at SYNTHESIZE, such as a JSON schema — written under `.agents/research/artifacts/` and referenced from the finding. There is no partial output, no scratch document promoted by accident, and no file with research leftovers beyond the finding and its declared artifacts. Research artifacts are indexed under `## research/` in `.agents/README.md`; new research index bullets are inserted at the end of that section, never the file EOF.
+The corpus location is part of the contract. Findings land under `.agents/research/` at the invocation's git root, named with the immutable run ID, and carry the `schema: csm-research/1` marker as their first line (JSON authority; the Markdown projection uses `format: csm-deep-research/1`) so the schema loader, JSON schema, and future consumers can validate the shape at a glance. A finding that survives the pipeline is the run's primary artifact; a run may additionally produce declared run artifacts — machine-readable deliverables requested in the invocation or surfaced by the evidence at SYNTHESIZE, such as a JSON schema — written under `.agents/research/artifacts/` and referenced from the finding. There is no partial output, no scratch document promoted by accident, and no file with research leftovers beyond the finding and its declared artifacts. Research artifacts are indexed under `## research/` in `.agents/README.md`; new research index bullets are inserted at the end of that section, never the file EOF.
 
 ## Interface
 
@@ -92,9 +92,10 @@ Do not activate for work that belongs to a sibling skill: reviewing a repository
 - Every transition is journaled in the research document's embedded Control journal before the step runs, so a mid-run interruption resumes cleanly from the last journaled state.
 - `BLOCKED` is a recoverable stop: its journal entry records the blocker,
   evidence, attempted resolutions, and required decision, and recovery resumes
-  only through `BLOCKED -> RECOVER -> VALIDATE`. A clean review-equivalent
-  completion boundary is `REVIEW -> CHECKPOINT` when an invoking harness adds
-  review; this skill never skips its durable verification/save checkpoint.
+  from that journaled entry (the in-run states are the documented pipeline
+  states — BLOCKED is not a pipeline state). When an invoking harness adds a
+  review boundary, a clean completion boundary is a checkpoint; this skill never
+  skips its durable verification/save checkpoint (VERIFY -> SAVED).
 - The research document's `Control` journal is the durable cursor. Each cursor
   records cycle, current state, last completed track or claim, artifact paths,
   next transition, and the protected-state baseline. Recovery writes the new
@@ -294,7 +295,7 @@ Each section has a job in the progressive-disclosure ladder. TL;DR answers the q
 
 The 8 H2 titles are fixed words, not templates for local phrasing. The corpus consumers match these headings exactly, and a finding whose headings drift — "TLDR" instead of "TL;DR", "Sources" instead of "References" — fails the corpus checks and breaks the corpus' navigability. Keep the headings verbatim; only the content below them varies per run.
 
-The template's first line is the format marker `format: csm-deep-research/1`, followed by the H1 title — the marker may be bare (template form) or wrapped in YAML `---` (accepted by the corpus check). The marker lets both the corpus checks and a human reader identify the document kind and version at a glance; it must stay the first line, before any prose or heading. Every finding saved by the skill mirrors this template exactly — including the seed document the corpus ships with.
+The Markdown projection template's first line is the marker `format: csm-deep-research/1` (the authoritative JSON finding uses `schema: csm-research/1`), followed by the H1 title — the marker may be bare (template form) or wrapped in YAML `---` (accepted by the corpus check). The marker lets both the corpus checks and a human reader identify the document kind and version at a glance; it must stay the first line, before any prose or heading. Every Markdown projection of a finding mirrors this template exactly — including the seed document the corpus ships with.
 
 ````markdown
 format: csm-deep-research/1
