@@ -33,7 +33,9 @@
       "from": "NOT_STARTED",
       "to": "RECOVER",
       "evidence": "Explicit user request authorized execution of the validated remediation plan; pre-existing untracked artifacts are outside the build scope.",
-      "inputDigests": ["sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"]
+      "inputDigests": [
+        "sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"
+      ]
     },
     {
       "sequence": 1,
@@ -41,7 +43,9 @@
       "from": "RECOVER",
       "to": "VALIDATE",
       "evidence": "Plan and build state validate; repository baseline has no conflicting tracked changes.",
-      "inputDigests": ["sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"]
+      "inputDigests": [
+        "sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"
+      ]
     },
     {
       "sequence": 2,
@@ -215,17 +219,16 @@
   "artifacts": [
     {
       "schema": "csm-build-artifact/1",
-      "artifactId": "art-build-evidence-csm-orchestrate-remediation",
+      "artifactId": "art-490609fbeb16",
       "kind": "verification-report",
       "runId": "run-20260827t150000z-f6e5d4c3b2a1",
       "owner": "csm-build",
-      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "digest": "sha256:aed3c2513692cdcce3aa1e09001c2a4f8201161498f04d61af0094cf25c34a03",
       "path": ".agents/builds/2026-08-27-csm-orchestrate-remediation-build.json",
       "contentType": "application/json",
       "lifecycleStatus": "completed",
       "sourceArtifactIds": [],
-      "rollbackArtifactId": null,
-      "descriptorDigest": "sha256:9534d3aaf3c4b620c2e0c975db6318aee478f6a43e718cb055a3fb5cc1ffb8a4"
+      "descriptorDigest": "sha256:593b56db57c1d1db9d4181aee83fdc9099d70c71d9e7a6e6d01213b03fae1d40"
     }
   ],
   "completion": {
@@ -247,12 +250,31 @@
         "descriptorDigest": "sha256:9534d3aaf3c4b620c2e0c975db6318aee478f6a43e718cb055a3fb5cc1ffb8a4"
       }
     ],
-    "commit": { "status": "verified", "sha": "2517f65", "message": "build: harden csm-orchestrate contracts", "files": ["complete validated workset"] },
-    "rollback": { "status": "not-needed", "checkpoint": null, "action": "No rollback required; validated workset is committed and pushed." }
+    "commit": {
+      "status": "verified",
+      "sha": "2517f65",
+      "message": "build: harden csm-orchestrate contracts",
+      "files": [
+        "complete validated workset"
+      ]
+    },
+    "rollback": {
+      "status": "not-needed",
+      "checkpoint": null,
+      "action": "No rollback required; validated workset is committed and pushed."
+    }
   },
   "provenance": {
     "sourcePlan": "art-csm-orchestrate-remediation-plan-20260827-a1b2c3d4e5f6",
-    "sourceDigests": ["sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"]
+    "sourceDigests": [
+      "sha256:2398d7995d751e4ee77d75e759ac394075ac622c1f46d9f8723fe06fc58abdd0"
+    ]
   },
-  "projection": { "sourceOnly": true, "allowed": ["markdown", "html"] }
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
 }

@@ -23,6 +23,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadSchemaRegistry, parseJson } from "../lib/schema-runtime/index.mjs";
+import { validateBuildState } from "../csm-build/lib/state.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PLAN_V2 = "csm-plan/2";
@@ -42,11 +43,18 @@ const git = (args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" })
 const nonEmpty = (value) => typeof value === "string" && value.trim() !== "";
 
 function enumerateCorpus() {
-  const listed = git(["ls-files", ".agents/plans/*.json", ".agents/csm-build-state/*.json"])
+  const listed = git([
+    "ls-files",
+    ".agents/plans/*.json",
+    ".agents/csm-build-state/*.json",
+    ".agents/builds/*.json",
+  ])
     .trim()
     .split("\n")
     .filter(Boolean);
-  const builds = listed.filter((file) => file.startsWith(".agents/csm-build-state/"));
+  const builds = listed.filter(
+    (file) => file.startsWith(".agents/csm-build-state/") || file.startsWith(".agents/builds/"),
+  );
   const excluded = new Set(EXCLUDED_PLANS);
   // Derive excluded live build-state records: any build-state that consumes an
   // excluded (actively-executed) plan.
@@ -126,6 +134,13 @@ async function main() {
   for (const file of files) {
     const errors = [];
     const record = parseJson(readFileSync(resolve(ROOT, file), "utf8"));
+    // .agents/builds records carry digest/transition contracts the JSON schema
+    // alone does not check; run the build-state validator so a fabricated digest
+    // or an invalid transition fails the gate.
+    if (file.startsWith(".agents/builds/")) {
+      const state = validateBuildState(record);
+      for (const issue of state.errors) errors.push(`build-state: ${issue.message}`);
+    }
     records.set(file, record);
     const schema = record.schema;
     const isV1 = schema === "csm-plan/1" || schema === "csm-build-state/1";

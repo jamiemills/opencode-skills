@@ -8,7 +8,7 @@
   "control": {
     "currentState": "CHECKPOINT",
     "cycle": 0,
-    "nextTransition": "CHECKPOINT -> SELECT (T006 next; SQLite driver/version spike must be recorded before dispatch)",
+    "nextTransition": "CHECKPOINT -> SELECT",
     "activeTasks": [],
     "blockers": [],
     "lastCheckpoint": "T005 complete: csm-browse/csm-autoresearch/csm-build/csm-orchestrate config schemas+adapters (strict authority boundaries), 4 registry entries + final-review/2 BLOCKED+remediationBudget schema update, executable activation predicates, remediation budget consumption (BLOCKED on exhaustion), physical graph insertion ordering with executed-phase skip; tests/config-high-risk-adapters/ + 3 orchestrate feature files; docs T005 section; bootstrap repacked. Acceptance 116/116 incl. 73/73 orchestrator regressions; prerequisites test-browse + test-autoresearch 70/70; lint/check/fmt-check/package-index/deterministic/bootstrap gates green; check-suite.test.mjs pristine-hook transient (tracked-only corpus vs intentionally uncommitted files; full-copy corpus passes); intentionally uncommitted (user authorization not provided)",
@@ -112,164 +112,420 @@
   ],
   "artifacts": [
     {
-      "path": "docs/config-inventory.md",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-3e3d99bbae36",
       "kind": "inventory",
-      "owner": "T001"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T001",
+      "digest": "sha256:0fc4d9a5506fe77bcb27570ad5460bc8d3123c0e157ac56a88c51105f2f403fa",
+      "path": "docs/config-inventory.md",
+      "contentType": "text/markdown",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:a0eb08e1d025280c8f7e55865a818cbf861a5b3a23dcc1e5e74c3433cad4a89c"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-4924e1562d46",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T001",
+      "digest": "sha256:0f414938e70ce14c84951935b804f352e9d2705cf487eb8965e7f71cf895ea5f",
       "path": "tests/config-baseline/inventory.test.mjs",
-      "kind": "test",
-      "owner": "T001"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:6c7243d4f9dff965e9482f8d398238ce8388058f946988b7da4acfee44b4fef9"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-29a9052b883d",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T001",
+      "digest": "sha256:72dfcdae1949de955d76398b9131c462dbdcc533afb78399a027850d699607f7",
       "path": "tests/config-baseline/parity.test.mjs",
-      "kind": "test",
-      "owner": "T001"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:03eb8804c34930af2f08994e7bf7349d892043a1d36d38033edc0333deca7695"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-3d0544596240",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:050d1162d29663d95080344043ed416f20b9e545532f16e4cd215f361756f18d",
       "path": "csm-bdd-tdd/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T004"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:d0296d0c3bfaaf293eaf4b081d9bf029c858b011550b2fcad686f1214766ee31"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-901b31c82c54",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:46192606bac84d646bb4491b9324679310ed3e93ae6061ff184fb5d11e9235dd",
       "path": "csm-bdd-tdd/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T004"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:857e6b78bbdd04d8e85e150f05e610c9c37cc40f9f50de68ad83ea93f8b280d0"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-ab459389aa92",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:43789032555a2a46b4708c57b2fb7392a542c3b2049bbdf08a6907895698be33",
       "path": "csm-make-tests/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T004"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:9005219fb6ff339d169510d596b911f255512ccc4c9be6945c2d991e28546c58"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-8c8530865908",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:ba38e80c8a66675438fdbd68882d3a27c182fcca90658c8c850dd7e027736ed0",
       "path": "csm-make-tests/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T004"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:5fb9c6c3d08584e22154ec76501ffd4dfd64c5823d80275aad8edc84eb7e040b"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-95db97e2a0e8",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:a3b16d88de89085563f5877ad937019b74a6ef6ee569f183b626cb0cb36a2d66",
       "path": "csm-upload/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T004"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:72e116251d4a1ff87e7aebd884a9e1df2affa913e9c6e23315c3005f153ea2ed"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-b14adb21a160",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:0d4673c796f00b2b8048df25018bb8b63e5b0a09cb03f9871133cddc31c40845",
       "path": "csm-upload/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T004"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:fee72ef1eeaccd1a4d09a5450781a682f4046b105d3a749a1d3a50c88d2d6cf4"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-75f09e667c31",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:21f676edc9e34bde22e100f11edd5fad9392b73ebf5dc52e31369935f9b5e072",
       "path": "tests/config-artifact-adapters/",
-      "kind": "test",
-      "owner": "T004"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:845ce061015f6f856b7269f6cf6b137d51b62895a63862e8ec50cf7ddb4b675d"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-ef872798e6e6",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T004",
+      "digest": "sha256:6a823041b342b3482de442a6f911b6082e8f3ceb3d6a340666917ae15fb58d43",
       "path": "tests/legacy-artifact-compatibility.test.mjs",
-      "kind": "test",
-      "owner": "T004"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:6fb47e2c9018e12ef1410636d5fe26e1228736727fb8185648bd3b913ceb7758"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-87240333367c",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:b9c7374250f5f7d4733374bf7a1ce11f27520826c22f92e1e8b5d39af39de16f",
       "path": "csm-browse/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T005"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:21fbfdfee3483ded189d897e00acc507019ebab8bd81717327d11c5a6279cdc0"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-4630c0b6735f",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:5173fd78404a58f3ea7cf7c123684381ad813de6ad80115dcd1a505948454233",
       "path": "csm-browse/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:44decbc3bdcbd0d9a23cd1e2f6d06739cfb9210d79e581c0ee849b83673bf680"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-dc9ab2fed427",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:da874fa782007f2e68204976ba293bd93c6e3d3f8b8cfa204d824a7a3c14ffae",
       "path": "csm-autoresearch/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T005"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:975d8b248bdb978f3ed28ff16eec686467997252126ad8c38c612f478f91a98c"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-22347e8c0091",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:9eab4762444e4a7e455550323dbbca95eaf54e722b2917d04c541552e4535ad8",
       "path": "csm-autoresearch/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:7ee82269aec499f3ad6377aaadf5636721a8bbbb4142167dfd191515b01831a0"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-152fd25e9ed4",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:c37dd62230e399f3d9e527db85f642a1935af3c8bb2955d7bc1fa0a49844cc96",
       "path": "csm-build/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T005"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:7647d6be60f2c81bd5ecd92f7539ccadf0b3e4291443b0dc521c19309314658c"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-c67b9956ef23",
+      "kind": "adapter",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:955d7f4df086fd4dd8a3282109dc9493ab4283befdf0df6988cb6571ca1392e5",
       "path": "csm-build/lib/config.mjs",
-      "kind": "adapter",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:9a30b5fb08c53395dfa2e64329713b2e29dc10f50e8cdee1f24c9359bca2c61e"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-065d9c5540bc",
+      "kind": "schema",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:92027330553c34108b582a2a2f6d5b2ebdb2a2e2614f28e66655af6027778c66",
       "path": "csm-orchestrate/schemas/config.schema.json",
-      "kind": "schema",
-      "owner": "T005"
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:49c07d1f2a3d2395379a88cee9bec74053a653ff6fca88b1ab92b01f302f721b"
     },
     {
-      "path": "csm-orchestrate/lib/config.mjs",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-1319acaab0ba",
       "kind": "adapter",
-      "owner": "T005"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:9cab879cb01030b743d96aa2862d8124793af91a14c756dc8e766d9c6ce42335",
+      "path": "csm-orchestrate/lib/config.mjs",
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:372826737e6f3cecb0690591422af853177275edfc21072f0aa9c1c2a5c1598e"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-ce9eac83b522",
+      "kind": "source",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:842a2d5e7418b17f0be1f6b6ef6846338d207039f480fd6d808b5289c9970a75",
       "path": "csm-orchestrate/lib/index.mjs",
-      "kind": "source",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:bcb23c269774aac495dcd1dec55215d551e076852f632794ad9f3a5e939bb45e"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-9a34ff6e6470",
+      "kind": "source",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:7b4ff766f44a0c11c3707b470e54ed81e429898090106c4b2a95c91f2852122e",
       "path": "csm-orchestrate/lib/phase-compiler.mjs",
-      "kind": "source",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:c7240351a4b1debb75f7c76886ca9a9aea1f59403b5f445236ee3e2ce600eb0e"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-888a16af2b53",
+      "kind": "source",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:5cf10afeaf0c2276e89caa3728a6f97889e90a2bbdde0e761d1a3398cc821e2a",
       "path": "csm-orchestrate/lib/adversarial-final-review.mjs",
-      "kind": "source",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:8982a93df624de8f63dff527940141e250a488971359cc2d6dc4a8342df1810f"
     },
     {
-      "path": "csm-orchestrate/schemas/final-review.v2.schema.json",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-f7bf37130cd9",
       "kind": "schema",
-      "owner": "T005"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:a509eacfe46beebb704ffe946c3e2769755c46823420b91df4d32f37c15f798e",
+      "path": "csm-orchestrate/schemas/final-review.v2.schema.json",
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:56f4a6559f06aa94a921adc3f9db16e72211dd7416917895b69934d2c66b174e"
     },
     {
-      "path": "schemas/registry.json",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-58455bdd42d4",
       "kind": "registry",
-      "owner": "T005"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:d468e092663dfc2e31345804af2ba24b750a33ba1f6090515f4217a7b85b9a0b",
+      "path": "schemas/registry.json",
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:b2c58d4edb20735191bc6dcb5b3599e76367074c522d2d7ad087b6ed4ba1c1a8"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-f1c6d06156a3",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:3f8b6acf615a4071f05959f30bf73916b1842ea328c1abdfe5fe8051b51260fc",
       "path": "tests/config-high-risk-adapters/",
-      "kind": "test",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:101d702d1c3260f87dadd8c83c5121f40cf9117e2d676bf239acfecadd6b34d7"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-5a2c447d6cea",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:bc4415d3714ae790ca12e70643c5cdf33f5e3a6fa4310e5cfcaa60ed10ac9ba1",
       "path": "tests/orchestrate-activation-predicates.test.mjs",
-      "kind": "test",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:43796a0979fb5654b45e3785c5a91dcfd7172b65f359f018bfb6bc8e2346932a"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-68f11d3fa987",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:439a41eb4d95e4369294a892e9601509abf12add76c7323090d0785f8b7df252",
       "path": "tests/orchestrate-remediation-budget.test.mjs",
-      "kind": "test",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:8ffe463cfb9574d78bb0c52ce568fd44181f500fb0724303bd32847c62a14afc"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-86ed14e1a62b",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:7b553111cef273f63f1045917711941788ee50039848b708cc9eae8c2f66ac2e",
       "path": "tests/orchestrate-insertion-ordering.test.mjs",
-      "kind": "test",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:5ec989e95c1a3d51e6ea332bbd73ccaf5b05f3a2008dbb284af688eb9a873914"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-106c9ec566c4",
+      "kind": "test",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:8421742054ecedbff3630d4984756dc4535dce983e8c1c6b7cd5742596501d97",
       "path": "tests/helpers-final-review.mjs",
-      "kind": "test",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:7c2d28d9deecdb6c8fbdb534422f7145eb9837c7e5b6bf761dfeb4c0cb1be956"
     },
     {
-      "path": "docs/config-inventory.md",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-3e3d99bbae36",
       "kind": "inventory",
-      "owner": "T005"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:0fc4d9a5506fe77bcb27570ad5460bc8d3123c0e157ac56a88c51105f2f403fa",
+      "path": "docs/config-inventory.md",
+      "contentType": "text/markdown",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:51ffb5c9b566bb952cc933a124910e841bfd35247a96adbecc2d724e98011e58"
     },
     {
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-32ac651c99d1",
+      "kind": "payload",
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
       "path": "bootstrap/package/**",
-      "kind": "payload",
-      "owner": "T005"
+      "contentType": "application/octet-stream",
+      "sourceArtifactIds": [],
+      "digest": "sha256:551303ed96ce71eeb9a86b43958d4130f15bcf2ef1127f78c9004649977fa870",
+      "lifecycleStatus": "completed",
+      "descriptorDigest": "sha256:3ec7fce310b35cfebed3bd582bb87a8ef784f37de9f4fa0efa3198a2de905cf1"
     },
     {
-      "path": "bootstrap/payload-index.json",
+      "schema": "csm-build-artifact/1",
+      "artifactId": "art-3b56d16a7a6c",
       "kind": "payload",
-      "owner": "T005"
+      "runId": "run-20260828t050000z-a7b8c9d0e1f2",
+      "owner": "T005",
+      "digest": "sha256:33cee2129d9a04ff3349f1208a09755acbad9e21706130e545d4798f31e65243",
+      "path": "bootstrap/payload-index.json",
+      "contentType": "application/json",
+      "lifecycleStatus": "completed",
+      "sourceArtifactIds": [],
+      "descriptorDigest": "sha256:1c70f4916d95a091edb8b70df8c5c7983385b6032feb35c7dcbcfddb5b74753b"
     }
   ],
   "completion": null,

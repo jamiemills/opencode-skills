@@ -205,7 +205,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 
 ### Output paths and artifacts
 
-- Durable build state `.agents/builds/<date>-<goal-slug>-build.json` (`csm-build-state/1`, validated by `csm-build/schemas/state.schema.json`); the plan JSON itself is updated in place at every checkpoint (**skill-owned behavior**; append-only journal semantics are **immutable invariant**).
+- Durable build state `.agents/builds/<date>-<goal-slug>-build.json` (`csm-build-state/1`, validated against `csm-build/schemas/state.schema.json` by `scripts/validate-corpus-v2.mjs` in `make check`); the plan JSON itself is updated in place at every checkpoint (**skill-owned behavior**; append-only journal semantics are **immutable invariant**).
 
 ### Side effects
 
