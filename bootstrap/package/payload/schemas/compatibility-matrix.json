@@ -183,6 +183,13 @@
       "adapter": null
     },
     {
+      "schema": "csm-completion-verdict",
+      "producerRevision": 1,
+      "consumerRevision": 1,
+      "status": "compatible",
+      "adapter": null
+    },
+    {
       "schema": "csm-ddd-config",
       "producerRevision": 1,
       "consumerRevision": 1,

@@ -2399,14 +2399,20 @@
       },
       {
         "path": "payload/schemas/compatibility-matrix.json",
-        "sha256": "746d25fcf11b7508c8db15208b928f652948d662a62656070e3ac0e6efaee6f8",
-        "bytes": 21925,
+        "sha256": "545d3d246f98aa23747d962ffc7d1880fb3721faedc555059747b925b4ba9ac1",
+        "bytes": 22090,
         "mode": "0644"
       },
       {
         "path": "payload/schemas/csm-artifact.schema.json",
         "sha256": "1ea7117519d2251eaa7353f503a5350c5ad45a0dc9bba09b63a659c5a61ca611",
         "bytes": 2025,
+        "mode": "0644"
+      },
+      {
+        "path": "payload/schemas/csm-completion-verdict.schema.json",
+        "sha256": "a4140a15357f3c80507a75669351e6aa28652c3f84fc990cea4eae035228cde6",
+        "bytes": 1660,
         "mode": "0644"
       },
       {
@@ -2495,8 +2501,8 @@
       },
       {
         "path": "payload/schemas/registry.json",
-        "sha256": "b40840f0b6d6df5361b1a294cddbd78949809c9e5d09eeba438499e143034cb3",
-        "bytes": 37714,
+        "sha256": "ff55ab8202d1b38e5d0ba27b6f367fb11ae2502eb9f12265bc6e7affabbc38b9",
+        "bytes": 38041,
         "mode": "0644"
       },
       {

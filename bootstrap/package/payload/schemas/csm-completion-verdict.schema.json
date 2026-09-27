@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "csm-completion-verdict/1",
+  "title": "CSM independent completion verdict",
+  "description": "Typed, multi-reviewer completion verdict. Produced by at least two independent adversarial reviewers over a finished csm plan; every task must carry per-task evidence. Consumed by scripts/verify-completion.mjs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaRevision", "planId", "verdict", "reviewers", "tasks"],
+  "properties": {
+    "schema": { "const": "csm-completion-verdict/1" },
+    "schemaRevision": { "const": 1 },
+    "planId": { "type": "string", "minLength": 1 },
+    "verdict": { "enum": ["complete", "incomplete"] },
+    "generated": { "type": "string" },
+    "reviewers": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "verdict", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "verdict": { "enum": ["complete", "incomplete"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "verdict", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "verdict": { "enum": ["complete", "incomplete", "blocked-deps"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "git": { "type": "object" },
+    "ci": { "type": "object" }
+  }
+}

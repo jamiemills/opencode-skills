@@ -1,12 +1,12 @@
 {
   "planId": "system-remediation-jev-embedding",
   "planDigest": "sha256:8f92e4d5825e9accc5bdf60753b87746171d53bc534e85b761ac198705cc2b85",
-  "sampledAt": "2026-09-27T15:34:41.743Z",
+  "sampledAt": "2026-09-27T22:44:53.012Z",
   "total": 36,
-  "complete": 25,
+  "complete": 36,
   "partial": 0,
-  "blockedDeps": 1,
-  "pending": 10,
+  "blockedDeps": 0,
+  "pending": 0,
   "tasks": [
     {
       "taskId": "T001",
@@ -180,8 +180,8 @@
       "taskId": "T025",
       "title": "Add a shared run-scoped decision service and direct consult entry",
       "signal": "node --test tests/orchestrate-decision-service.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T026",
@@ -194,71 +194,71 @@
       "taskId": "T027",
       "title": "Add coverage profiles, budget guard, and decision telemetry",
       "signal": "node --test tests/orchestrate-decision-budget.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T028",
       "title": "Stand up the Jev calibration program scaffolding",
       "signal": "node --test tests/offline/decision-calibration-program.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T029",
       "title": "Add the trust-ladder schemas and preserve the never-Jev boundary",
       "signal": "node --test tests/foundation/decision-trust-schemas.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T030",
       "title": "Final conformance and end-to-end acceptance",
       "signal": "node scripts/check-suite.mjs",
-      "status": "blocked-deps",
+      "status": "complete",
       "exitCode": 0
     },
     {
       "taskId": "T031",
       "title": "Make the trace substrate usable evidence for a multi-week review",
       "signal": "node --test tests/trace-evidence-substrate.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T032",
       "title": "Fix csm-browse packaging, portability, and hermetic tests",
       "signal": "node --test tests/browse-packaging.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T033",
       "title": "Make producer descriptors lockstep with their SKILLs",
       "signal": "node --test tests/producer-descriptor-contract.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T034",
       "title": "Replace remaining hardcoded install-prefix paths",
       "signal": "node --test tests/no-hardcoded-skill-paths.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T035",
       "title": "Fail closed on mid-run drop-capture degradation when required",
       "signal": "node --test tests/orchestrate-drop-capture.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     },
     {
       "taskId": "T036",
       "title": "Resolve the csm-build /1 evaluator requirement",
       "signal": "node --test tests/csm-build-evaluator-revision.test.mjs",
-      "status": "pending",
-      "exitCode": 1
+      "status": "complete",
+      "exitCode": 0
     }
   ]
 }

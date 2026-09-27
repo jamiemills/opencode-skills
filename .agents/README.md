@@ -156,7 +156,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `rollback-descriptor-20260905.json` — 2026-09-05 — release rollback descriptor for orchestrate-release-completion (known-good f8418fd; revert order) — status: reference
 - `g3-ruling.md` — 2026-09-05 — G3 evidence-source ruling question + options + recommendation — status: awaiting user ruling
 - `readiness-rebaseline-decision.json` — 2026-09-05 — readiness-report re-baseline decision (scope as 2026-08-28 snapshot) — status: reference
-- `2026-09-26-completion-ledger.json` — 2026-09-26 — reconciliation of the system-remediation plan (26/36 complete; 10 pending) — status: reference
+- `2026-09-26-completion-ledger.json` — 2026-09-26 — reconciliation of the system-remediation plan (35/36 complete; 1 blocked-deps) — status: reference
 
 ## reviews/
 

@@ -221,6 +221,15 @@
       "schemaContentDigest": "sha256:d3c531f35d0c811f5f71e5bb17f0a706b06ab0635937a395d41557d055e806fc"
     },
     {
+      "id": "csm-completion-verdict/1",
+      "revision": 1,
+      "schemaPath": "schemas/csm-completion-verdict.schema.json",
+      "aliases": [],
+      "immutable": true,
+      "unknownFieldPolicy": "reject",
+      "schemaContentDigest": "sha256:1a1da75bd8b7e8bc0edec72164de4bda12b04534148c605dac663fc04b6f7b6b"
+    },
+    {
       "id": "csm-ddd-config/1",
       "revision": 1,
       "schemaPath": "csm-ddd/schemas/config.schema.json",

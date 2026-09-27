@@ -46,8 +46,8 @@ export function classify(result) {
 
 export function reconcilePlan({ plan, runSignal, sampledAt = new Date().toISOString() }) {
   const ordered = (plan.tasks ?? []).toSorted((a, b) => a.ordinal - b.ordinal);
-  const statusById = new Map();
-  const tasks = ordered.map((task) => {
+  // Pass 1: each task's OWN signal outcome, independent of ordering.
+  const evaluated = ordered.map((task) => {
     const signal = parseSignalCommand(task.acceptanceSignal);
     let result = { ok: false, code: null };
     if (signal) {
@@ -57,19 +57,29 @@ export function reconcilePlan({ plan, runSignal, sampledAt = new Date().toISOStr
         result = { ok: false, code: null, error: String(error?.message ?? error) };
       }
     }
-    let status = classify(result);
-    const deps = task.dependsOn ?? [];
-    if (status === "complete" && !deps.every((dep) => statusById.get(dep) === "complete"))
-      status = "blocked-deps";
-    statusById.set(task.taskId, status);
-    return {
-      taskId: task.taskId,
-      title: task.title,
-      signal,
-      status,
-      exitCode: result.code ?? null,
-    };
+    return { task, signal, exitCode: result.code ?? null, own: classify(result) };
   });
+  // Pass 2: a complete task whose dependencies are not all complete becomes
+  // `blocked-deps`. Resolve to a fixpoint so a task never spuriously depends on
+  // an un-evaluated higher-ordinal task (ordinal order is not dependency order).
+  const statusById = new Map(evaluated.map((e) => [e.task.taskId, e.own]));
+  const depsOf = new Map(evaluated.map((e) => [e.task.taskId, e.task.dependsOn ?? []]));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const [id, status] of statusById) {
+      if (status !== "complete") continue;
+      if (depsOf.get(id).every((dep) => statusById.get(dep) === "complete")) continue;
+      statusById.set(id, "blocked-deps");
+      changed = true;
+    }
+  }
+  const tasks = evaluated.map(({ task, signal, exitCode }) => ({
+    taskId: task.taskId,
+    title: task.title,
+    signal,
+    status: statusById.get(task.taskId),
+    exitCode,
+  }));
   const count = (s) => tasks.filter((task) => task.status === s).length;
   return {
     planId: plan.planId,
