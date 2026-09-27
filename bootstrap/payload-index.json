@@ -84,14 +84,14 @@
       },
       {
         "path": "payload/skills/csm-review-python/SKILL.md",
-        "sha256": "7eead9b6e2f9d9ec45265820e8f4560f9b545f532907c29fb797d9be18a054bc",
-        "bytes": 20815,
+        "sha256": "3d76d87f471598798c0bdf11a4d89280e334a206641e975dbb074b550c0e2277",
+        "bytes": 21167,
         "mode": "0644"
       },
       {
         "path": "payload/skills/csm-review/SKILL.md",
-        "sha256": "7c12c3c236e8456a68d87ec5e07f4c4317d604023750cd06369ac78bb16eb145",
-        "bytes": 50896,
+        "sha256": "3e1462370acd07dc7f2a1d59295e763683c1b330f0babb6c1fa716231259d960",
+        "bytes": 50981,
         "mode": "0644"
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "path": "payload/skills/csm-orchestrate/capabilities.json",
-        "sha256": "006c666fc97dd37e22f100f9e1ddd4018a6859dd793da564050ced3eacb9234b",
+        "sha256": "e907ed8afadcc2e6c8979dce26e1c07e7e35ef9c7767e1c04f5c30e91f21feca",
         "bytes": 26280,
         "mode": "0644"
       },
@@ -1508,8 +1508,8 @@
       },
       {
         "path": "payload/skills/csm-review/lib/findings-validator.mjs",
-        "sha256": "e0bc6071b6695fa3c0b4108bf627c38d8e9e5bb0b61852983386b7f49fa03e48",
-        "bytes": 6780,
+        "sha256": "6d757a3d37d481a69f540253503992924d97ba5ca8967275f8a5d1b7daa8cb67",
+        "bytes": 7314,
         "mode": "0644"
       },
       {

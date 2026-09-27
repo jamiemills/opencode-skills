@@ -235,7 +235,7 @@ Entry: ADJUDICATE exit; re-entry on any VERIFY budget failure (≤3 distinct fai
 
 The primary-personal gate, never delegated. Verify that:
 
-- every finding has all schema fields required for its evidence class — E1: core fields + `verification{method,command,result}`; E2: + `challenges[]` ≥1; E3: + static citation at the pinned SHA; E4: + `evidence_class=E4` label; core fields are id, title, dimension, severity, confidence, locations, commit_sha;
+- every finding has all schema fields required for its evidence class — E1: core fields + `verification{method,command,result,redacted:true}`; E2: + `challenges[]` ≥1; E3: + static citation at the pinned SHA; E4: + `evidence_class=E4` label; core fields are id, title, dimension, severity, confidence, locations, commit_sha;
 - every critical/high finding is E2+ (independently challenged) or explicitly caveated, with the caveat recorded in the finding record and surfaced in residual unknowns;
 - the coverage matrix is filled (every dimension×chunk has a finding-or-clean verdict);
 - anti-coverage is honest;
@@ -345,7 +345,7 @@ Confidence may never exceed its evidence class; the sole exception is the ADJUDI
 - `explanation` (2–6 sentences)
 - `impact`
 - `remediation_sketch` (approach-level, not a patch)
-- `verification{method,command,result}|null` (required for E1)
+- `verification{method,command,result,redacted:true}|null` (required for E1; `redacted:true` is mandated by the schema and validator)
 - `challenges[]` (verdict + rationale)
 - `dissents[]`
 - `status` (upheld/downgraded/retracted) + `status_note`

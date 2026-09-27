@@ -65,7 +65,7 @@ Run first — before INTAKE, any analysis tool use, or any other section. Not an
 - The report status is `VERIFIED`, `INCOMPLETE`, or `BLOCKED`; an unavailable or unresolved check cannot be reported as `VERIFIED`. Retain or embed report-referenced evidence, or record it as explicitly `unavailable` with a reason rather than retaining a deleted temporary path.
 - External doctrine anchors use typed URL/version-or-edition/retrieval/reachability records. `unreachable` and `not-checked` anchors remain limitations, not verification evidence.
 - Keep credentials, tokens, and sensitive source values out of commands, logs, findings, and the report.
-- Use severity `C` (convention), `R` (refactor), `W` (warning), `E` (error/probable bug), `F` (fatal), and `Nit` only. Every finding states what, why it matters, evidence, and a recommendation.
+- Use the `csm-doctrine-findings/1` severity enum: `critical`, `high`, `medium`, `low`, or `info`. The Python-review mnemonics and the bundled rules' `severity_suggestion` tokens map as F→critical, E→high, W→medium, R→low, C→info, Nit→info (see the consolidated research crosswalk). Every finding states what, why it matters, evidence, and a recommendation.
 - Separate mechanical tool evidence from PEP 20 doctrine judgment. Cite a rule ID or a doctrine playbook step for every finding.
 
 ## Write Discipline And File Allowlist
@@ -139,7 +139,7 @@ Exit: every candidate observation has evidence and a rule/playbook basis, or is 
 Entry: ANALYZE exit with candidate observations.
 
 - Inputs: candidate findings and all scan limitations.
-- Actions: inspect non-lintable gotchas including mutable class attributes, replication aliasing, tuple-element augmented assignment, assignment-localization `UnboundLocalError`, bool-as-int surprises, mutators returning `None`, test validity, concurrency choices, docstring semantics, and reader-relative complexity. Deduplicate and order findings. Map urgency to `C/R/W/E/F/Nit`; calibrate against impact, confidence, project norms, and runtime target. Do not convert a missing or noisy tool result into a finding.
+- Actions: inspect non-lintable gotchas including mutable class attributes, replication aliasing, tuple-element augmented assignment, assignment-localization `UnboundLocalError`, bool-as-int surprises, mutators returning `None`, test validity, concurrency choices, docstring semantics, and reader-relative complexity. Deduplicate and order findings. Map urgency to the `csm-doctrine-findings/1` severity enum (F/E/W/R/C/Nit → critical/high/medium/low/info/info); calibrate against impact, confidence, project norms, and runtime target. Do not convert a missing or noisy tool result into a finding.
 - Outputs: stable finding IDs, severity, confidence, title, what, why, evidence paths/lines and rule IDs/playbook citations, recommendation, and verification hint.
 
 Exit: findings are evidence-grounded, severity-mapped, non-duplicative, and ready to report.
@@ -173,7 +173,7 @@ Emit one JSON artifact only. Its typed sections are rendered on demand as Markdo
 1. Human-readable title, run date/ID, target repository, pinned commit, scope, norms disposition, and report path.
 2. Tool/consent header: runner choice, exact tool pins and observed versions, explicit consent result, cache redirection, analysis mode, command results, and unrun checks.
 3. Executive summary and explicit limitations, including missing dependencies, import-resolution noise, unavailable tools, timeouts, and static-only degradation.
-4. Findings table and detail sections. Each stable ID includes severity (`C/R/W/E/F/Nit`), what, why, confidence, evidence path and line, artifact rule ID or doctrine playbook step, recommendation, and verification hint.
+4. Findings table and detail sections. Each stable ID includes severity (`critical/high/medium/low/info` per the schema enum; mnemonics F/E/W/R/C/Nit map as above), what, why, confidence, evidence path and line, artifact rule ID or doctrine playbook step, recommendation, and verification hint.
 5. `## Agent Fix Guide` at the end: findings ordered by dependency and severity, each with stable ID and machine-readable checkbox items such as `- [ ] F-001: ...`; include a verification command or human verification action for each item.
 
 The report also carries a `csm-verification-status/1` record from
@@ -189,7 +189,7 @@ Reference the bundled `artifact/python-idiomatic-reviewer-rules.json` as a read-
 - Running mutating git/package-manager commands, project code, imports, test collection, formatters, autofixes, or dependency resolution against the target.
 - Writing scratch files, a second report, a summary, or a modified baseline anywhere in the target.
 - Treating Ruff, mypy, or pyright output as the complete doctrine review, or treating missing/noisy output as green.
-- Reporting an uncited preference, a guessed violation, or a severity outside `C/R/W/E/F/Nit`.
+- Reporting an uncited preference, a guessed violation, or a severity outside the `csm-doctrine-findings/1` enum.
 - Hiding tool consent, version pins, unavailable checks, dependency gaps, environment noise, or target-diff violations.
 - Fixing findings, implementing recommendations, planning remediation, or invoking another skill after REPORT.
 

@@ -2,7 +2,7 @@
   "schema": "csm-orchestrate-capabilities/3",
   "version": 3,
   "schemaRevision": 3,
-  "contentDigest": "sha256:3c71a7ac53348f513f90795978b8226bf74a5eb8b38433bf96ddb1f178c5253d",
+  "contentDigest": "sha256:424d02bb909af020e77be657ee226f171657e0644dbb20b088de1fe60521082d",
   "coordinator": {
     "skill": "csm-orchestrate",
     "version": "1",
@@ -735,7 +735,7 @@
     {
       "skill": "csm-review",
       "version": "1",
-      "digest": "sha256:7c12c3c236e8456a68d87ec5e07f4c4317d604023750cd06369ac78bb16eb145",
+      "digest": "sha256:3e1462370acd07dc7f2a1d59295e763683c1b330f0babb6c1fa716231259d960",
       "source": {
         "skillPath": "csm-review/SKILL.md",
         "producerPath": "csm-review/producer.json"
@@ -837,7 +837,7 @@
     {
       "skill": "csm-review-python",
       "version": "1",
-      "digest": "sha256:7eead9b6e2f9d9ec45265820e8f4560f9b545f532907c29fb797d9be18a054bc",
+      "digest": "sha256:3d76d87f471598798c0bdf11a4d89280e334a206641e975dbb074b550c0e2277",
       "source": {
         "skillPath": "csm-review-python/SKILL.md",
         "producerPath": "csm-review-python/producer.json"

@@ -58,7 +58,14 @@ function validateSemanticRules(payload) {
     if (finding.sortKey !== expected)
       errors.push(semanticError(`${path}/sortKey`, `sortKey must be ${expected}`));
 
-    const maximumConfidence = evidenceRank[finding.evidenceClass];
+    // Confidence may not exceed its evidence class, with one documented
+    // exception: the ADJUDICATE corroboration bump — independent discovery by
+    // >=2 finders raises E3 to high and E4 to medium (never to verified).
+    let maximumConfidence = evidenceRank[finding.evidenceClass];
+    const corroborated = Array.isArray(finding.corroborators) && finding.corroborators.length >= 1;
+    if (corroborated && finding.evidenceClass === "E3") maximumConfidence = confidenceRank.high;
+    else if (corroborated && finding.evidenceClass === "E4")
+      maximumConfidence = confidenceRank.medium;
     if (confidenceRank[finding.confidence] > maximumConfidence)
       errors.push(semanticError(`${path}/confidence`, "confidence exceeds the evidence class"));
 
