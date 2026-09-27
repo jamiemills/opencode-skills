@@ -1586,8 +1586,8 @@
       },
       {
         "path": "payload/skills/csm-review/producer.json",
-        "sha256": "070180d8a64c733e06a021e56527763a4fedb0486dc5d5a7bb1f09c8d6965a55",
-        "bytes": 644,
+        "sha256": "ea92dc53ae5bb57db4d3d23766016bb632329a0df761887b84c500052bf73f71",
+        "bytes": 596,
         "mode": "0644"
       },
       {

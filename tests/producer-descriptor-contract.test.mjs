@@ -62,7 +62,12 @@ test("scan path and review revision are reconciled", () => {
   assert.equal(scan.canonicalPath, "NORMS.json");
   assert.equal(scan.schema, "csm-norms/1");
   const review = JSON.parse(readFileSync(resolve(ROOT, "csm-review/producer.json"), "utf8"));
-  assert.equal(review.schema, "csm-review-findings/2");
-  assert.equal(review.schemaRevision, 2);
-  assert.ok(review.frozenRevisions.includes("csm-review-findings/1"));
+  // The descriptor advertises the FROZEN authoritative base (/1); the SKILL
+  // documents the additive current revision (/2) separately.
+  assert.equal(review.schema, "csm-review-findings/1");
+  assert.equal(review.schemaRevision, 1);
+  assert.match(
+    readFileSync(resolve(ROOT, "csm-review/SKILL.md"), "utf8"),
+    /csm-review-findings\/2/,
+  );
 });
