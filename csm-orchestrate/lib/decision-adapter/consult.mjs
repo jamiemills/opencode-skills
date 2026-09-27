@@ -33,6 +33,7 @@ function adviceSummary(advice) {
     providerId: advice.providerId ?? null,
     providerModel: advice.providerModel ?? null,
     latencyMs: Number.isFinite(advice.latencyMs) ? advice.latencyMs : null,
+    usage: advice.usage ?? null,
     applied: false,
     advisory: true,
   };
