@@ -142,7 +142,7 @@ pipeline's job.
 ## Fix checklist
 
 - [ ] D1 `csm-plan` description quoted (source); payload regenerated.
-- [ ] D2 `$HOME/.config/opencode/skills` references replaced with relative paths (csm-browse, csm-upload, csm-deep-research).
+- [x] D2 `$HOME/.config/opencode/skills` references replaced with the portable `${CSM_SKILLS_DIR}` convention (csm-browse, csm-upload, csm-deep-research), guarded by `tests/no-hardcoded-skill-paths.test.mjs`.
 - [ ] D3 runtime deps declared in source (bundle handled by the publish build).
 - [ ] D4 `node scripts/pack-bootstrap.mjs` + `node scripts/gen-capabilities.mjs` + `make check` green.
 - [ ] `npx skills add ./. --list` shows 14 skills (local-path check; it does not seed skills.sh listing).

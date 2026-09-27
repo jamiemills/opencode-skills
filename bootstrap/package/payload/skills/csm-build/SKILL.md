@@ -87,7 +87,7 @@ Run first — before `Activation Boundary` work, locating the plan, or any execu
 - Update the plan after every state transition and completed dispatch group. It must always contain enough evidence and an exact next transition for a fresh agent to resume.
 - Record `Last model/run:` in Control at each checkpoint so a resumed or model-switched run can re-verify prior evidence instead of trusting status labels.
 - Do not stop after one task or cycle. Continue until `COMPLETE` or `BLOCKED`. The only sanctioned exception is the `PAUSED` stop under Pause On Quota.
-- Completion is evaluated, not asserted. Every cycle ends with a fresh independent evaluator verdict (journaled as a binding receipt) and the deterministic `csm-build/lib/loop-guard.mjs` in-loop command; the loop transitions to `COMPLETE` only when the guard exits `0` and a `complete` verdict receipt is journaled. A verdict is advisory input to the state machine, never a second acceptance authority, and enforcement never depends on model obedience.
+- Completion is evaluated, not asserted. Every cycle ends with a fresh independent evaluator verdict (journaled as a binding receipt) and the deterministic `csm-build/lib/loop-guard.mjs` in-loop command; the loop transitions to `COMPLETE` only when the guard exits `0` and a `complete` verdict receipt is journaled (a `/1` build stays guard-only; a `/2` state additionally requires the receipt). A verdict is advisory input to the state machine, never a second acceptance authority, and enforcement never depends on model obedience.
 - Never vary the shared static prefix across parallel dispatches in a batch — prefix stability is a cache and cost property.
 
 ### Subagent Resilience
@@ -383,7 +383,7 @@ Then run the mandatory per-cycle evaluator and deterministic completion guard
 below, then immediately choose:
 
 - `SELECT` when verified pending work remains, or when the evaluator returns `continue`;
-- `COMPLETE` only when the deterministic loop guard exits `0` and a binding `complete` evaluator verdict receipt is journaled;
+- `COMPLETE` only when the deterministic loop guard exits `0` and a binding `complete` evaluator verdict receipt is journaled (a `/1` build is guard-only; `/2` additionally requires the receipt);
 - `BLOCKED` only under the blocker rules below (or when the evaluator returns `blocked` with no safe repair);
 - `PAUSED` on quota exhaustion (see Pause On Quota).
 

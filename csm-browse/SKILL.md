@@ -5,6 +5,8 @@ description: Browse pages in the chromium-vnc Docker container via CDP. Use when
 
 # CSM Browse
 
+> **Paths:** `CSM_SKILLS_DIR` is the skills install root (the directory containing the `csm-*` skill folders; e.g. the OpenCode global install's `skills/` directory or a project `.agents/skills/`). Export it once (`export CSM_SKILLS_DIR=...`) before running the commands below.
+
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
@@ -55,7 +57,7 @@ Use `csm-browse` whenever you need to drive a headful Chromium browser inside th
 ## One-time setup
 
 ```bash
-cd $HOME/.config/opencode/skills/csm-browse && pnpm install
+cd ${CSM_SKILLS_DIR}/csm-browse && pnpm install
 ```
 
 Verify the install:
@@ -70,7 +72,7 @@ node scripts/check-skill.mjs
 1. **Ensure** a session exists:
 
    ```bash
-   node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --session <sid>
+   node ${CSM_SKILLS_DIR}/csm-browse/scripts/ensure-browser.mjs --session <sid>
    ```
 
    This starts or adopts a container, launches an isolated Chromium, sets up the CDP forward, spawns the session daemon, and writes `state.json`.
@@ -78,13 +80,13 @@ node scripts/check-skill.mjs
 2. **Use verbs** against the session:
 
    ```bash
-   node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --session <sid> [args...]
+   node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs <verb> --session <sid> [args...]
    ```
 
 3. **Close** when done:
 
    ```bash
-   node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs close --session <sid>
+   node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs close --session <sid>
    ```
 
 ## Verb reference
@@ -92,7 +94,7 @@ node scripts/check-skill.mjs
 All verbs use the same entrypoint with absolute paths:
 
 ```
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs <verb> --session <sid> [...]
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs <verb> --session <sid> [...]
 ```
 
 | Verb                                   | Description                                                                                                                                                                                                                                                                                                                                                              |
@@ -124,16 +126,16 @@ The fixture server (`node tests/serve.mjs`) binds the docker bridge gateway on a
 
 ```bash
 SID=my-login-test
-node $HOME/.config/opencode/skills/csm-browse/tests/serve.mjs &   # prints: fixture server on http://<gateway>:<port>
-node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --session $SID
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs open --session $SID --url "http://<gateway>:<port>/login.html"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs wait-selector --session $SID "#username"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs type --session $SID "#username" "alice"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs type --session $SID "#password" "secret"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs click --session $SID "#submit"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs wait-selector --session $SID "#result"
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs text --session $SID "#result" --allow-sensitive
-node $HOME/.config/opencode/skills/csm-browse/scripts/browse.mjs close --session $SID
+node ${CSM_SKILLS_DIR}/csm-browse/tests/serve.mjs &   # prints: fixture server on http://<gateway>:<port>
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/ensure-browser.mjs --session $SID
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs open --session $SID --url "http://<gateway>:<port>/login.html"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs wait-selector --session $SID "#username"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs type --session $SID "#username" "alice"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs type --session $SID "#password" "secret"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs click --session $SID "#submit"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs wait-selector --session $SID "#result"
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs text --session $SID "#result" --allow-sensitive
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/browse.mjs close --session $SID
 ```
 
 ## VNC live view
@@ -153,7 +155,7 @@ Sessions stood up by this skill are swept automatically: every `ensure-browser` 
 Manual deep-clean:
 
 ```bash
-node $HOME/.config/opencode/skills/csm-browse/scripts/ensure-browser.mjs --cleanup-stale [--age N] [--dry-run]
+node ${CSM_SKILLS_DIR}/csm-browse/scripts/ensure-browser.mjs --cleanup-stale [--age N] [--dry-run]
 ```
 
 - `--age N` — staleness threshold in minutes (default 10)

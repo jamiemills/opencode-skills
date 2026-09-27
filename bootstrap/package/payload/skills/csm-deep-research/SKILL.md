@@ -5,6 +5,8 @@ description: Deep research, R&D and validation queries answered with one exhaust
 
 # csm-deep-research
 
+> **Paths:** `CSM_SKILLS_DIR` is the skills install root (the directory containing the `csm-*` skill folders; e.g. the OpenCode global install's `skills/` directory or a project `.agents/skills/`). Export it once (`export CSM_SKILLS_DIR=...`) before running the commands below.
+
 ## Progress Tracker
 
 Progress tracking is ON by default for every invocation. Create and maintain a
@@ -437,7 +439,7 @@ When webfetch or a docs-search MCP returns a JavaScript-only shell, empty conten
 The PRIMARY performs the retrieval itself (subagents never run browser verbs), following the csm-browse skill's own SKILL.md. Read-only recipe:
 
 ```bash
-SKILL=$HOME/.config/opencode/skills/csm-browse
+SKILL=${CSM_SKILLS_DIR}/csm-browse
 SID=research-<slug>   # must match ^[a-z0-9][a-z0-9_-]{0,40}$
 node $SKILL/scripts/ensure-browser.mjs --session "$SID"
 node $SKILL/scripts/browse.mjs open --session "$SID" --url "<URL>"
