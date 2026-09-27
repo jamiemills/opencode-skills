@@ -41,7 +41,7 @@ These are cross-cutting surfaces every adapter migration must preserve.
   recovery codes at `lib/durable-json/index.mjs:12-19`; writes default to mode `0o600` with
   `0o700` parent dirs (`lib/durable-json/index.mjs:96-106`) and JSONL appends `0o600`
   (`lib/durable-json/index.mjs:128-131`). Classification: **immutable invariant**.
-- **Schema registry** — `schemas/registry.json` (109 entries, `revisionPolicy: immutable`,
+- **Schema registry** — `schemas/registry.json` (113 entries, `revisionPolicy: immutable`,
   `unknownRevisionPolicy: reject`, per-entry `unknownFieldPolicy: reject`). This is the closest
   existing thing to a suite-wide config mechanism and is the registration point T002-T005 must
   extend. Classification: **immutable invariant**.
@@ -623,7 +623,7 @@ All in `csm-browse/lib/constants.mjs` unless noted:
 - csm-browse's digest-pinned image and hardening constants are security-critical; classifying any of them as configurable — even narrow-only — needs an explicit host-ceiling policy in T005, not just a schema.
 - The csm-scan cwd-default write (`./NORMS.json`) can surprise operators running from a repo root; a future default must remain a no-config-compatible behavior change decision, not an adapter side effect.
 - csm-orchestrate's `maxAttempts = 2` retry default interacts with at-least-once effect semantics; any configurable budget must remain subordinate to idempotency/authority rules (T006).
-- The 109-entry schema registry is the de-facto central contract; adding 14 skill namespaces multiplies registry surface and drift risk (mitigated by existing bootstrap parity gates).
+- The 113-entry schema registry is the de-facto central contract; adding 14 skill namespaces multiplies registry surface and drift risk (mitigated by existing bootstrap parity gates).
 
 ## Suite configuration resolver (T002)
 
