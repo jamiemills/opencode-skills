@@ -1,5 +1,5 @@
-import { extname } from "node:path";
-import { readFile, writeFile } from "node:fs/promises";
+import { dirname, extname } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { createSchemaValidator, canonicalize, digest } from "../../../lib/schema-runtime/index.mjs";
 import schema from "../schemas/csm-approach.schema.json" with { type: "json" };
@@ -110,7 +110,11 @@ export function serializeApproachArtifact(value) {
 export async function writeApproachArtifact(path, value) {
   if (extname(path) !== ".json")
     throw new TypeError("approach artifacts must be persisted as JSON");
-  await writeFile(path, serializeApproachArtifact(value), { encoding: "utf8", flag: "wx" });
+  // Serialize (and validate) before touching the filesystem so an invalid
+  // artifact does not leave an empty directory behind.
+  const serialized = serializeApproachArtifact(value);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, serialized, { encoding: "utf8", flag: "wx" });
   return { path, digest: digest(value) };
 }
 

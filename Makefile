@@ -81,7 +81,7 @@ test-policy: ## workflow/release/toolchain trigger-policy suites (CI gate guardr
 	  tests/toolchain-policy.test.mjs
 
 test-bootstrap: ## bootstrap suites (serial; self-pack) + resume-semantics corpus contract (node >=22 via with-node22)
-	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/bootstrap-trust.test.mjs \
+	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/bootstrap-trust.test.mjs tests/bootstrap-trust-root.test.mjs \
 	  tests/protocol/*.test.mjs tests/offline/*.test.mjs \
 	  tests/resume-semantics.test.mjs
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs
@@ -157,7 +157,7 @@ test-enforcement: ## in-loop completion-enforcement suites (evaluators, guards, 
 	  tests/csm-orchestrate-remainder.test.mjs
 
 test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
-	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/check-suite-metadata-drift.test.mjs tests/corpus-gate-completeness.test.mjs tests/schema-registry-coverage.test.mjs tests/plan-review-input.test.mjs tests/scan-norms-path-contract.test.mjs tests/deep-research-contract.test.mjs tests/csm-review-finding-contract.test.mjs tests/python-review-severity-contract.test.mjs tests/bdd-package-contract.test.mjs tests/upload-publication-receipt.test.mjs tests/precommit-parity.test.mjs tests/docs-consistency.test.mjs tests/csm-ddd-token-families-drift.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/trace-config.test.mjs tests/trace-cli.test.mjs tests/verify-traces.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/adapter-gate-wiring.test.mjs tests/regen.test.mjs tests/plan-lineage.test.mjs tests/plan-closure-fields.test.mjs tests/allowlist-policy.test.mjs tests/loop-trace-emission.test.mjs
+	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/check-suite-metadata-drift.test.mjs tests/corpus-gate-completeness.test.mjs tests/schema-registry-coverage.test.mjs tests/plan-review-input.test.mjs tests/scan-norms-path-contract.test.mjs tests/deep-research-contract.test.mjs tests/csm-review-finding-contract.test.mjs tests/python-review-severity-contract.test.mjs tests/bdd-package-contract.test.mjs tests/upload-publication-receipt.test.mjs tests/precommit-parity.test.mjs tests/docs-consistency.test.mjs tests/csm-ddd-token-families-drift.test.mjs csm-grill/test/approach-writer.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/trace-config.test.mjs tests/trace-cli.test.mjs tests/verify-traces.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/adapter-gate-wiring.test.mjs tests/regen.test.mjs tests/plan-lineage.test.mjs tests/plan-closure-fields.test.mjs tests/allowlist-policy.test.mjs tests/loop-trace-emission.test.mjs
 
 test-package-index: ## package and payload-index validation tests
 	node scripts/with-node22.mjs --exec node --test --test-concurrency=1 tests/package-audit.test.mjs

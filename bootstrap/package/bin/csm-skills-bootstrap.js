@@ -329,7 +329,9 @@ async function verifyEnvelope(envelopePath) {
   // every check passed); all failure paths report signed:false.
   const signed =
     Object.prototype.hasOwnProperty.call(envelope, "signature") && envelope.signature !== null;
-  const keyringEnvironment = JSON.parse(KEYRING_JSON).environment;
+  const keyring = JSON.parse(KEYRING_JSON);
+  const keyringEnvironment = keyring.environment;
+  const productionKeyring = keyring.production_use === true;
   return {
     // F-006: ok/exit 0 for unsigned envelopes is the documented local flow;
     // trustLevel makes the distinction machine-readable without changing that
@@ -338,7 +340,14 @@ async function verifyEnvelope(envelopePath) {
       key: trusted.key,
       payload_index_sha256: indexSha256,
       signed,
-      trustLevel: signed ? "signature-verified" : "unsigned-no-crypto-verification",
+      // A signature verified against a non-production keyring (the embedded
+      // test-fixture keyring) is NOT production trust.
+      trustLevel: signed
+        ? productionKeyring
+          ? "signature-verified"
+          : "signature-verified-nonproduction"
+        : "unsigned-no-crypto-verification",
+      productionTrust: signed && productionKeyring,
       keyringEnvironment,
     },
   };

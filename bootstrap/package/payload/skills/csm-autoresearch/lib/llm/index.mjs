@@ -12,7 +12,7 @@ const DEFAULT_LIMITS = Object.freeze({
   maxCost: 0,
   maxResponseBytes: 100_000,
 });
-const LIVE_REFUSAL = "live LLM mode is disabled: DEF-EVAL is unresolved";
+const LIVE_REFUSAL = "live LLM mode is disabled: no live transport ships";
 
 class BudgetError extends Error {
   constructor(message) {
@@ -77,15 +77,12 @@ function assertRequest(request, configured) {
   if (bytes(request.content) > configured.maxInputBytes)
     throw new BudgetError("input byte budget exceeded");
 }
-function assertMode(mode, options) {
+function assertMode(mode, _options) {
   if (mode === "live") {
-    if (
-      options?.defEval !== "resolved" ||
-      options?.egress !== "approved" ||
-      options?.credentials !== true
-    )
-      throw new LiveModeRefusedError();
-    throw new LiveModeRefusedError(); // No live transport is intentionally shipped.
+    // No live transport is intentionally shipped: live mode always refuses,
+    // regardless of DEF-EVAL/egress/credential flags (which are documented
+    // requirements for a future transport, not a reachable path today).
+    throw new LiveModeRefusedError();
   }
   if (mode !== "stub") throw new RangeError("mode must be stub or live");
 }

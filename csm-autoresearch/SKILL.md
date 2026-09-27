@@ -69,8 +69,7 @@ The three source modes are intentionally different:
   candidate, and proposal limits enforced before parsing or execution.
 - Deterministic hard gates outrank targets, LLM proposals, and LLM judges.
   Judge output is blinded, advisory, ordinal or pairwise, and never accepts a
-  hard failure. Live adapters require explicit `DEF-EVAL` resolution, egress
-  policy, credentials, and budgets; the default is a deterministic stub.
+  hard failure. Live adapters are unconditionally refused until a live transport ships (`DEF-EVAL` resolution, egress policy, credentials, and budgets are reserved preconditions for that future transport, not a reachable path today); the default is a deterministic stub.
 - Record every attempt, retry, exclusion, timeout, policy violation, and
   quarantine in the append-only ledger. Never silently discard a trial.
 - Target mode stops when the declared threshold and all hard gates pass. Hill

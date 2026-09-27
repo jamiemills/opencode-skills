@@ -4,7 +4,7 @@ Checklist for the future release of the **experimental, unpublished** `@jamiemil
 
 ## Pre-release
 
-- [ ] Gates green: `node scripts/check-suite.mjs`, `node scripts/sync-skill-boilerplate.mjs --check`, `node scripts/gen-readme-matrix.mjs --check`, and the five bootstrap suites (`tests/bootstrap-trust.test.mjs`, `tests/package-audit.test.mjs`, `tests/protocol/*.test.mjs`, `tests/offline/*.test.mjs`, `tests/integration/*.test.mjs`).
+- [ ] Gates green: `node scripts/check-suite.mjs`, `node scripts/sync-skill-boilerplate.mjs --check`, `node scripts/gen-readme-matrix.mjs --check`, and the six bootstrap suites (`tests/bootstrap-trust.test.mjs`, `tests/bootstrap-trust-root.test.mjs`, `tests/package-audit.test.mjs`, `tests/protocol/*.test.mjs`, `tests/offline/*.test.mjs`, `tests/integration/*.test.mjs`).
 - [ ] Repository CI gates green under Node 22: `make fmt-check`, `make lint`, `make check`, `make test-package-index`, `make test-deterministic`, and `make test`; the frozen install uses `make install` with `--frozen-lockfile --ignore-scripts` for both workspaces.
 - [ ] External gates remain explicit and separate: `make test-e2e`, registry replay, publication, key rotation, and live-model evaluation are not default CI gates and require their own approval and evidence.
 - [ ] Deterministic pack proven: run `node scripts/pack-bootstrap.mjs` twice and compare the printed `sha256` — the bytes must be identical; record sha256, byte count, file count, and the envelope's mandatory payload-index binding.
