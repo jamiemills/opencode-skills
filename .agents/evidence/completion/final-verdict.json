@@ -1,0 +1,204 @@
+{
+  "schema": "csm-completion-verdict/1",
+  "schemaRevision": 1,
+  "planId": "system-remediation-jev-embedding",
+  "verdict": "complete",
+  "generated": "2026-09-27T22:51:40Z",
+  "reviewers": [
+    {
+      "id": "reviewer-A",
+      "verdict": "complete",
+      "evidence": "Adversarial re-run against HEAD 17ced12f0d46d45182697bc5ab0d16e0c17dbc81. Required gates all pass: `node scripts/check-suite.mjs` exit 0 (payload drift compared:382 issues:[]; OK 14 skills, 1169 checks); `node scripts/regen.mjs --check` exit 0 (generated mirrors fresh); `node scripts/validate-corpus-v2.mjs` exit 0 (99 records, 0 failures, 1 excluded, 16 superseded); `node scripts/verify-traces.mjs --json` exit 0 (ok:true, matched 676, malformed 0); `node --test tests/verify-completion.test.mjs` exit 0 (8 tests, 8 pass, 0 fail, 0 skipped). Ledger reconciliation was independently reproduced in-memory through the real engine (scripts/completion/reconcile.mjs reconcilePlan + defaultRunSignal): live totals 36 total / 36 complete / 0 partial / 0 blocked-deps / 0 pending, 0 task diffs versus the committed ledger, and planDigest sha256:8f92e4d5825e9accc5bdf60753b87746171d53bc534e85b761ac198705cc2b85 matches plan.digest, so the ledger is not fabricated. I re-ran ALL 36 declared task acceptance signals against HEAD (not a sample); every one exited 0: T001-T004, T006-T012, T014-T023, T025-T029, T031-T036 via their node --test files, T024 via CSM_DECISION_LIVE_PARITY=1, and T030 via node scripts/check-suite.mjs. The reconcile engine's `partial` class is driven by `# skipped [1-9]`, and it reported partial:0, so no task test silently skipped; no signal timed out. All 36 signal files exist. No regen drift (git diff HEAD for bootstrap/package, bootstrap/payload-index.json, csm-orchestrate/capabilities.json is empty), corpus gate clean, trace substrate clean. Verdict: the base plan's 36 tasks are complete and their signals pass. One non-gating documentation defect found (see concerns): .agents/README.md:159 still states the ledger is '35/36 complete; 1 blocked-deps' even though the committed ledger is 36/36 complete / 0 blocked-deps; commit 17ced12 purported to refresh that line but wrote the pre-fix value."
+    },
+    {
+      "id": "reviewer-B",
+      "verdict": "complete",
+      "evidence": "Adversarial re-run at HEAD 7765317 (git log --oneline -8; git status --porcelain -uall shows ONLY the two expected untracked evidence files .agents/evidence/completion/reviewer-A.json and reviewer-B.json, and NO final-verdict.json). The prior-round payload-drift blocker is fixed: `node scripts/check-suite.mjs` exit 0 ('payload drift: {compared:382, issues:[]}', 'check-suite: OK — 14 skills, 1169 checks'); `node scripts/regen.mjs --check` exit 0 ('regen: OK — generated mirrors are fresh'). The repaired README index line is now correct: `.agents/README.md:159` reads '...(36/36 complete)...' and the committed ledger (git show HEAD:.agents/docs/2026-09-26-completion-ledger.json) reports total=36 complete=36 blockedDeps=0. Ledger is not stale: I independently reproduced it in-memory through the real engine (`scripts/completion/reconcile.mjs` reconcilePlan + defaultRunSignal) — live totals {total:36,complete:36,partial:0,blockedDeps:0,pending:0}, zero per-task status diffs vs the committed ledger, and live planDigest sha256:8f92e4d5825e9accc5bdf60753b87746171d53bc534e85b761ac198705cc2b85 equals the base plan digest. All 36 declared signal files exist (T030's signal is scripts/check-suite.mjs, not a test file). Cross-artifact consistency verified: `schemas/registry.json` entries length = 114 and `docs/config-inventory.md:44` states 114 entries (no current-count mismatch); the csm-completion-verdict/1 entry is registered (immutable:true, unknownFieldPolicy:reject, digest sha256:1a1da75b...) and appears in schemas/compatibility-matrix.json as a compatible producerRevision1/consumerRevision1 pair. The five named tests are wired into the Makefile `test-suite-tooling` target (Makefile:160), which is part of `make test` (Makefile:251, CI); `node --test tests/verify-completion.test.mjs tests/trace-evidence-substrate.test.mjs tests/producer-descriptor-contract.test.mjs tests/orchestrate-drop-capture.test.mjs tests/browse-packaging.test.mjs` -> 29/29 pass, exit 0. `node scripts/check-checkout-hygiene.mjs` exit 0 (warn-only: the two expected untracked evidence files; 4 managed worktrees remain, warn-only — not owned by this run). `node --test tests/completion-driver/reconcile.test.mjs` 5/5 pass, confirming the ordinal/fixpoint reconcile repair. No index miss (check-suite enforces section membership and exits 0), no registry/doc mismatch, no unwired test, and no uncommitted non-evidence owned path. Non-gating concerns only, recorded below. Verdict: complete."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T001",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-docker-worker-credentials.test.mjs (exit 0)"
+    },
+    {
+      "id": "T002",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-egress-path-encoding.test.mjs (exit 0)"
+    },
+    {
+      "id": "T003",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-egress-audit.test.mjs (exit 0)"
+    },
+    {
+      "id": "T004",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-egress-bounds.test.mjs (exit 0)"
+    },
+    {
+      "id": "T005",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-bypass-lease.test.mjs (exit 0)"
+    },
+    {
+      "id": "T006",
+      "verdict": "complete",
+      "evidence": "node --test tests/check-suite-metadata-drift.test.mjs (exit 0)"
+    },
+    {
+      "id": "T007",
+      "verdict": "complete",
+      "evidence": "node --test tests/corpus-gate-completeness.test.mjs (exit 0)"
+    },
+    {
+      "id": "T008",
+      "verdict": "complete",
+      "evidence": "node --test tests/schema-registry-coverage.test.mjs (exit 0)"
+    },
+    {
+      "id": "T009",
+      "verdict": "complete",
+      "evidence": "node --test tests/scan-norms-path-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T010",
+      "verdict": "complete",
+      "evidence": "node --test tests/csm-review-finding-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T011",
+      "verdict": "complete",
+      "evidence": "node --test tests/python-review-severity-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T012",
+      "verdict": "complete",
+      "evidence": "node --test tests/upload-publication-receipt.test.mjs (exit 0)"
+    },
+    {
+      "id": "T013",
+      "verdict": "complete",
+      "evidence": "node --test tests/bdd-package-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T014",
+      "verdict": "complete",
+      "evidence": "node --test tests/deep-research-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T015",
+      "verdict": "complete",
+      "evidence": "node --test tests/plan-review-input.test.mjs (exit 0)"
+    },
+    {
+      "id": "T016",
+      "verdict": "complete",
+      "evidence": "node --test tests/csm-review-loop-closure-wiring.test.mjs (exit 0)"
+    },
+    {
+      "id": "T017",
+      "verdict": "complete",
+      "evidence": "node --test tests/precommit-parity.test.mjs (exit 0)"
+    },
+    {
+      "id": "T018",
+      "verdict": "complete",
+      "evidence": "node --test tests/docs-consistency.test.mjs (exit 0)"
+    },
+    {
+      "id": "T019",
+      "verdict": "complete",
+      "evidence": "node --test csm-ddd/test/cli.test.mjs (exit 0)"
+    },
+    {
+      "id": "T020",
+      "verdict": "complete",
+      "evidence": "node --test csm-grill/test/approach-writer.test.mjs (exit 0)"
+    },
+    {
+      "id": "T021",
+      "verdict": "complete",
+      "evidence": "node --test csm-autoresearch/test/llm-mode.test.mjs (exit 0)"
+    },
+    {
+      "id": "T022",
+      "verdict": "complete",
+      "evidence": "node --test tests/bootstrap-trust-root.test.mjs (exit 0)"
+    },
+    {
+      "id": "T023",
+      "verdict": "complete",
+      "evidence": "node --test tests/offline/decision-provider-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T024",
+      "verdict": "complete",
+      "evidence": "CSM_DECISION_LIVE_PARITY=1 node --test tests/offline/decision-live-parity.test.mjs (exit 0)"
+    },
+    {
+      "id": "T025",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-decision-service.test.mjs (exit 0)"
+    },
+    {
+      "id": "T026",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-decision-points-expanded.test.mjs (exit 0)"
+    },
+    {
+      "id": "T027",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-decision-budget.test.mjs (exit 0)"
+    },
+    {
+      "id": "T028",
+      "verdict": "complete",
+      "evidence": "node --test tests/offline/decision-calibration-program.test.mjs (exit 0)"
+    },
+    {
+      "id": "T029",
+      "verdict": "complete",
+      "evidence": "node --test tests/foundation/decision-trust-schemas.test.mjs (exit 0)"
+    },
+    {
+      "id": "T030",
+      "verdict": "complete",
+      "evidence": "node scripts/check-suite.mjs (exit 0)"
+    },
+    {
+      "id": "T031",
+      "verdict": "complete",
+      "evidence": "node --test tests/trace-evidence-substrate.test.mjs (exit 0)"
+    },
+    {
+      "id": "T032",
+      "verdict": "complete",
+      "evidence": "node --test tests/browse-packaging.test.mjs (exit 0)"
+    },
+    {
+      "id": "T033",
+      "verdict": "complete",
+      "evidence": "node --test tests/producer-descriptor-contract.test.mjs (exit 0)"
+    },
+    {
+      "id": "T034",
+      "verdict": "complete",
+      "evidence": "node --test tests/no-hardcoded-skill-paths.test.mjs (exit 0)"
+    },
+    {
+      "id": "T035",
+      "verdict": "complete",
+      "evidence": "node --test tests/orchestrate-drop-capture.test.mjs (exit 0)"
+    },
+    {
+      "id": "T036",
+      "verdict": "complete",
+      "evidence": "node --test tests/csm-build-evaluator-revision.test.mjs (exit 0)"
+    }
+  ],
+  "git": {
+    "head": "7765317"
+  }
+}
