@@ -199,3 +199,93 @@ test("an installed copy with no repo present loads and injects one bounded promp
     await rm(workDir, { recursive: true, force: true });
   }
 });
+
+// T015 activation wiring: with no explicit pointer, the wrapper auto-discovers
+// the newest NON-TERMINAL build state and pairs its plan by runId, so a live run
+// is supervised without any manual `active.json`.
+async function writeJson(directory, rel, value) {
+  const target = join(directory, ...rel.split("/").slice(0, -1));
+  await mkdir(target, { recursive: true });
+  await writeFile(join(directory, rel), JSON.stringify(value));
+}
+
+test("auto-discovers a non-terminal build state and pairs its plan by runId", async () => {
+  await withDirectory(async (directory) => {
+    await writeJson(directory, ".agents/csm-build-state/run-build.json", {
+      schema: "csm-build-state/1",
+      runId: "run-pilot-1",
+      status: "in_progress",
+      control: { currentState: "CHECKPOINT", activeTasks: [] },
+    });
+    await writeJson(directory, ".agents/plans/2026-01-01-pilot-csm.json", {
+      schema: "csm-plan/2",
+      runId: "run-pilot-1",
+      tasks: [{ taskId: "T001", status: "pending" }],
+    });
+    const { client, calls } = fakeClient();
+    const hooks = await CsmContinuePlugin({ client, directory });
+    await hooks.event({ event: IDLE });
+    assert.equal(calls.length, 1, "a discovered live run must be continued");
+    const text = calls[0].body.parts[0].text;
+    assert.ok(text.includes("--record "), "resume command carries the record path");
+    assert.ok(text.includes("--plan "), "resume command carries the plan path");
+    assert.ok(text.includes("2026-01-01-pilot-csm.json"), "paired plan path is concrete");
+  });
+});
+
+test("a terminal build state is ignored by discovery", async () => {
+  await withDirectory(async (directory) => {
+    await writeJson(directory, ".agents/csm-build-state/run-done.json", {
+      schema: "csm-build-state/1",
+      runId: "run-done",
+      status: "complete",
+      control: { currentState: "COMPLETE", activeTasks: [] },
+    });
+    const { client, calls } = fakeClient();
+    const hooks = await CsmContinuePlugin({ client, directory });
+    await hooks.event({ event: IDLE });
+    assert.equal(calls.length, 0, "no continuation once the run is terminal");
+  });
+});
+
+// T015 freshness gate: a stale abandoned in_progress build state (as several old
+// runs sit in this repository) must NOT trigger a continuation; only a recently
+// updated run is considered active by auto-discovery.
+test("a stale non-terminal build state is ignored; a fresh one is discovered", async () => {
+  const { utimes } = await import("node:fs/promises");
+  await withDirectory(async (directory) => {
+    const rel = ".agents/csm-build-state/2026-01-01-stale-build.json";
+    await writeJson(directory, rel, {
+      schema: "csm-build-state/1",
+      runId: "run-stale",
+      status: "in_progress",
+      control: { currentState: "CHECKPOINT", activeTasks: [] },
+    });
+    await writeJson(directory, ".agents/plans/2026-01-01-stale-csm.json", {
+      schema: "csm-plan/2",
+      runId: "run-stale",
+      tasks: [{ taskId: "T001", status: "pending" }],
+    });
+    const old = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    await utimes(join(directory, rel), old, old);
+
+    const stale = fakeClient();
+    await (await CsmContinuePlugin({ client: stale.client, directory })).event({ event: IDLE });
+    assert.equal(stale.calls.length, 0, "a stale run must not be continued");
+
+    const fresh = fakeClient();
+    await (await CsmContinuePlugin({ client: fresh.client, directory })).event({ event: IDLE });
+    // Still stale by mtime (48h > 6h default), so discovery remains inert.
+    assert.equal(fresh.calls.length, 0, "freshness gate ignores the stale record");
+
+    // Widening the window via env makes the same record discoverable.
+    process.env.CSM_CONTINUE_FRESH_MS = String(72 * 60 * 60 * 1000);
+    try {
+      const widened = fakeClient();
+      await (await CsmContinuePlugin({ client: widened.client, directory })).event({ event: IDLE });
+      assert.equal(widened.calls.length, 1, "a widened freshness window discovers the run");
+    } finally {
+      delete process.env.CSM_CONTINUE_FRESH_MS;
+    }
+  });
+});

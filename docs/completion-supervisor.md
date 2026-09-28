@@ -152,3 +152,23 @@ repository; they are a spike the pilot must settle:
 Treat every behavior above as unproven until the pilot demonstrates both firing
 and deadlock-free re-entry on a real plan, and no rollout, promotion, or
 documentation claim may assert the mechanism works before then.
+
+## Activation and discovery (T015)
+
+The supervisor is inert until it finds a live run. Resolution order:
+
+1. `CSM_CONTINUE_RECORD` (explicit path, relative to the session directory) — bypasses freshness.
+2. `.agents/csm-build-state/active.json` (explicit convention) — bypasses freshness.
+3. Auto-discovery of the **newest non-terminal** `.agents/csm-build-state/*.json` that was **updated within `CSM_CONTINUE_FRESH_MS`** (default 6h). A stale abandoned `in_progress` record (this repository has several) is ignored, so the supervisor never fires on a finished or abandoned run.
+
+The paired plan is resolved from `record.planPath`, else by matching `runId` against `.agents/plans/*-csm.json`. Set the freshness window with `CSM_CONTINUE_FRESH_MS` (milliseconds).
+
+## Pilot result (2026-09-28, GO/NO-GO)
+
+A live pilot was run with `opencode run` 1.18.32 and the installed plugin:
+
+- **`session.idle` fires** at turn completion — confirmed by a project probe plugin (`session.idle` observed exactly once per turn).
+- **`client.session.prompt` re-enters the session** — an idle-triggered injection resolved and produced a **second** `session.idle` (a new turn ran).
+- **BUT the injected turn is racy under `opencode run`:** a handler that performed a couple of awaited record reads before injecting was torn down before the prompt promise settled (no resolution, no error, no second turn). Non-interactive `opencode run` can exit as soon as the first turn completes.
+
+**Verdict: PARTIAL / NO-GO for `opencode run` as the sole mechanism.** The supervisor is acceptable for an interactive/TUI session that stays alive, but automated csm-build runs (which launch via `opencode run`) must use the **external re-invocation driver** as the reliable path: re-run the build while `node csm-build/lib/loop-guard.mjs --record <state> --plan <plan>` exits `2` (the `scripts/lib/agent-session-executor.mjs` resumable path). Treat the plugin as an opportunistic helper, not the completion guarantee.

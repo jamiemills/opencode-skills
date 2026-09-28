@@ -11,6 +11,7 @@ import {
   evaluateReadiness,
   recordDigest,
 } from "../../scripts/opencode-plugin/csm-continue-core.mjs";
+import { evaluateLoopGuard } from "../../csm-build/lib/loop-guard.mjs";
 
 const RECORD = Object.freeze({ schema: "csm-build-state/1", status: "in_progress", tasks: [] });
 const GUARD_CONTINUE = Object.freeze({ exitCode: 2, remaining: ["tasks:T001"] });
@@ -142,4 +143,55 @@ test("readiness is 2 on a non-terminal lifecycle state", () => {
   });
   assert.equal(result.exitCode, 2);
   assert.ok(result.remaining.includes("lifecycle:blocked"));
+});
+
+// T015 parity: the installed wrapper cannot import the repository loop guard, so
+// the core re-implements the status-only semantics by value. This pins them
+// against the authority: for every fixture, evaluateReadiness(...).exitCode must
+// equal evaluateLoopGuard(...).exitCode. A drift between the two is a failure.
+const PARITY_FIXTURES = [
+  {
+    name: "pending task",
+    record: { control: { activeTasks: [] } },
+    tasks: [{ taskId: "T1", status: "pending" }],
+  },
+  {
+    name: "all tasks terminal",
+    record: { control: { activeTasks: [] } },
+    tasks: [{ taskId: "T1", status: "completed" }],
+  },
+  { name: "empty tasks", record: { control: { activeTasks: [] } }, tasks: [] },
+  { name: "non-empty activeTasks", record: { control: { activeTasks: ["T1"] } }, tasks: [] },
+  {
+    name: "blocked lifecycle",
+    record: { control: { activeTasks: [], status: "blocked" } },
+    tasks: [],
+  },
+  {
+    name: "in-progress lifecycle",
+    record: { status: "in_progress", control: { activeTasks: [] } },
+    tasks: [],
+  },
+  {
+    name: "complete lifecycle",
+    record: { completion: { status: "complete" }, control: { activeTasks: [] } },
+    tasks: [],
+  },
+  {
+    name: "record tasks pending",
+    record: { tasks: [{ taskId: "T1", status: "pending" }], control: { activeTasks: [] } },
+    tasks: [],
+  },
+];
+
+test("evaluateReadiness matches evaluateLoopGuard exit codes across fixtures", () => {
+  for (const fixture of PARITY_FIXTURES) {
+    const readiness = evaluateReadiness({ record: fixture.record, tasks: fixture.tasks });
+    const guard = evaluateLoopGuard(fixture.record, { tasks: fixture.tasks });
+    assert.equal(
+      readiness.exitCode,
+      guard.exitCode,
+      `exit-code drift for "${fixture.name}": readiness=${readiness.exitCode} guard=${guard.exitCode}`,
+    );
+  }
 });

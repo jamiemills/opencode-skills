@@ -1,19 +1,35 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
 import { decideContinuation, evaluateReadiness, recordDigest } from "./csm-continue-core.mjs";
 
 // T002: opencode plugin wrapper over the pure continuation core (T001). It
-// subscribes to `session.idle`, locates the active build run's durable record
-// in the working directory, computes readiness from that record alone, and
-// injects at most one bounded continuation prompt per idle. Every path is
-// fail-closed and silent: an absent run, an unavailable client, or any thrown
-// error leaves the host untouched. Import has no side effects, and the wrapper
-// depends ONLY on its sibling core so the installer can drop both files into
-// the opencode plugins directory with no repository present.
+// subscribes to `session.idle`, locates the active build run's durable record in
+// the working directory, computes readiness from that record (and, when
+// available, its paired plan), and injects at most one bounded continuation
+// prompt per idle. Every path is fail-closed and silent: an absent run, an
+// unavailable client, or any thrown error leaves the host untouched. Import has
+// no side effects, and the wrapper depends ONLY on its sibling core (plus node
+// builtins) so the installer can drop both files into the opencode plugins
+// directory with no repository present.
+//
+// Activation wiring (T015): an explicit `CSM_CONTINUE_RECORD` wins, then the
+// conventional `.agents/csm-build-state/active.json`, then auto-discovery of the
+// newest NON-TERMINAL `.agents/csm-build-state/*.json`. The matching plan is
+// resolved from `record.planPath`, else paired by `runId` against
+// `.agents/plans/*-csm.json`. This makes the supervisor work without a manual
+// pointer while remaining inert when no live run exists.
 
 export const DEFAULT_MAX_CONTINUES = 5;
+// Auto-discovery only considers a build state whose record has been updated
+// recently, so stale abandoned runs (in_progress records left in a repo) never
+// cause spurious continuation prompts. An explicit `active.json` or
+// `CSM_CONTINUE_RECORD` pointer bypasses this freshness gate.
+export const DEFAULT_FRESH_MS = 6 * 60 * 60 * 1000;
 export const ACTIVE_RECORD_SEGMENTS = Object.freeze([".agents", "csm-build-state", "active.json"]);
+const BUILD_STATE_SCHEMAS = new Set(["csm-build-state/1", "csm-build-state/2"]);
+const TERMINAL_BUILD_STATES = new Set(["COMPLETE", "BLOCKED", "SUPERSEDED"]);
+const TERMINAL_STATUSES = new Set(["complete", "blocked", "superseded"]);
 
 function maxContinuesFrom(env) {
   const parsed = Number.parseInt(env?.CSM_CONTINUE_MAX ?? "", 10);
@@ -22,21 +38,110 @@ function maxContinuesFrom(env) {
 
 const absolute = (directory, value) => (isAbsolute(value) ? value : join(directory, value));
 
-// Locate the active run's durable record. `CSM_CONTINUE_RECORD` overrides the
-// conventional `.agents/csm-build-state/active.json`; both resolve inside
-// `directory`. A missing or malformed record means "no active run" (silent).
-export async function locateActiveRecord(directory, env = process.env) {
+async function readJson(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNonTerminalBuildState(value) {
+  if (!isRecord(value) || !BUILD_STATE_SCHEMAS.has(value.schema)) return false;
+  if (TERMINAL_BUILD_STATES.has(value?.control?.currentState)) return false;
+  if (TERMINAL_STATUSES.has(String(value?.status ?? "").toLowerCase())) return false;
+  return true;
+}
+
+// Read an explicit `CSM_CONTINUE_RECORD` override, or the conventional
+// `active.json`, when readable and non-terminal. Returns null otherwise.
+async function readExplicitRecord(directory, env) {
   const override = typeof env?.CSM_CONTINUE_RECORD === "string" ? env.CSM_CONTINUE_RECORD : "";
   const path = override
     ? absolute(directory, override)
     : join(directory, ...ACTIVE_RECORD_SEGMENTS);
+  const value = await readJson(path);
+  if (!isRecord(value)) return null;
+  return { record: value, path };
+}
+
+// Auto-discover the newest non-terminal build state under
+// `.agents/csm-build-state/`. Records that are complete/blocked/superseded are
+// ignored so the supervisor stays inert once a run has ended.
+export async function discoverBuildState(directory, env = process.env) {
+  const explicit = await readExplicitRecord(directory, env);
+  if (explicit) return explicit;
+  const dir = join(directory, ".agents", "csm-build-state");
+  let names;
   try {
-    const value = JSON.parse(await readFile(path, "utf8"));
-    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-    return { record: value, path };
+    names = await readdir(dir);
   } catch {
     return null;
   }
+  const parsed = Number.parseInt(env?.CSM_CONTINUE_FRESH_MS ?? "", 10);
+  const freshness = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_FRESH_MS;
+  const candidates = [];
+  for (const name of names) {
+    if (!name.endsWith(".json") || name === "active.json") continue;
+    const path = join(dir, name);
+    const value = await readJson(path);
+    if (!isNonTerminalBuildState(value)) continue;
+    let mtime = 0;
+    try {
+      mtime = (await stat(path)).mtimeMs;
+    } catch {
+      mtime = 0;
+    }
+    if (mtime <= 0 || Date.now() - mtime > freshness) continue;
+    candidates.push({ record: value, path, mtime });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.mtime - a.mtime);
+  const best = candidates[0];
+  return { record: best.record, path: best.path };
+}
+
+// Resolve the plan paired with a build state: an explicit `record.planPath`,
+// else the `.agents/plans/*-csm.json` whose `runId` matches the record.
+export async function resolvePlanPath(record, directory) {
+  if (typeof record?.planPath === "string" && record.planPath !== "")
+    return absolute(directory, record.planPath);
+  if (typeof record?.runId !== "string" || record.runId === "") return null;
+  const dir = join(directory, ".agents", "plans");
+  let names;
+  try {
+    names = await readdir(dir);
+  } catch {
+    return null;
+  }
+  for (const name of names) {
+    if (!name.endsWith("-csm.json")) continue;
+    const path = join(dir, name);
+    const plan = await readJson(path);
+    if (isRecord(plan) && plan.runId === record.runId) return path;
+  }
+  return null;
+}
+
+// Locate the active run's durable record and its optional plan. The returned
+// record carries `recordPath`/`planPath` so the resume command is concrete.
+export async function locateActiveRecord(directory, env = process.env) {
+  const located = await discoverBuildState(directory, env);
+  if (!located) return null;
+  const planPath = await resolvePlanPath(located.record, directory);
+  return {
+    record: {
+      ...located.record,
+      recordPath: located.path,
+      ...(planPath ? { planPath } : {}),
+    },
+    path: located.path,
+    planPath: planPath ?? null,
+  };
 }
 
 // A build-state record carries no tasks of its own; its `planPath` (when
