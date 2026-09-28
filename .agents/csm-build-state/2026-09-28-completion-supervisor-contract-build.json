@@ -1,0 +1,266 @@
+{
+  "schema": "csm-build-state/1",
+  "schemaRevision": 1,
+  "artifactId": "art-completion-supervisor-contract-build",
+  "runId": "run-20260928t005145z-473df8805481",
+  "owner": "csm-build",
+  "status": "complete",
+  "control": {
+    "currentState": "COMPLETE",
+    "cycle": 0,
+    "nextTransition": "none (terminal)",
+    "activeTasks": [],
+    "blockers": [],
+    "lastCheckpoint": "finalization: CHECKPOINT",
+    "lastModelRun": "deepseek-flash / csm-build-completion-supervisor-contract (Jev advisory)"
+  },
+  "inputs": [],
+  "journal": [
+    {
+      "sequence": 0,
+      "timestamp": "2026-09-28T01:04:49.427Z",
+      "from": "NOT_STARTED",
+      "to": "RECOVER",
+      "evidence": "build recovered",
+      "inputDigests": []
+    },
+    {
+      "sequence": 1,
+      "timestamp": "2026-09-28T01:04:50.070Z",
+      "from": "RECOVER",
+      "to": "VALIDATE",
+      "evidence": "plan upgraded to csm-plan/2 (additive); revalidated",
+      "inputDigests": []
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-09-28T01:04:50.841Z",
+      "from": "VALIDATE",
+      "to": "SELECT",
+      "evidence": "ready set batch 1 replay",
+      "inputDigests": []
+    },
+    {
+      "sequence": 3,
+      "timestamp": "2026-09-28T01:04:51.543Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "batch 1 already executed; integrating",
+      "inputDigests": []
+    },
+    {
+      "sequence": 4,
+      "timestamp": "2026-09-28T01:04:52.261Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "batch 1 diffs inspected",
+      "inputDigests": []
+    },
+    {
+      "sequence": 5,
+      "timestamp": "2026-09-28T01:04:53.013Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "batch-1 signals pass",
+      "inputDigests": []
+    },
+    {
+      "sequence": 6,
+      "timestamp": "2026-09-28T01:04:53.767Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "primary-reviewed",
+      "inputDigests": []
+    },
+    {
+      "sequence": 7,
+      "timestamp": "2026-09-28T01:04:54.528Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "cycle 1 checkpoint batch 1",
+      "inputDigests": []
+    },
+    {
+      "sequence": 8,
+      "timestamp": "2026-09-28T01:04:55.702Z",
+      "from": "CHECKPOINT",
+      "to": "SELECT",
+      "evidence": "next ready set T002,T003,T006,T009,T010",
+      "inputDigests": []
+    },
+    {
+      "sequence": 9,
+      "timestamp": "2026-09-28T01:16:56.007Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "batch 2 + repairs: T002,T003,T006,T009,T010,T004 + 3 repairs",
+      "inputDigests": []
+    },
+    {
+      "sequence": 10,
+      "timestamp": "2026-09-28T01:16:56.721Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "inspected diffs; repaired plugin import chain, gate cutoff, T009 corpus regression",
+      "inputDigests": []
+    },
+    {
+      "sequence": 11,
+      "timestamp": "2026-09-28T01:16:57.505Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "11 acceptance signals re-run by primary: all pass (82 tests)",
+      "inputDigests": []
+    },
+    {
+      "sequence": 12,
+      "timestamp": "2026-09-28T01:16:58.232Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "risk-scaled: security-relevant plugin reviewed via installed-shape test; gate over-rejection repaired",
+      "inputDigests": []
+    },
+    {
+      "sequence": 13,
+      "timestamp": "2026-09-28T01:16:58.922Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "cycle 2 checkpoint: 10/14 tasks complete; repairs done",
+      "inputDigests": []
+    },
+    {
+      "sequence": 14,
+      "timestamp": "2026-09-28T01:17:00.142Z",
+      "from": "CHECKPOINT",
+      "to": "SELECT",
+      "evidence": "next ready: T011 (wire tests + index)",
+      "inputDigests": []
+    },
+    {
+      "sequence": 15,
+      "timestamp": "2026-09-28T01:20:35.005Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "batch 3: T011,T012",
+      "inputDigests": []
+    },
+    {
+      "sequence": 16,
+      "timestamp": "2026-09-28T01:20:35.736Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "inspected: test wiring, README indexing, regenerated payload/capabilities",
+      "inputDigests": []
+    },
+    {
+      "sequence": 17,
+      "timestamp": "2026-09-28T01:20:36.399Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "T011 new-tests-wired passes; T012 regen-check + check-suite exit 0",
+      "inputDigests": []
+    },
+    {
+      "sequence": 18,
+      "timestamp": "2026-09-28T01:20:37.129Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "generated-only changes reviewed via regen-check parity",
+      "inputDigests": []
+    },
+    {
+      "sequence": 19,
+      "timestamp": "2026-09-28T01:20:37.863Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "cycle 3 checkpoint: 12/14 tasks complete; payload green",
+      "inputDigests": []
+    },
+    {
+      "sequence": 20,
+      "timestamp": "2026-09-28T01:20:39.075Z",
+      "from": "CHECKPOINT",
+      "to": "SELECT",
+      "evidence": "next: T013 independent verification",
+      "inputDigests": []
+    },
+    {
+      "sequence": 21,
+      "timestamp": "2026-09-28T01:23:26.097Z",
+      "from": "SELECT",
+      "to": "DISPATCH",
+      "evidence": "finalization: DISPATCH",
+      "inputDigests": []
+    },
+    {
+      "sequence": 22,
+      "timestamp": "2026-09-28T01:23:26.145Z",
+      "from": "DISPATCH",
+      "to": "INTEGRATE",
+      "evidence": "finalization: INTEGRATE",
+      "inputDigests": []
+    },
+    {
+      "sequence": 23,
+      "timestamp": "2026-09-28T01:23:26.145Z",
+      "from": "INTEGRATE",
+      "to": "VERIFY",
+      "evidence": "finalization: VERIFY",
+      "inputDigests": []
+    },
+    {
+      "sequence": 24,
+      "timestamp": "2026-09-28T01:23:26.146Z",
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "evidence": "finalization: REVIEW",
+      "inputDigests": []
+    },
+    {
+      "sequence": 25,
+      "timestamp": "2026-09-28T01:23:26.147Z",
+      "from": "REVIEW",
+      "to": "CHECKPOINT",
+      "evidence": "finalization: CHECKPOINT",
+      "inputDigests": []
+    },
+    {
+      "sequence": 26,
+      "timestamp": "2026-09-28T01:23:45.216Z",
+      "from": "CHECKPOINT",
+      "to": "COMPLETE",
+      "evidence": "completion verified",
+      "inputDigests": []
+    }
+  ],
+  "artifacts": [],
+  "completion": {
+    "status": "complete",
+    "verifiedAt": "2026-09-28T01:23:45.215Z",
+    "evidence": [],
+    "commit": {
+      "status": "not-requested",
+      "sha": null,
+      "message": "",
+      "files": []
+    },
+    "rollback": {
+      "status": "available",
+      "checkpoint": "finalization: CHECKPOINT",
+      "action": "restore the last verified checkpoint"
+    }
+  },
+  "provenance": {
+    "sourcePlan": "art-completion-supervisor-contract-20260928",
+    "sourceDigests": [
+      "sha256:a771b31071615a6a050f0d926c00df9e575e50b5ce3ea4951223dba078afdb62"
+    ]
+  },
+  "projection": {
+    "sourceOnly": true,
+    "allowed": [
+      "markdown",
+      "html"
+    ]
+  }
+}

@@ -209,6 +209,8 @@ For `warranted` and `mixed` plans, map matched signals to obligation IDs in the 
 
 Operationalize clean-code guidance as evidence, not a score. Name repository-configured mechanical checks when available, such as formatter/linter/type checks, diff-scoped complexity/coupling/duplication diagnostics, test wiring, artifact/schema synchronization, and existing repository gates. Report unavailable or unconfigured checks as such; do not invent universal thresholds. Keep heuristic review prompts separate and cited: responsibility/owner, dependency direction, side effects and error behavior, naming/domain language, cohesion, abstraction necessity, comment intent, test seam, invariant, and rollback rationale.
 
+For large or multi-session plans, the draft must additionally define, up front: (a) a completion contract — the definition of done plus the ordered close-out sequence; (b) a continuation policy — the session unit, checkpoint cadence, expected cycles, and the exact guard command; (c) phase boundaries that state what a single session is asked to finish and what is deferred to later sessions; and (d) an up-front enumeration of every task blocked on a user decision, naming the decision each waits on. This is a checklist requirement verified by prose review; machine enforcement of it is deferred, and all existing required fields are retained.
+
 The plan must define these states for a future, separately invoked `csm-build` session:
 
 `RECOVER -> VALIDATE -> SELECT -> DISPATCH -> INTEGRATE -> VERIFY -> REVIEW -> REPAIR -> CHECKPOINT`
@@ -239,6 +241,8 @@ The primary agent must personally review the complete plan. Do not delegate this
 - named files, interfaces, commands, and tooling match the observed repository;
 - implementation, integration, tests, migration, security, operability, documentation, and recovery are covered where relevant;
 - assumptions and unresolved decisions are explicit;
+- large plans define a completion contract (definition of done plus close-out sequence), a continuation policy (session unit, checkpoint cadence, expected cycles, and the exact guard command), and phase boundaries bounding what a single session must finish; this checklist is prose-tested and machine enforcement is deferred;
+- every task blocked on a user decision is enumerated up front, naming the decision it waits on;
 - a fresh agent can recover state and identify the exact next action after interruption;
 - completion requires observed evidence rather than task-status claims.
 - the In-Loop Completion Enforcement record is complete: every cycle carries a journaled `csm-plan-evaluator-receipt/1`, the loop guard was run for the current record and reported no outstanding work, and no task remains pending, in-progress, or blocked before any completion closure;
@@ -321,6 +325,13 @@ format: csm-plan/1
 ## Acceptance Criteria
 
 1. <measurable outcome and required evidence>
+
+Large or multi-session plans additionally record, in prose (checklist requirement; machine enforcement of it is deferred), without adding new required H2 sections:
+
+- Completion contract: the definition of done plus the ordered close-out sequence.
+- Continuation policy: session unit, checkpoint cadence, expected cycles, and the exact guard command.
+- Phase boundaries: what a single session is asked to finish and what is deferred to later sessions.
+- Blocked decisions: enumerate up front every task blocked on a user decision, naming the decision each waits on; record `none` when there are none.
 
 ## Current-State Evidence
 

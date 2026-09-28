@@ -1,0 +1,41 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-plan-build-completion-stops-20260928t003406z-8dd93a4d1c92",
+  "runId": "run-20260928t003406z-8dd93a4d1c92",
+  "skill": "csm-deep-research",
+  "goal": "Why 2026-09-26/27 csm-plans were not built to completion by csm-build, and how to improve csm-plan/csm-build to plan and build to full completion",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Question",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 35,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M3",
+      "title": "Challenge",
+      "weightPercent": 25,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M4",
+      "title": "Finding",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1
+    }
+  ],
+  "startedAt": "2026-09-28T00:34:06Z",
+  "updatedAt": "2026-09-28T00:35:55.908Z"
+}

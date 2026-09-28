@@ -359,6 +359,14 @@ function semanticErrors(value) {
   };
   if (value?.control?.status !== value?.status) errors.push("/control/status must match status");
   errors.push(...applicabilityErrors(value));
+  const isV2 = value?.schema === PLAN_SCHEMA_V2 || value?.schemaRevision === 2;
+  if (!isV2) {
+    for (const key of ["completionContract", "continuationPolicy"])
+      if (value?.[key] !== undefined) errors.push(`/${key} is only valid on ${PLAN_SCHEMA_V2}`);
+    for (const [index, task] of (value?.tasks ?? []).entries())
+      if (task && Object.hasOwn(task, "executionReceipt"))
+        errors.push(`/tasks/${index}/executionReceipt is only valid on ${PLAN_SCHEMA_V2}`);
+  }
   if (value?.control && !STATES.has(value.control.currentState))
     errors.push("/control/currentState is not a known lifecycle state");
   if (value?.control && !validTransition(value.control.nextTransition))
@@ -486,6 +494,14 @@ export function createPlanArtifact(input, { producerVersion = "csm-plan/1" } = {
     projection: { profile: "csm-plan-human/1", legacyMarkdownStatus: "history-only" },
   };
   if (input.supersession !== undefined) payload.supersession = structuredClone(input.supersession);
+  // Additive /2-only contract fields. Like `supersession`, they are carried
+  // unconditionally and the frozen /1 schema rejects them, so a /1
+  // createPlanArtifact call that supplies them fails closed rather than
+  // silently dropping work.
+  if (input.completionContract !== undefined)
+    payload.completionContract = structuredClone(input.completionContract);
+  if (input.continuationPolicy !== undefined)
+    payload.continuationPolicy = structuredClone(input.continuationPolicy);
   payload.digest = digest(payload);
   const result = validatePlanArtifact(payload);
   if (!result.valid) throw new TypeError(`invalid plan artifact: ${result.errors.join(", ")}`);

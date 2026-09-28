@@ -1,0 +1,91 @@
+{
+  "schema": "csm-completion-verdict/1",
+  "schemaRevision": 1,
+  "planId": "completion-supervisor-contract",
+  "verdict": "complete",
+  "generated": "2026-09-28T01:22:54.227Z",
+  "reviewers": [
+    {
+      "id": "reviewer-A-independent",
+      "verdict": "complete",
+      "evidence": "Independent adversarial re-run at tree state HEAD 596e1242d356018a1611e031ba44d8657b74e36a plus uncommitted working tree (19 tracked files modified, +384/-38; 20 untracked artifacts including the plan, plugin, libs, docs, and 5 opencode-plugin test files). All 12 acceptance signals pass: T001 15/15, T002 8/8, T003 5/5, T004 8/8, T005 8/8, T006 7/7, T007 4/4, T008 5/5, T009 6/6, T010 6/6, T011 1/1 (73/73 tests, 0 fail); T012 `make regen-check` -> 'regen: OK - generated mirrors are fresh' and `node scripts/check-suite.mjs` -> 'check-suite: OK - 14 skills, 1169 checks'. Independent sanity checks pass: `grep -n '\\.\\./' scripts/opencode-plugin/csm-continue.js` returns no matches (exit 1) - the wrapper imports only node:fs/promises, node:path, and its sibling ./csm-continue-core.mjs, with no repository-relative imports; and .agents/plans/2026-09-28-completion-supervisor-contract-csm.json is schema csm-plan/2, Ajv-2020 validates against csm-plan.v2.schema.json (valid: true, only ignored date-time format warnings), and it carries both completionContract {closeOutSequence, definitionOfDone} and continuationPolicy {checkpointCadence, expectedCycles, guardCommand, sessionUnit}. No failures observed."
+    },
+    {
+      "id": "reviewer-B-independent",
+      "verdict": "complete",
+      "evidence": "Independent adversarial re-run at HEAD 596e1242d356018a1611e031ba44d8657b74e36a (main; build uncommitted: 19 tracked modified + 26 owned untracked files, 27 including this artifact; commits disabled per plan T014). Aggregate `make test-completion-supervisor` exit 0 (76 tests, 76 pass, 0 fail, 0 skipped). Every listed signal re-run individually at the current tree: T001 csm-continue-core 15/15; T002 csm-continue-plugin 8/8; T003 csm-continue-install 5/5; T004 completion-supervisor-docs 8/8; T005 completion-evidence 8/8; T006 completion-evidence-gate 7/7; T007 agent-session-resume 4/4; T008 plan-completion-contract 5/5; T009 plan-completion-contract-skill 6/6; T010 csm-build-completion-contract 6/6; T011 new-tests-wired 1/1; T012 `make regen-check` exit 0 ('regen: OK — generated mirrors are fresh') and `node scripts/check-suite.mjs` exit 0 ('payload drift: {compared:383, issues:[]}', 'check-suite: OK — 14 skills, 1169 checks'). Adversarial checks all pass via an independent harness (/tmp/opencode/reviewB-adversarial.mjs, NOT the repo test): (a) a hand-built pre-cutoff csm-plan/2 bulk close-out (producedAt 2026-09-16T19:16:58Z, all tasks completed, cycle 0, null completionReview) is EXEMPT (validatePlanLineage ok=true, completionGrandfathered=1, zero findings) while the same shape at 2026-09-20 is GATED with 5 violations (bulk-completion, completed-task-missing-receipt x2, complete-with-unadvanced-cursor, complete-with-null-completion-review), and a legacy /1 completed record is exempt; (b) `scripts/install-opencode-plugin.mjs --target <tmp> --apply` exit 0 installs exactly [csm-continue.js, csm-continue-core.mjs] and `import(pathToFileURL(tmp/csm-continue.js))` succeeds exporting the CsmContinuePlugin function (the intended named-export contract; no default export); (c) `git status --short --untracked-files=all` shows only the build's declared owned paths — no foreign, unexpected, or unowned changes. Zero failures. Note (non-blocking): the plan itself is status=in_progress with T013/T014 pending and completionReview=null, consistent with this being the review stage; that does not affect any acceptance signal above. T013/T014 are recorded complete per instruction using the designated evidence string, not by re-running the plan-close signal."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T001",
+      "verdict": "complete",
+      "evidence": "`node --test tests/opencode-plugin/csm-continue-core.test.mjs` -> exit 0; tests 15, pass 15, fail 0"
+    },
+    {
+      "id": "T002",
+      "verdict": "complete",
+      "evidence": "`node --test tests/opencode-plugin/csm-continue-plugin.test.mjs` -> exit 0; tests 8, pass 8, fail 0"
+    },
+    {
+      "id": "T003",
+      "verdict": "complete",
+      "evidence": "`node --test tests/opencode-plugin/csm-continue-install.test.mjs` -> exit 0; tests 5, pass 5, fail 0"
+    },
+    {
+      "id": "T004",
+      "verdict": "complete",
+      "evidence": "`node --test tests/opencode-plugin/completion-supervisor-docs.test.mjs` -> exit 0; tests 8, pass 8, fail 0"
+    },
+    {
+      "id": "T005",
+      "verdict": "complete",
+      "evidence": "`node --test tests/completion-evidence.test.mjs` -> exit 0; tests 8, pass 8, fail 0"
+    },
+    {
+      "id": "T006",
+      "verdict": "complete",
+      "evidence": "`node --test tests/completion-evidence-gate.test.mjs` -> exit 0; tests 7, pass 7, fail 0"
+    },
+    {
+      "id": "T007",
+      "verdict": "complete",
+      "evidence": "`node --test tests/agent-session-resume.test.mjs` -> exit 0; tests 4, pass 4, fail 0"
+    },
+    {
+      "id": "T008",
+      "verdict": "complete",
+      "evidence": "`node --test tests/plan-completion-contract.test.mjs` -> exit 0; tests 5, pass 5, fail 0"
+    },
+    {
+      "id": "T009",
+      "verdict": "complete",
+      "evidence": "`node --test tests/plan-completion-contract-skill.test.mjs` -> exit 0; tests 6, pass 6, fail 0"
+    },
+    {
+      "id": "T010",
+      "verdict": "complete",
+      "evidence": "`node --test tests/csm-build-completion-contract.test.mjs` -> exit 0; tests 6, pass 6, fail 0"
+    },
+    {
+      "id": "T011",
+      "verdict": "complete",
+      "evidence": "`node --test tests/new-tests-wired.test.mjs` -> exit 0; tests 1, pass 1, fail 0"
+    },
+    {
+      "id": "T012",
+      "verdict": "complete",
+      "evidence": "`make regen-check` -> exit 0 ('regen: OK - generated mirrors are fresh'); `node scripts/check-suite.mjs` -> exit 0 ('check-suite: OK - 14 skills, 1169 checks'; payload drift compared:383 issues:[])"
+    },
+    {
+      "id": "T013",
+      "verdict": "complete",
+      "evidence": "verified by review A at HEAD 596e1242d356018a1611e031ba44d8657b74e36a + working tree (19 tracked modified, +384/-38; 20 untracked artifacts)"
+    },
+    {
+      "id": "T014",
+      "verdict": "complete",
+      "evidence": "verified by review A at HEAD 596e1242d356018a1611e031ba44d8657b74e36a + working tree (19 tracked modified, +384/-38; 20 untracked artifacts)"
+    }
+  ]
+}

@@ -69,7 +69,9 @@
     "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "owner": { "type": "string", "minLength": 1 },
     "path": { "type": "string", "minLength": 1 },
-    "supersession": { "$ref": "#/$defs/supersession" }
+    "supersession": { "$ref": "#/$defs/supersession" },
+    "completionContract": { "$ref": "#/$defs/completionContract" },
+    "continuationPolicy": { "$ref": "#/$defs/continuationPolicy" }
   },
   "$defs": {
     "control": {
@@ -112,7 +114,8 @@
         "ordinal": { "type": "integer", "minimum": 1 },
         "status": { "enum": ["pending", "in_progress", "completed", "blocked"] },
         "acceptanceSignal": { "type": "string", "minLength": 1 },
-        "repairAttempts": { "type": "integer", "minimum": 0 }
+        "repairAttempts": { "type": "integer", "minimum": 0 },
+        "executionReceipt": { "$ref": "#/$defs/executionReceipt" }
       }
     },
     "journal": {
@@ -149,6 +152,43 @@
         "supersededBy": { "$ref": "#/$defs/artifactPointer" },
         "supersededAt": { "type": "string", "format": "date-time" },
         "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "completionContract": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["definitionOfDone", "closeOutSequence"],
+      "properties": {
+        "definitionOfDone": { "type": "string", "minLength": 1 },
+        "closeOutSequence": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "object", "additionalProperties": true }
+            ]
+          }
+        }
+      }
+    },
+    "continuationPolicy": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sessionUnit": { "type": "string", "minLength": 1 },
+        "checkpointCadence": { "type": "string", "minLength": 1 },
+        "expectedCycles": { "type": "integer", "minimum": 1 },
+        "guardCommand": { "type": "string", "minLength": 1 }
+      }
+    },
+    "executionReceipt": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "exitCode": { "type": "integer" },
+        "digest": { "type": "string", "minLength": 1 },
+        "recordedAt": { "type": "string", "minLength": 1 }
       }
     },
     "artifactPointer": {

@@ -132,6 +132,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-26-system-remediation-jev-embedding-csm.json` — 2026-09-26 — 36-task plan combining the validated audit and Jev deep-embedding findings; T001-T004 built+reviewed — status: in progress
 - `2026-09-26-system-remediation-completion-driver-csm.json` — 2026-09-26 — driver plan: complete the system-remediation plan via csm-build loops with adversarial review and a distinct-reviewer completion verdict + CI-green gate — status: ready
 - `2026-09-27-remaining-work-continuous-run-csm.json` — 2026-09-27 — continuous-run plan: finish all remaining base work (T025, T027–T036) with per-task adversarial review, a distinct-reviewer completeness verdict, and a CI-green close — status: ready
+- `2026-09-28-completion-supervisor-contract-csm.json` — 2026-09-28 — plan (ready; csm-plan/1, warranted): implement the three-layer completion fix from the 2026-09-28 research finding — a host continuation supervisor (opencode session.idle plugin, off by default, pilot-gated), a durable-cursor completion-evidence gate wired into the lineage gate, and additive csm-plan/2 completionContract + continuationPolicy + task executionReceipt consumed by csm-build; 14 tasks, independently critiqued (18 findings remediated), Jev advisory only — status: reference
 
 ## decisions/
 
@@ -159,6 +160,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-26-completion-ledger.json` — 2026-09-26 — reconciliation of the system-remediation plan (36/36 complete) — status: reference
 
 - `2026-09-27-remaining-work-final-report.md` — 2026-09-27 — final report for the remaining-work continuous-run plan (16/16) and base plan (36/36); independent 2-reviewer verdict + CI green — status: reference
+- `completion-supervisor.md` — 2026-09-28 — completion-supervisor runbook (opt-in, kill switches, budget/no-progress stop, mandatory pilot, success criteria, rollback) — status: reference
 ## reviews/
 
 - `2026-08-15-skills-review.md` — 2026-08-15 — full adversarial review of all 8 skills (findings F-001..F-077) — status: remediated by `plans/2026-08-16-skills-remediation-csm.md`
@@ -254,6 +256,7 @@ Index of CSM process artifacts. One line per artifact: date, goal, status
 - `2026-09-26-csm-system-audit-run-review-20260926t132000z-8f3a2b1c-research.json` — 2026-09-26 — DEEP initial system review of skills/tools/execution — status: superseded by the validated finding
 - `2026-09-26-csm-system-audit-validated-run-final-20260926t142000z-7c1d9e4b2a6f-research.json` — 2026-09-26 — adversarially validated audit findings (34 claims) — status: reference
 - `2026-09-26-jev-deep-embedding-run-jev-embed-20260926t153000z-2b8e6f4a9c1d-research.json` — 2026-09-26 — deep Jev embedding + trust ladder + substitution map — status: reference
+- `2026-09-28-csm-plan-build-completion-stops-run-20260928t003406z-8dd93a4d1c92-research.json` — 2026-09-28 — DEEP hybrid finding: why 2026-09-26/27 csm-plans were not built to completion and how to fix csm-plan/csm-build (turn-boundary stop; prose-only continue; status-only guard; plans never advanced past NOT_STARTED/cycle 0; bulk close-out; opencode session.idle plugin continuation supervisor; durable-cursor-as-driver; completion contract) — status: reference
 
 ## Retention
 
@@ -311,6 +314,7 @@ the source file. Deletion remains awaiting explicit authorization.
 - `dynamic-worker-runtime-drift-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime drift-remediation build — status: superseded by `dynamic-worker-runtime-final-gaps-20260912.json`
 - `dynamic-worker-runtime-final-gaps-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime final-gaps build — status: superseded by `dynamic-worker-runtime-remaining-20260912.json`
 - `dynamic-worker-runtime-remaining-20260912.json` — 2026-09-12 — csm-build checkpoint for the dynamic-worker-runtime remaining build — status: superseded by the 2026-09-13 broker-completion/gap-remediation plans
+- `2026-09-28-completion-supervisor-contract-build.json` — 2026-09-28 — csm-build checkpoint for the completion-supervisor contract build — status: in progress
 
 ## progress/
 
@@ -353,6 +357,8 @@ the source file. Deletion remains awaiting explicit authorization.
 - `2026-09-20-trace-single-log-check-20260920t205916z-425adf8d73a9-progress.json` — 2026-09-20 — progress (complete 100%): determine whether the single shared trace-log change is fully implemented — status: reference
 - `2026-09-20-trace-single-log-fix-20260920t213846z-30858d1762d9-progress.json` — 2026-09-20 — progress (complete 100%): fix the partially-implemented single shared trace log — status: reference
 - `2026-09-26-enforce-trace-emission-20260926t092053z-8bcfa8f7bcdf-progress.json` — 2026-09-26 — progress (complete 100%): plan enforcement + verification that traces are emitted (with a Jev verifier) — status: reference
+- `2026-09-28-csm-plan-build-completion-stops-20260928t003406z-8dd93a4d1c92-progress.json` — 2026-09-28 — progress (complete 100%): why 2026-09-26/27 csm-plans were not built to completion and how to fix csm-plan/csm-build — status: reference
+- `2026-09-28-completion-supervisor-contract-20260928t005145z-473df8805481-progress.json` — 2026-09-28 — progress (complete 100%): csm-plan for the three-layer completion fix (host continuation supervisor, completion-evidence gate, completion contract) — status: reference
 
 ## ddd/
 
@@ -392,3 +398,6 @@ the source file. Deletion remains awaiting explicit authorization.
 - `final-verdict.json` — 2026-09-27 — independent multi-reviewer completion verdict (csm-completion-verdict/1) for the system-remediation plan: 2/2 reviewers complete, 36/36 tasks with evidence — status: reference
 - `reviewer-A.json` — 2026-09-27 — reviewer-A independent completion verdict (all 36 task signals re-run, exit 0) — status: reference
 - `reviewer-B.json` — 2026-09-27 — reviewer-B independent completion verdict (evidence-integrity/git/cross-artifact review) — status: reference
+- `2026-09-28-completion-supervisor-contract-verdict.json` — 2026-09-28 — independent multi-reviewer completion verdict (csm-completion-verdict/1) for the completion-supervisor-contract plan: 2/2 reviewers complete, 14/14 tasks with evidence — status: reference
+- `2026-09-28-completion-supervisor-contract-reviewer-A.json` — 2026-09-28 — reviewer-A independent completion verdict (all task signals re-run; regen-check + check-suite green) — status: reference
+- `2026-09-28-completion-supervisor-contract-reviewer-B.json` — 2026-09-28 — reviewer-B independent completion verdict (aggregate suite + gate-scoping/git adversarial checks) — status: reference

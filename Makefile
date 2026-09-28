@@ -4,7 +4,7 @@ OXFMT_ARGS := --config=$(OXFMT_CONFIG) --ignore-path=.oxfmtignore
 SANDBOX_IMAGE_TAG := node:22.22.0-bookworm-slim
 SANDBOX_IMAGE_DIGEST := sha256:dd9d21971ec4395903fa6143c2b9267d048ae01ca6d3ea96f16cb30df6187d94
 SANDBOX_IMAGE := node@$(SANDBOX_IMAGE_DIGEST)
-.PHONY: help install lint fmt fmt-check fmt-staged regen regen-check precommit ci-mirror audit trace check check-anthropic-mapping test-corpus test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context test-decision-live-parity test-osv-audit test-progress-tracker analyze
+.PHONY: help install lint fmt fmt-check fmt-staged regen regen-check precommit ci-mirror audit trace check check-anthropic-mapping test-corpus test test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-completion-supervisor test-suite-tooling test-package-index test-deterministic test-pack-concurrency test-gen-capabilities test-scan test-browse test-browse-unit test-upload test-review-render test-ddd test-autoresearch test-e2e test-e2e-required test-generated-sandbox-required test-adapter-integrations test-adapter-integrations-required test-patch-context test-decision-live-parity test-osv-audit test-progress-tracker analyze
 
 help: ## show all targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -156,6 +156,21 @@ test-enforcement: ## in-loop completion-enforcement suites (evaluators, guards, 
 	  tests/csm-review-loop-closure.test.mjs \
 	  tests/csm-orchestrate-remainder.test.mjs
 
+test-completion-supervisor: ## completion-supervisor suites (opencode continuation plugin, completion evidence gate, plan/build completion contract)
+	node --test --test-concurrency=1 \
+	  tests/opencode-plugin/csm-continue-core.test.mjs \
+	  tests/opencode-plugin/csm-continue-plugin.test.mjs \
+	  tests/opencode-plugin/csm-continue-install.test.mjs \
+	  tests/opencode-plugin/csm-continue-cli.test.mjs \
+	  tests/opencode-plugin/completion-supervisor-docs.test.mjs \
+	  tests/completion-evidence.test.mjs \
+	  tests/completion-evidence-gate.test.mjs \
+	  tests/agent-session-resume.test.mjs \
+	  tests/plan-completion-contract.test.mjs \
+	  tests/plan-completion-contract-skill.test.mjs \
+	  tests/csm-build-completion-contract.test.mjs \
+	  tests/new-tests-wired.test.mjs
+
 test-suite-tooling: ## suite tooling tests (serial; check-suite, cache health, worktree sessions, and gate wiring)
 	node --test --test-concurrency=1 tests/check-suite.test.mjs tests/check-suite-metadata-drift.test.mjs tests/corpus-gate-completeness.test.mjs tests/schema-registry-coverage.test.mjs tests/plan-review-input.test.mjs tests/scan-norms-path-contract.test.mjs tests/deep-research-contract.test.mjs tests/csm-review-finding-contract.test.mjs tests/python-review-severity-contract.test.mjs tests/bdd-package-contract.test.mjs tests/upload-publication-receipt.test.mjs tests/precommit-parity.test.mjs tests/docs-consistency.test.mjs tests/csm-ddd-token-families-drift.test.mjs csm-grill/test/approach-writer.test.mjs tests/csm-review-loop-closure-wiring.test.mjs tests/orchestrate-decision-points-expanded.test.mjs tests/completion-driver/reconcile.test.mjs tests/orchestrate-decision-service.test.mjs tests/orchestrate-decision-budget.test.mjs tests/foundation/decision-trust-schemas.test.mjs tests/no-hardcoded-skill-paths.test.mjs tests/csm-build-evaluator-revision.test.mjs tests/producer-descriptor-contract.test.mjs tests/trace-evidence-substrate.test.mjs tests/orchestrate-drop-capture.test.mjs tests/browse-packaging.test.mjs tests/verify-completion.test.mjs tests/cache-health.test.mjs tests/wt-session.test.mjs tests/wt-session-cleanup.test.mjs tests/trace-log.test.mjs tests/trace-config.test.mjs tests/trace-cli.test.mjs tests/verify-traces.test.mjs tests/utc-timestamps.test.mjs tests/repo-state.test.mjs tests/temp-registry.test.mjs tests/adapter-gate-wiring.test.mjs tests/regen.test.mjs tests/plan-lineage.test.mjs tests/plan-closure-fields.test.mjs tests/allowlist-policy.test.mjs tests/loop-trace-emission.test.mjs
 
@@ -248,4 +263,4 @@ test-adapter-integrations-required: ## run all approved real adapter gates; unav
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --browser-e2e-required; \
 		CSM_ADAPTER_INTEGRATIONS_REQUIRED=1 node scripts/adapter-required-tests.mjs --generated-sandbox-required
 
-test: test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-suite-tooling test-deterministic test-pack-concurrency test-gen-capabilities test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-progress-tracker test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)
+test: test-hooks test-policy test-bootstrap test-orchestrate test-worker-runtime test-contracts test-enforcement test-completion-supervisor test-suite-tooling test-deterministic test-pack-concurrency test-gen-capabilities test-browse test-browse-unit test-upload test-review-render test-patch-context test-osv-audit test-progress-tracker test-package-index test-ddd test-autoresearch test-scan ## primary test suites (fast -> slow; opt-in adapter gates remain separate)

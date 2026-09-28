@@ -24,6 +24,11 @@ import { digest, parseJson } from "../../lib/schema-runtime/index.mjs";
 const EXEC_ENV = "CSM_AGENT_SESSION_EXEC";
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
+// Hard cap on internal auto-resumes (T007): a timeout can be retried at most
+// this many times before the result is returned as a resumable failure. The
+// loop is OFF unless `autoResume` is explicitly enabled, so a default run is
+// byte-identical to the pre-T007 single-attempt behavior.
+const DEFAULT_MAX_RESUME_ATTEMPTS = 2;
 const MAX_CHILD_BYTES = 64 * 1024;
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_WT_SESSION = path.join(MODULE_DIR, "..", "wt-session.mjs");
@@ -93,6 +98,10 @@ function normalizeOptions(options = {}) {
     parentDir = null,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+    autoResume = false,
+    resumeGuard = null,
+    maxResumeAttempts = DEFAULT_MAX_RESUME_ATTEMPTS,
+    trace = null,
   } = options;
   if (agentCli !== undefined && agentCli !== null)
     assertOptions(
@@ -130,6 +139,22 @@ function normalizeOptions(options = {}) {
     Number.isFinite(pollIntervalMs) && pollIntervalMs > 0,
     "must be a positive number of milliseconds",
   );
+  assertOptions("autoResume", typeof autoResume === "boolean", "must be a boolean");
+  assertOptions(
+    "resumeGuard",
+    resumeGuard === null || resumeGuard === undefined || typeof resumeGuard === "function",
+    "must be a function when provided",
+  );
+  assertOptions(
+    "maxResumeAttempts",
+    Number.isInteger(maxResumeAttempts) && maxResumeAttempts >= 1,
+    "must be a positive integer",
+  );
+  assertOptions(
+    "trace",
+    trace === null || trace === undefined || typeof trace === "function",
+    "must be a function when provided",
+  );
   return Object.freeze({
     agentCli: agentCli ?? null,
     spawn,
@@ -142,6 +167,10 @@ function normalizeOptions(options = {}) {
     parentDir: parentDir ? path.resolve(parentDir) : null,
     timeoutMs,
     pollIntervalMs,
+    autoResume,
+    resumeGuard: resumeGuard ?? null,
+    maxResumeAttempts,
+    trace: trace ?? null,
   });
 }
 
@@ -589,6 +618,68 @@ async function runAgentSession(config, request, layout) {
   return completedResult(request, childResult);
 }
 
+// T007: a supplied guard predicate decides whether a timed-out session still
+// has work remaining. It is only consulted on a timeout, is defensive against
+// its own errors (a throwing guard fails closed as not-resumable), and returns
+// undefined when no guard was supplied so the result stays exactly as before.
+function evaluateResumable(config, request, resumeCount) {
+  if (typeof config.resumeGuard !== "function") return undefined;
+  try {
+    return Boolean(config.resumeGuard({ request, attempt: request.attempt, resumeCount }));
+  } catch {
+    return false;
+  }
+}
+
+function emitTrace(config, request, event) {
+  if (typeof config.trace !== "function") return;
+  try {
+    config.trace({
+      actor: "agent-session-executor",
+      action: event.action,
+      target: request.childRunId ?? request.skill,
+      skill: request.skill,
+      attempt: request.attempt,
+      resumeCount: event.resumeCount,
+      resumable: event.resumable,
+    });
+  } catch {
+    // A trace sink must never break execution.
+  }
+}
+
+// T007 resume layer. With no guard supplied it is a pure pass-through (the
+// timeout result is returned unchanged, byte-identical to pre-T007). With a
+// guard, a timeout result gains a boolean `resumable`; the internal auto-resume
+// loop only runs when `autoResume` is explicitly enabled and is hard-capped at
+// `maxResumeAttempts`, emitting one trace per attempt.
+async function runSessionWithResume(config, request, layout) {
+  let resumeCount = 0;
+  for (;;) {
+    emitTrace(config, request, { action: "agent-session-attempt", resumeCount });
+    const result = await runAgentSession(config, request, layout);
+    const timedOut = result.status === "failed" && result.failure?.code === "agent-session-timeout";
+    if (!timedOut) return result;
+    const resumable = evaluateResumable(config, request, resumeCount);
+    if (resumable === undefined) return result;
+    if (resumable && config.autoResume && resumeCount < config.maxResumeAttempts) {
+      resumeCount += 1;
+      emitTrace(config, request, {
+        action: "agent-session-resume",
+        resumeCount,
+        resumable: true,
+      });
+      continue;
+    }
+    emitTrace(config, request, {
+      action: "agent-session-terminal",
+      resumeCount,
+      resumable,
+    });
+    return { ...result, resumable };
+  }
+}
+
 async function execute(config, request) {
   if (process.env[EXEC_ENV] !== "1") return blockedResult(request);
   if (!config.agentCli)
@@ -648,7 +739,7 @@ async function execute(config, request) {
       message: error.message,
     });
   }
-  return runAgentSession(config, request, layout);
+  return runSessionWithResume(config, request, layout);
 }
 
 export function createCsmBuildAgentSessionExecutor(options = {}) {

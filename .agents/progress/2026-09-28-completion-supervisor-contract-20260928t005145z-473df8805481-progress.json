@@ -1,0 +1,48 @@
+{
+  "schema": "csm-skill-progress/1",
+  "progressId": "progress-completion-supervisor-contract-20260928t005145z-473df8805481",
+  "runId": "run-20260928t005145z-473df8805481",
+  "skill": "csm-plan",
+  "goal": "Plan the three-layer completion fix from the 2026-09-28 research finding (host continuation supervisor, durable-cursor completion-evidence gate, plan/build completion contract)",
+  "status": "complete",
+  "overallPercent": 100,
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "Frame",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M2",
+      "title": "Research",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M3",
+      "title": "Design",
+      "weightPercent": 25,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M4",
+      "title": "Critique",
+      "weightPercent": 20,
+      "status": "complete",
+      "verifiedFraction": 1
+    },
+    {
+      "id": "M5",
+      "title": "Verify",
+      "weightPercent": 15,
+      "status": "complete",
+      "verifiedFraction": 1
+    }
+  ],
+  "startedAt": "2026-09-28T00:41:00Z",
+  "updatedAt": "2026-09-28T00:52:04.658Z"
+}

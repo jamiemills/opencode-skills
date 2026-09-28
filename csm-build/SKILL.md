@@ -432,7 +432,7 @@ transition to `COMPLETE`.
 
 ## Completion Gate
 
-The primary agent must personally perform the final gate; do not delegate it. Verify:
+The primary agent must personally perform the final gate; do not delegate it. When the plan carries a `completionContract`, consume its mandated close-out sequence via `csm-build/lib/completion-contract.mjs` (`closeOutSequenceFor`): independent verdict, commit only when a later invocation explicitly authorizes it, push plus CI-green, close. Verify:
 
 1. Every numbered task is completed or explicitly excluded with user approval.
 2. Every acceptance criterion has current, recorded evidence.

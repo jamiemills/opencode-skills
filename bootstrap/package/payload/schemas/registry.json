@@ -869,7 +869,7 @@
       "aliases": [],
       "immutable": true,
       "unknownFieldPolicy": "reject",
-      "schemaContentDigest": "sha256:aac4745b119aa74b4aee1fbdc26aff4e92aa8ae01a39f4c6f1366a378ee5d13e"
+      "schemaContentDigest": "sha256:063b3dc91bef0dc8517c801b0aae0978d07ee86084bd7037782167c14ea9fd0c"
     },
     {
       "id": "csm-progress/1",

@@ -26,14 +26,28 @@
 // open tasks and 22 digest-mismatch plans), so the scope is narrowed to the
 // first clean day boundary after the last non-compliant lineage plan
 // (2026-09-13T06:39:38Z): 2026-09-14T00:00:00Z.
+//
+// T006b completion-evidence cutoff: the completion-evidence gate (below) only
+// applies to `csm-plan/2` records at/after COMPLETION_EVIDENCE_CUTOFF, the first
+// clean day boundary after the last historical plan that was completed before
+// the per-task `executionReceipt` field existed
+// (2026-09-16T19:16:58Z): 2026-09-17T00:00:00Z. A record's effective timestamp
+// is `provenance.producedAt`, else its latest journal timestamp, else its
+// date-prefixed filename. Records determinably before the cutoff are
+// grandfathered (never re-validated) exactly like the lineage cutoff; a record
+// whose timestamp cannot be determined at all fails closed (the anti-bypass
+// behavior: a new hand-authored plan cannot dodge the gate by omitting every
+// timestamp), but records that are determinably old are never gated.
 
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { validatePlanArtifact } from "../csm-plan/lib/plan.mjs";
+import { PLAN_SCHEMA_V2, validatePlanArtifact } from "../csm-plan/lib/plan.mjs";
+import { evaluateCompletionEvidence } from "./lib/completion-evidence.mjs";
 
 export const PLAN_LINEAGE_CUTOFF = "2026-09-14T00:00:00.000Z";
+export const COMPLETION_EVIDENCE_CUTOFF = "2026-09-17T00:00:00.000Z";
 export const TERMINAL_TIP_STATUS = "complete";
 
 const PLAN_FILE_RE = /-csm\.json$/;
@@ -43,6 +57,39 @@ function producedAtMs(value) {
   if (typeof raw !== "string" || raw.trim() === "") return null;
   const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Latest valid journal timestamp, or null when the journal carries none.
+function latestJournalMs(value) {
+  const journal = Array.isArray(value?.journal) ? value.journal : [];
+  let latest = null;
+  for (const event of journal) {
+    const raw = event?.timestamp;
+    if (typeof raw !== "string" || raw.trim() === "") continue;
+    const parsed = Date.parse(raw);
+    if (!Number.isFinite(parsed)) continue;
+    if (latest === null || parsed > latest) latest = parsed;
+  }
+  return latest;
+}
+
+// Leading `YYYY-MM-DD` date prefix of a plan filename, or null when absent.
+function filenameDateMs(file) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(path.basename(file));
+  if (!match) return null;
+  const parsed = Date.parse(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Effective timestamp for the completion-evidence cutoff: a record's
+// provenance, else its latest journal event, else its date-prefixed filename.
+// null means no timestamp could be determined (the caller fails closed there).
+function effectiveTimestampMs(value, file) {
+  const produced = producedAtMs(value);
+  if (produced !== null) return produced;
+  const journal = latestJournalMs(value);
+  if (journal !== null) return journal;
+  return filenameDateMs(file);
 }
 
 function readJson(file) {
@@ -93,8 +140,9 @@ function resolveSuccessor(root, plansDir, plans, value) {
 }
 
 // Validates the active/new plan lineage under `<root>/.agents/plans`. Returns
-// { ok, cutoff, checked, grandfathered, findings }. `tracked` (a Set of
-// repo-relative paths) skips untracked drafts, matching the corpus gates.
+// { ok, cutoff, completionCutoff, checked, grandfathered,
+// completionGrandfathered, findings }. `tracked` (a Set of repo-relative paths)
+// skips untracked drafts, matching the corpus gates.
 export function validatePlanLineage({ root, cutoff = PLAN_LINEAGE_CUTOFF, tracked = null } = {}) {
   const plansDir = path.join(root, ".agents", "plans");
   const findings = [];
@@ -114,6 +162,7 @@ export function validatePlanLineage({ root, cutoff = PLAN_LINEAGE_CUTOFF, tracke
     };
   }
   const cutoffMs = Date.parse(cutoff);
+  const COMPLETION_EVIDENCE_CUTOFF_MS = Date.parse(COMPLETION_EVIDENCE_CUTOFF);
 
   const plans = new Map();
   let grandfathered = 0;
@@ -144,6 +193,29 @@ export function validatePlanLineage({ root, cutoff = PLAN_LINEAGE_CUTOFF, tracke
       continue;
     }
     valid.set(file, entry);
+  }
+
+  // T006 completion-evidence gate: a `csm-plan/2` record may not assert
+  // completed tasks or a complete plan without the durable evidence the
+  // taxonomy requires (per-task executionReceipt, advanced control cursor,
+  // completionReview). Legacy `csm-plan/1` records are EXEMPT — receipts are a
+  // /2 feature — and grandfathered pre-cutoff plans never reach here. The gate
+  // is itself cut off at COMPLETION_EVIDENCE_CUTOFF so historical /2 plans
+  // completed before `executionReceipt` existed are grandfathered: a record
+  // determinably before the cutoff is skipped, a record at/after it (or one
+  // with no determinable timestamp at all, which is the anti-bypass case) is
+  // evaluated. The predicate already fails closed on malformed input; every
+  // violation is surfaced so a bulk close-out cannot slip through.
+  let completionGrandfathered = 0;
+  for (const [file, entry] of valid) {
+    if (entry.value?.schema !== PLAN_SCHEMA_V2) continue;
+    const timestamp = effectiveTimestampMs(entry.value, file);
+    if (timestamp !== null && timestamp < COMPLETION_EVIDENCE_CUTOFF_MS) {
+      completionGrandfathered += 1;
+      continue;
+    }
+    for (const violation of evaluateCompletionEvidence(entry.value).violations)
+      findings.push(`${file}: completion evidence: ${violation.code} (${violation.detail})`);
   }
 
   // Rule 1: exactly one terminal (complete) tip per goal, with no active
@@ -214,7 +286,15 @@ export function validatePlanLineage({ root, cutoff = PLAN_LINEAGE_CUTOFF, tracke
       );
   }
 
-  return { ok: findings.length === 0, cutoff, checked: valid.size, grandfathered, findings };
+  return {
+    ok: findings.length === 0,
+    cutoff,
+    completionCutoff: COMPLETION_EVIDENCE_CUTOFF,
+    checked: valid.size,
+    grandfathered,
+    completionGrandfathered,
+    findings,
+  };
 }
 
 function parseRoot(argv) {
@@ -228,7 +308,7 @@ function parseRoot(argv) {
 function main() {
   const report = validatePlanLineage({ root: parseRoot(process.argv.slice(2)) });
   console.log(
-    `plan lineage: {checked:${report.checked}, grandfathered:${report.grandfathered}, findings:${report.findings.length}}`,
+    `plan lineage: {checked:${report.checked}, grandfathered:${report.grandfathered}, completionGrandfathered:${report.completionGrandfathered}, findings:${report.findings.length}}`,
   );
   for (const finding of report.findings) console.log(`FAIL: ${finding}`);
   process.exit(report.ok ? 0 : 1);

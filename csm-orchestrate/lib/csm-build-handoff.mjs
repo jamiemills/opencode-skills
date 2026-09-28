@@ -116,7 +116,7 @@ export function createCsmBuildHandoff({
       // short-circuit a default blocked handoff (agent-session-required)
       // would be misreported as an identity mismatch and retried.
       if (["blocked", "failed", "cancelled"].includes(result.status)) {
-        return Object.freeze({
+        const short = {
           schema: outputSchema,
           skill,
           attempt: expected.attempt,
@@ -129,7 +129,14 @@ export function createCsmBuildHandoff({
             code: result.status,
             message: `${skill} handoff ${result.status}`,
           },
-        });
+        };
+        // T007: a timeout that a guard reports as still having work remaining is
+        // a *resumable* failure, not a completion. Pass the boolean through
+        // verbatim (never collapse it) so the caller keeps its retry signal; the
+        // status stays "failed" and missing/absent stays absent, so a result
+        // without the flag is byte-identical to before.
+        if (typeof result.resumable === "boolean") short.resumable = result.resumable;
+        return Object.freeze(short);
       }
       if (
         result.schema !== outputSchema ||
